@@ -1,0 +1,274 @@
+// 빗물받이 집사 ERD v6.3 (최종 확정)
+// DB: PostgreSQL. 위도·경도 double precision(Java Double), 시각 timestamp(한국 시간, Java LocalDateTime)
+// 모든 테이블 created_at / updated_at / deleted_at = BaseEntity 공통 (deleted_at null = 살아 있는 행)
+// ❓ = 팀 확정 필요
+
+Project rain_butler {
+  database_type: 'PostgreSQL'
+}
+
+// ───────── 사용자 ─────────
+
+Table users {
+  id bigint [pk, increment]
+  provider varchar [not null, note: 'KAKAO']
+  provider_id varchar [not null, note: '카카오 회원번호']
+  nickname varchar [not null]
+  real_name varchar [note: '실명 (봉사 확인서용)']
+  identity_verified_at timestamp [note: '실명 인증 시각']
+  email varchar
+  profile_image varchar
+  role varchar [not null, note: 'ADMIN / CITY_OFFICIAL / USER']
+  point int [not null, default: 0, note: 'point_history 합계']
+  level int [not null, default: 1, note: '사용자 전체 활동 레벨']
+  latitude "double precision" [note: '활동 위치 - 대신 점검 대상 판정']
+  longitude "double precision"
+  location_updated_at timestamp [note: '활동 위치 갱신 시각']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (provider, provider_id) [unique]
+  }
+}
+
+Table push_subscription {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  endpoint text [unique, not null]
+  p256dh varchar [not null]
+  auth varchar [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table photo_hash {
+  id bigint [pk, increment]
+  hash varchar(64) [unique, not null, note: 'SHA-256 - 같은 사진 재사용 차단']
+  source_table varchar [not null, note: 'cleaning / management_log / ai_verification / report / drain']
+  source_id bigint [not null]
+  photo_role varchar [not null, note: 'BEFORE / AFTER / REPORT / DRAIN']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table point_history {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  source_type varchar [not null, note: 'CLEANING / MANAGEMENT / REPORT']
+  source_id bigint [not null]
+  amount int [not null]
+  type varchar [not null, note: 'EARN / REVOKE']
+  description varchar
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+// ───────── 배수구 · 입양 ─────────
+
+Table drain {
+  id bigint [pk, increment]
+  registered_by bigint [ref: > users.id, note: '등록자 (현장 조사한 관리자 or 제보자)']
+  latitude "double precision" [not null]
+  longitude "double precision" [not null]
+  photo_url varchar [not null, note: '최신 현장 사진 (청소·관리 때마다 갱신)']
+  dirt_level int [not null, note: '최신 더러움 단계 1 / 2 / 3']
+  adoption_status varchar [not null, note: 'AVAILABLE / ADOPTED']
+  status varchar [not null, note: 'ACTIVE / PENDING(신규 제보 승인 대기) / REMOVED']
+  is_risk boolean [not null, default: false, note: '위험 배수구 - 현장 조사 때 등록하면서 지정']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table adoption {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  drain_id bigint [not null, ref: > drain.id]
+  cleaning_id bigint [unique, not null, ref: - cleaning.id, note: '입양 조건 청소 (청소 1건 = 입양 1건)']
+  nickname varchar [not null, note: '배수구에 붙인 이름']
+  status varchar [not null, note: 'ACTIVE / RELEASED']
+  release_reason varchar [note: 'MOVED / NO_TIME / OTHER / AUTO(35일 미관리)']
+  level int [not null, default: 1, note: '배수구 캐릭터 레벨 - 입양자 바뀌면 초기화']
+  score int [not null, default: 0]
+  ignore_count int [not null, default: 0, note: '비 예보 요청 연속 무응답']
+  adopted_at timestamp [not null]
+  last_managed_at timestamp [note: '마지막 점검일 - 35일 미점검 자동 파양 판정']
+  next_management_at timestamp [note: '다음 관리 예정일 (14일)']
+  released_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  Note: '사용자당 ACTIVE 최대 3개 (서비스 로직) / 배수구당 ACTIVE 1개 (UNIQUE drain_id WHERE status=ACTIVE)'
+}
+
+Table management_log {
+  id bigint [pk, increment]
+  adoption_id bigint [not null, ref: > adoption.id]
+  request_id bigint [unique, ref: - inspection_request.id, note: '비 예보 요청으로 한 관리면 연결']
+  type varchar [not null, note: 'REGULAR(정기 점검) / RAIN(비 예보 점검 - request_id 있음)']
+  action_type varchar [not null, note: 'INSPECTION(살펴보기만) / CLEANING(청소까지)']
+  status varchar [not null, note: 'SUBMITTED / VERIFIED / FAILED']
+  review_status varchar [not null, note: 'NOT_REQUIRED / PENDING / APPROVED / REJECTED']
+  reviewed_by bigint [ref: > users.id]
+  reviewed_at timestamp
+  before_photo_url varchar
+  after_photo_url varchar
+  dirt_level int [note: 'AI 더러움 단계 1~3']
+  ai_confidence "numeric(3,2)"
+  memo varchar
+  latitude "double precision" [note: '촬영 위치']
+  longitude "double precision"
+  location_mismatch boolean [not null, default: false, note: '50m 이상']
+  managed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+// ───────── 청소 · AI ─────────
+
+Table cleaning {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  drain_id bigint [not null, ref: > drain.id]
+  request_id bigint [unique, ref: - inspection_request.id, note: '대신 점검이면 연결']
+  type varchar [not null, note: 'ADOPTION(입양 전 청소) / SUBSTITUTE(대신 점검)']
+  before_photo_url varchar [not null]
+  dirt_level int [note: 'AI가 비포 사진으로 판정한 더러움 1~3']
+  dirt_confidence "numeric(3,2)"
+  status varchar [not null, note: '진행 상태: IN_PROGRESS / VERIFYING / COMPLETED / FAILED']
+  review_status varchar [not null, note: 'NOT_REQUIRED / PENDING / APPROVED / REJECTED']
+  reviewed_by bigint [ref: > users.id]
+  reviewed_at timestamp
+  latitude "double precision" [not null]
+  longitude "double precision" [not null]
+  location_mismatch boolean [not null, default: false]
+  started_at timestamp [not null]
+  completed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table ai_verification {
+  id bigint [pk, increment]
+  cleaning_id bigint [ref: > cleaning.id, note: 'cleaning_id / management_log_id 중 하나만']
+  management_log_id bigint [ref: > management_log.id]
+  attempt_no int [not null]
+  after_photo_url varchar [not null]
+  result varchar [not null, note: 'PASS / FAIL']
+  confidence "numeric(3,2)"
+  reason varchar
+  verified_at timestamp [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+// ───────── 도구함 ─────────
+
+Table tool_box {
+  id bigint [pk, increment]
+  name varchar [not null]
+  latitude "double precision" [not null]
+  longitude "double precision" [not null]
+  total_count int [not null, note: '구비된 세트 수']
+  available_count int [not null, note: '대여 시 -1, 반납 시 +1']
+  status varchar [not null, note: 'AVAILABLE / ALL_RENTED (available_count = 0)']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table tool_rental {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  tool_box_id bigint [not null, ref: > tool_box.id]
+  status varchar [not null, note: 'RENTED / RETURNED']
+  rented_at timestamp [not null]
+  returned_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  Note: '빌릴 때 tool_box.available_count -1, 반납할 때 +1 / 1인 1개만 대여 (UNIQUE user_id WHERE status=RENTED) / 빌린 도구함에만 반납'
+}
+
+// ───────── 비 예보 → 점검 요청 ─────────
+
+Table rain_forecast {
+  id bigint [pk, increment]
+  rain_date date [not null, note: '비 오는 날']
+  rain_start_at timestamp [not null]
+  pop int [not null, note: '강수확률 %']
+  pcp_mm "numeric(5,2)" [not null, note: '1시간 강수량']
+  status varchar [not null, note: 'ACTIVE / CANCELLED']
+  is_simulated boolean [not null, default: false, note: '시연용 가상 예보']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table inspection_request {
+  id bigint [pk, increment]
+  forecast_id bigint [not null, ref: > rain_forecast.id]
+  drain_id bigint [not null, ref: > drain.id]
+  adoption_id bigint [ref: > adoption.id, note: '입양자에게 간 요청. 미입양 위험 배수구면 null → 바로 대신 점검 공개']
+  substitute_user_id bigint [ref: > users.id, note: '대신 점검 수락자 (선착순 1명)']
+  status varchar [not null, note: 'SENT / ACCEPTED / OPEN / CLAIMED / COMPLETED / MISSED / CANCELLED']
+  reply varchar [note: 'ACCEPT / DECLINE / null(무응답)']
+  sent_at timestamp [not null, note: '전날 06:00 일괄 발송']
+  reply_deadline_at timestamp [not null, note: '전날 20:00 - 지나면 대신 점검으로 공개 (점검 마감은 로직에서 처리)']
+  replied_at timestamp
+  opened_at timestamp
+  claimed_at timestamp
+  completed_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (forecast_id, drain_id) [unique]
+  }
+}
+
+// ───────── 제보 · 알림 ─────────
+
+Table report {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  drain_id bigint [not null, ref: > drain.id]
+  processed_by bigint [ref: > users.id, note: '처리한 시청 관계자·관리자']
+  type varchar [not null, note: 'BLOCKAGE / NEW_DRAIN / LOCATION_FIX / REMOVAL']
+  description varchar
+  photo_url varchar
+  new_latitude "double precision" [note: 'LOCATION_FIX 제보의 새 위치']
+  new_longitude "double precision"
+  status varchar [not null, note: 'PENDING / APPROVED / REJECTED']
+  admin_comment varchar
+  resolved_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table notification {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  request_id bigint [ref: > inspection_request.id]
+  adoption_id bigint [ref: > adoption.id]
+  type varchar [not null, note: 'RAIN_TOMORROW / SUBSTITUTE_OPEN / MANAGEMENT_DUE / ...']
+  title varchar [not null]
+  body varchar [not null]
+  sent_at timestamp
+  read_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}

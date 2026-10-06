@@ -1,0 +1,17 @@
+# 로컬 개발용 DB: docker compose up -d
+services:
+  db:
+    image: postgres:16
+    container_name: rainbutler-db
+    environment:
+      POSTGRES_DB: rainbutler
+      POSTGRES_USER: rainbutler
+      POSTGRES_PASSWORD: rainbutler
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - rainbutler-db:/var/lib/postgresql/data
+
+volumes:
+  rainbutler-db:
