@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: rain-butler
+  profiles:
+    default: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # 스키마는 Flyway만 바꾼다
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+        default_batch_fetch_size: 100
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+  jackson:
+    time-zone: Asia/Seoul
+
+server:
+  port: 8080
+  shutdown: graceful
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+rain-butler:
+  policy:
+    max-adoptions-per-user: 3
+    management-cycle-days: 14
+    winter-management-cycle-days: 28
+    adoption-warning-days: 28
+    adoption-release-days: 35
+    substitute-radius-meters: 300
+    substitute-daily-limit: 3
+    location-mismatch-meters: 50
+    ai-confidence-threshold: 0.7
+    rain-notice-time: "06:00"
+    rain-reply-deadline-time: "20:00"
+    rest-cooldown-days: 90

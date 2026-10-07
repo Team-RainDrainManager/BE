@@ -24,14 +24,16 @@ repositories {
 }
 
 dependencies {
-	// Web / API
+	// Web
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0") // OpenAPI 3.0 명세 (/swagger-ui)
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0")
 
-	// DB: PostgreSQL + PostGIS
+	// DB
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	implementation("org.hibernate.orm:hibernate-spatial") // geography(Point) 매핑, ST_DWithin
+	implementation("org.springframework.boot:spring-boot-starter-flyway")
+	implementation("org.flywaydb:flyway-database-postgresql")
 	runtimeOnly("org.postgresql:postgresql")
 
 	// Lombok
@@ -40,8 +42,12 @@ dependencies {
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 
+	// Test
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
+	testImplementation("org.testcontainers:testcontainers-postgresql")
+	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 	testCompileOnly("org.projectlombok:lombok")
 	testAnnotationProcessor("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
