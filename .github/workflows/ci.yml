@@ -1,0 +1,42 @@
+# PR · 브랜치 push 때 빌드와 테스트(Testcontainers 포함)를 돌린다.
+# job 이름 build는 main 브랜치 보호 규칙의 필수 체크 이름이 된다.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+
+# 같은 브랜치의 이전 실행은 취소한다.
+# push · pull_request가 동시에 뜨므로 이벤트 이름도 그룹에 넣어 서로 취소하지 않게 한다.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: 빌드 · 테스트
+        run: ./gradlew build
+
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: build/reports/tests
+          if-no-files-found: ignore
