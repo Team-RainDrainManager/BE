@@ -56,3 +56,8 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// 실행 가능한 bootJar 하나만 만든다 (plain jar 비활성화 → build/libs/에 jar 1개)
+tasks.named<Jar>("jar") {
+	enabled = false
+}
