@@ -1,0 +1,44 @@
+# 운영 서버(/opt/rain-butler)용 compose. CD가 매 배포 때 서버에 복사한다.
+# 앱은 DB 위치를 .env의 DB_URL로만 안다 → 10월 말 RDS 이전 시 DB_URL만 바꾸고 db 서비스를 멈춘다.
+services:
+  app:
+    image: ${IMAGE_NAME}:${IMAGE_TAG:-latest}
+    container_name: rain-butler
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "127.0.0.1:8080:8080"   # Nginx만 접근. 외부에는 안 열림
+    mem_limit: 1000m
+    # depends_on: db 는 일부러 두지 않는다 (RDS 이전 후 db를 멈춰도 앱이 떠야 함)
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # 10월 말 RDS 이전 전까지 사용하는 서버 DB
+  db:
+    image: postgres:16
+    container_name: rain-butler-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:5432:5432"   # IntelliJ SSH 터널용. 외부에는 안 열림
+    volumes:
+      - rain-butler-db-data:/var/lib/postgresql/data
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+volumes:
+  rain-butler-db-data:

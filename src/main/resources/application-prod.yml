@@ -13,3 +13,11 @@ springdoc:
 logging:
   level:
     root: info
+
+server:
+  forward-headers-strategy: native   # Nginx 뒤에서 https · 클라이언트 IP 인식
+
+management:
+  endpoint:
+    health:
+      show-details: never
