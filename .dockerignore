@@ -1,0 +1,3 @@
+# 빌드 컨텍스트에는 build/libs/*.jar만 넣는다 (나머지는 전부 제외)
+*
+!build/libs/*.jar
