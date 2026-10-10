@@ -55,7 +55,10 @@ public enum ErrorCode {
     TOOL_RETURN_MISMATCH(HttpStatus.BAD_REQUEST, "빌린 도구함에만 반납할 수 있어요."),
 
     // ───────── 제보 ─────────
-    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "제보를 찾을 수 없어요.");
+    REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "제보를 찾을 수 없어요."),
+
+    //───────── 위치 ─────────
+    LOCATION_INVALID_INPUT(HttpStatus.BAD_REQUEST, "위치 정보가 올바르지 않아요");
 
     private final HttpStatus status;
     private final String message;
