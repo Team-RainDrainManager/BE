@@ -11,13 +11,14 @@ Project rain_butler {
 
 Table users {
   id bigint [pk, increment]
-  provider varchar [not null, note: 'KAKAO']
-  provider_id varchar [not null, note: '카카오 회원번호']
+  provider varchar [not null, note: 'KAKAO / LOCAL']
+  provider_id varchar [note: '카카오 회원번호 (자체 로그인은 null)']
   nickname varchar [not null]
   real_name varchar [note: '실명 (봉사 확인서용)']
   identity_verified_at timestamp [note: '실명 인증 시각']
   email varchar
   profile_image varchar
+  password varchar(255) [note: 'BCrypt 해시 (자체 로그인만)']
   role varchar [not null, note: 'ADMIN / CITY_OFFICIAL / USER']
   point int [not null, default: 0, note: 'point_history 합계']
   level int [not null, default: 1, note: '사용자 전체 활동 레벨']
@@ -31,6 +32,25 @@ Table users {
   indexes {
     (provider, provider_id) [unique]
   }
+
+  Note: '자체 로그인 이메일 유니크 (UNIQUE lower(email) WHERE provider=LOCAL) / LOCAL은 email·password, KAKAO는 provider_id 필수 (CHECK)'
+}
+
+Table refresh_token {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  token_hash varchar(64) [unique, not null, note: 'refresh 토큰 SHA-256 (원문은 저장하지 않음)']
+  expires_at timestamp [not null]
+  revoked_at timestamp [note: '폐기 시각 (회전 · 로그아웃 · 탈취 감지)']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    user_id
+  }
+
+  Note: '재발급마다 회전. 폐기된 토큰이 다시 오면 해당 사용자 토큰 전부 폐기 (탈취 감지)'
 }
 
 Table push_subscription {

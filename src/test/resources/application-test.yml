@@ -3,3 +3,14 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+# 테스트 전용 고정 값 (실제 키 아님)
+rain-butler:
+  jwt:
+    secret: dGVzdC1vbmx5LWp3dC1zZWNyZXQta2V5LTMyLWJ5dGVzLWxvbmc=
+  cors:
+    allowed-origins: http://localhost:5173
+  kakao:
+    client-id: test-kakao-client-id
+    client-secret: test-kakao-client-secret
+    allowed-redirect-uris: http://localhost:5173/oauth/kakao

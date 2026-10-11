@@ -10,14 +10,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * GlobalExceptionHandler가 예외를 공통 실패 응답으로 바꾸는지 검증합니다.
+ *
+ * <p>예외 처리기만 검증하므로 보안 필터는 끕니다. (인증·인가는 인증 테스트에서 검증)
  */
 @WebMvcTest(controllers = ExceptionTestController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 class GlobalExceptionHandlerTest {
 
     @Autowired

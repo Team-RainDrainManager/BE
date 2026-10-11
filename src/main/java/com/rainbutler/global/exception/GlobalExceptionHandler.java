@@ -11,6 +11,8 @@ import org.springframework.context.MessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -137,6 +139,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(
             DataIntegrityViolationException e) {
         return toResponse(ErrorCode.DUPLICATE_RESOURCE, e);
+    }
+
+    /**
+     * 메서드 보안({@code @PreAuthorize}) 권한 부족을 처리합니다.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException e) {
+        return toResponse(ErrorCode.FORBIDDEN, e);
+    }
+
+    /**
+     * 컨트롤러 단계까지 온 인증 예외를 처리합니다.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthentication(AuthenticationException e) {
+        return toResponse(ErrorCode.UNAUTHORIZED, e);
     }
 
     /**

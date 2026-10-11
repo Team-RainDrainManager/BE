@@ -7,6 +7,9 @@ spring:
       maximum-pool-size: 10
 
 springdoc:
+  # SWAGGER_ENABLED 하나로 UI와 api-docs를 함께 켜고 끈다
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
     enabled: ${SWAGGER_ENABLED:false}
 

@@ -25,7 +25,15 @@ public enum ErrorCode {
 
     // ───────── 인증 ─────────
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요해요."),
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "로그인이 만료됐어요. 토큰을 재발급해 주세요."),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "인증 정보가 올바르지 않아요. 다시 로그인해 주세요."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없어요."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않아요."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일이에요."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "로그인 정보가 만료됐어요. 다시 로그인해 주세요."),
+    INVALID_REDIRECT_URI(HttpStatus.BAD_REQUEST, "허용되지 않은 리다이렉트 주소예요."),
+    KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "카카오 로그인에 실패했어요. 다시 시도해 주세요."),
+    KAKAO_API_ERROR(HttpStatus.BAD_GATEWAY, "카카오 서버와 통신하지 못했어요. 잠시 후 다시 시도해 주세요."),
 
     // ───────── 사용자 ─────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없어요."),
