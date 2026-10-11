@@ -34,6 +34,9 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui
+    persist-authorization: true            # 새로고침해도 Authorize 유지
+    tags-sorter: alpha
+    operations-sorter: method
 
 management:
   endpoints:

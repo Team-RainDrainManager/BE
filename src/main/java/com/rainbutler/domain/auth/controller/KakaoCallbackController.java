@@ -2,8 +2,11 @@ package com.rainbutler.domain.auth.controller;
 
 import com.rainbutler.domain.auth.dto.KakaoLoginResponse;
 import com.rainbutler.domain.auth.service.KakaoAuthService;
+import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
+import com.rainbutler.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -26,6 +29,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  */
 @Profile({"local", "dev"})
 @Tag(name = "Auth", description = "회원가입 · 로그인 · 토큰 재발급 · 로그아웃")
+@SecurityRequirements
 @RestController
 @RequestMapping("/api/v1/auth/kakao")
 @RequiredArgsConstructor
@@ -37,6 +41,8 @@ public class KakaoCallbackController {
      * 카카오가 돌려준 인가 코드로 로그인합니다. redirectUri는 이 콜백 주소로 고정됩니다.
      */
     @Operation(summary = "[local · dev] 카카오 로그인 콜백 (테스트용)")
+    @ApiErrorCodes({ErrorCode.MISSING_PARAMETER, ErrorCode.INVALID_REDIRECT_URI,
+            ErrorCode.KAKAO_AUTH_FAILED, ErrorCode.KAKAO_API_ERROR})
     @GetMapping("/callback")
     public ResponseEntity<ApiResponse<KakaoLoginResponse>> callback(@RequestParam String code) {
         String redirectUri = ServletUriComponentsBuilder.fromCurrentRequestUri()

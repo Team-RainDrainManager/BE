@@ -2,6 +2,7 @@ package com.rainbutler.global.health;
 
 import com.rainbutler.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 서버 상태 확인용 컨트롤러입니다. AWS 로드밸런서 헬스 체크에 사용합니다.
  */
-@Tag(name = "Health", description = "서버 상태 확인")
+@Tag(name = "System", description = "서버 상태 확인")
+@SecurityRequirements
 @RestController
 @RequestMapping("/api/v1/health")
 public class HealthController {

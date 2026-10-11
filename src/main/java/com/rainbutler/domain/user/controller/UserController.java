@@ -2,8 +2,10 @@ package com.rainbutler.domain.user.controller;
 
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.service.UserService;
+import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.security.LoginUserId;
+import com.rainbutler.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ public class UserController {
      * 로그인 사용자의 정보를 조회합니다.
      */
     @Operation(summary = "내 정보 조회")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.USER_NOT_FOUND})
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> me(@LoginUserId Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getMe(userId)));
