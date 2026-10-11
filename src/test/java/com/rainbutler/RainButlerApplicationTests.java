@@ -31,11 +31,11 @@ class RainButlerApplicationTests {
 
     @Test
     void contextLoads() {
-        // Flyway 이력 테이블을 뺀 업무 테이블이 15개 만들어졌는지 확인
+        // Flyway 이력 테이블을 뺀 업무 테이블이 16개 만들어졌는지 확인
         Integer tableCount = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM information_schema.tables "
                         + "WHERE table_schema = 'public' AND table_name <> 'flyway_schema_history'",
                 Integer.class);
-        assertThat(tableCount).isEqualTo(15);
+        assertThat(tableCount).isEqualTo(16);
     }
 }

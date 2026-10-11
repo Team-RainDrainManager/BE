@@ -17,7 +17,10 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLRestriction;
 
 /**
- * 사용자 (카카오 로그인)입니다. (users 테이블)
+ * 사용자입니다. (users 테이블)
+ *
+ * <p>자체 로그인(LOCAL)과 카카오 로그인(KAKAO)은 같은 이메일이어도 별개 계정입니다.
+ * 생성은 {@link #local}, {@link #kakao} 정적 팩토리로만 합니다.
  */
 @Entity
 @Table(name = "users")
@@ -30,13 +33,12 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 소셜 로그인 제공자 */
+    /** 로그인 제공자 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Provider provider;
 
-    /** 카카오 회원번호 */
-    @Column(nullable = false)
+    /** 카카오 회원번호 (자체 로그인은 null) */
     private String providerId;
 
     @Column(nullable = false)
@@ -51,6 +53,9 @@ public class User extends BaseEntity {
     private String email;
 
     private String profileImage;
+
+    /** BCrypt 해시 (자체 로그인만) */
+    private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -72,15 +77,59 @@ public class User extends BaseEntity {
     /** 활동 위치 갱신 시각 */
     private LocalDateTime locationUpdatedAt;
 
-    /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
-    @Builder
-    private User(Provider provider, String providerId, String nickname, Role role) {
+    /** 정적 팩토리에서만 사용합니다. 초기 상태·기본값은 여기서 채웁니다. */
+    @Builder(access = AccessLevel.PRIVATE)
+    private User(
+            Provider provider,
+            String providerId,
+            String email,
+            String password,
+            String nickname,
+            String profileImage) {
         this.provider = provider;
         this.providerId = providerId;
+        this.email = email;
+        this.password = password;
         this.nickname = nickname;
-        this.role = role;
+        this.profileImage = profileImage;
+        // 신규 가입은 항상 USER. ADMIN · CITY_OFFICIAL은 DB에서 직접 지정한다
+        this.role = Role.USER;
         this.point = 0;
         this.level = 1;
+    }
+
+    /**
+     * 이메일 · 비밀번호로 가입한 자체 로그인 사용자를 만듭니다.
+     *
+     * @param email 이메일 (소문자로 정규화된 값)
+     * @param encodedPassword BCrypt로 인코딩된 비밀번호
+     * @param nickname 닉네임
+     * @return 새 사용자
+     */
+    public static User local(String email, String encodedPassword, String nickname) {
+        return User.builder()
+                .provider(Provider.LOCAL)
+                .email(email)
+                .password(encodedPassword)
+                .nickname(nickname)
+                .build();
+    }
+
+    /**
+     * 카카오 로그인으로 가입한 사용자를 만듭니다.
+     *
+     * @param kakaoId 카카오 회원번호
+     * @param nickname 닉네임
+     * @param profileImage 프로필 사진 URL (없으면 null)
+     * @return 새 사용자
+     */
+    public static User kakao(String kakaoId, String nickname, String profileImage) {
+        return User.builder()
+                .provider(Provider.KAKAO)
+                .providerId(kakaoId)
+                .nickname(nickname)
+                .profileImage(profileImage)
+                .build();
     }
 
     /**
