@@ -27,4 +27,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 가입 여부
      */
     boolean existsByProviderAndEmail(Provider provider, String email);
+
+    /**
+     * 로그인 방식과 제공자 회원번호로 사용자를 찾습니다. (카카오: provider = KAKAO)
+     *
+     * @param provider 로그인 방식
+     * @param providerId 제공자 회원번호
+     * @return 사용자
+     */
+    Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
 }

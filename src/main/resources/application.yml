@@ -49,6 +49,10 @@ rain-butler:
     refresh-token-validity: 14d
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}          # 카카오 REST API 키
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    allowed-redirect-uris: ${KAKAO_ALLOWED_REDIRECT_URIS:http://localhost:5173/oauth/kakao,http://localhost:8080/api/v1/auth/kakao/callback}
   policy:
     max-adoptions-per-user: 3
     management-cycle-days: 14

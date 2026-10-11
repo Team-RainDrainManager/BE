@@ -10,3 +10,7 @@ rain-butler:
     secret: dGVzdC1vbmx5LWp3dC1zZWNyZXQta2V5LTMyLWJ5dGVzLWxvbmc=
   cors:
     allowed-origins: http://localhost:5173
+  kakao:
+    client-id: test-kakao-client-id
+    client-secret: test-kakao-client-secret
+    allowed-redirect-uris: http://localhost:5173/oauth/kakao
