@@ -125,7 +125,7 @@ class AuthControllerTest extends IntegrationTestSupport {
 
     @Test
     void 지도_목록은_로그인_없이_조회할_수_있다() throws Exception {
-        mockMvc.perform(get("/api/drain")
+        mockMvc.perform(get("/api/v1/drain")
                         .param("minLatitude", "37").param("maxLatitude", "38")
                         .param("minLongitude", "126").param("maxLongitude", "127"))
                 .andExpect(status().isOk());
