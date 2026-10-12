@@ -58,7 +58,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
                         // 지도 위 빗물받이 목록은 로그인 전에도 볼 수 있다
-                        .requestMatchers(HttpMethod.GET, "/api/drain", "/api/drain/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/drain", "/api/v1/drain/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "CITY_OFFICIAL")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
