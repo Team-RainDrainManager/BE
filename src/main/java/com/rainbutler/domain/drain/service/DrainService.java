@@ -1,5 +1,9 @@
 package com.rainbutler.domain.drain.service;
 
+import com.rainbutler.domain.adoption.entity.Adoption;
+import com.rainbutler.domain.adoption.entity.AdoptionStatus;
+import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
@@ -17,6 +21,7 @@ import java.util.List;
 public class DrainService {
 
     private final DrainRepository drainRepository;
+    private final AdoptionRepository adoptionRepository;
 
     /**
      * 지도 영역 내 빗물받이 목록 조회
@@ -74,5 +79,43 @@ public class DrainService {
                         .isRisk(drain.isRisk())
                         .build())
                 .toList();
+    }
+
+    public DrainDetailResponse getDrainDetail(Long drainId) {
+        Drain drain = drainRepository.findById(drainId)
+                .orElseThrow(() ->
+                        new BusinessException(ErrorCode.DRAIN_NOT_FOUND)
+                );
+        Adoption adoption = adoptionRepository
+                .findByDrain_IdAndStatus(
+                        drainId,
+                        AdoptionStatus.ACTIVE
+                )
+                .orElse(null);
+
+        DrainDetailResponse.AdoptionResponse adoptionResponse = null;
+        if (adoption != null) {
+            adoptionResponse = new DrainDetailResponse.AdoptionResponse(
+                    adoption.getId(),
+                    adoption.getNickname(),
+                    adoption.getLevel(),
+                    adoption.getScore(),
+                    adoption.getAdoptedAt(),
+                    adoption.getLastManagedAt(),
+                    adoption.getNextManagementAt()
+            );
+        }
+
+        return new DrainDetailResponse(
+                drain.getId(),
+                drain.getStatus().name(),
+                drain.getAdoptionStatus().name(),
+                drain.getLatitude(),
+                drain.getLongitude(),
+                drain.getPhotoUrl(),
+                drain.getDirtLevel(),
+                adoptionResponse
+        );
+
     }
 }
