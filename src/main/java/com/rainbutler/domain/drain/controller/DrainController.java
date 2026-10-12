@@ -1,24 +1,20 @@
 package com.rainbutler.domain.drain.controller;
 
+import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
-import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.drain.service.DrainService;
 import com.rainbutler.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "빗물받이", description = "빗물받이 관련 API")
+@Tag(name = "Drain", description = "빗물받이")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/drain")
+@RequestMapping("/api/v1/drain")
 public class DrainController {
 
     private final DrainService drainService;
@@ -39,6 +35,16 @@ public class DrainController {
         );
 
         return ApiResponse.ok(drains);
+    }
+
+    @Operation(summary = "빗물받이 상세 조회", description = "빗물받이 ID로 기본 정보와 현재 입양 정보를 조회합니다")
+    @GetMapping("/{drainId}")
+    public ApiResponse<DrainDetailResponse> getDrainDetail(
+            @PathVariable Long drainId
+    ) {
+        DrainDetailResponse response = drainService.getDrainDetail(drainId);
+
+        return ApiResponse.ok(response);
     }
 
 }
