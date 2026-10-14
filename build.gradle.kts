@@ -34,6 +34,13 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.boot:spring-boot-starter-security-oauth2-resource-server")
 
+	// AWS S3 (SDK v2)
+	implementation(platform("software.amazon.awssdk:bom:2.55.16"))
+	implementation("software.amazon.awssdk:s3") {
+		// 동기 S3Client(apache5-client)만 쓴다. 비동기 netty 클라이언트는 Boot의 netty 4.2와 버전이 어긋난다
+		exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+	}
+
 	// DB
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")

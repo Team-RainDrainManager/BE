@@ -59,6 +59,15 @@ rain-butler:
   ai:
     gemini-api-key: ${GEMINI_API_KEY:}       # 비어 있으면 AI 판정 없이 기본값으로 저장
     model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  s3:
+    bucket: ${S3_BUCKET:}                  # 비어 있으면 업로드 API가 STORAGE_NOT_CONFIGURED
+    region: ${S3_REGION:ap-northeast-2}
+    key-prefix: ${S3_KEY_PREFIX:local}     # 로컬 local, 운영 prod
+    access-key: ${S3_ACCESS_KEY:}          # 로컬 전용. 운영은 비워 두고 EC2 IAM Role 사용
+    secret-key: ${S3_SECRET_KEY:}
+    upload-url-ttl: 5m
+    read-url-ttl: 1h
+    max-file-size: 10MB
   policy:
     max-adoptions-per-user: 3
     management-cycle-days: 14
