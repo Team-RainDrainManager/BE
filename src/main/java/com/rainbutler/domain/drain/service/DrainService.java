@@ -15,6 +15,7 @@ import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class DrainService {
     private final UserRepository userRepository;
     private final ReportRepository reportRepository;
     private final DrainAiClassifier drainAiClassifier;
+    private final PolicyProperties policyProperties;
 
     /**
      * 지도 영역 내 빗물받이 목록 조회
@@ -134,8 +136,12 @@ public class DrainService {
      * 빗물받이를 생성합니다. (관리자 직접 등록 + 일반 사용자 제보 등록 공통)
      *
      * <p>상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. 더러움 단계와 위험 여부는 서버 AI가
-     * 사진으로 판정하고 그 값으로 저장합니다. 사용자가 체크한 위험값이 AI 판정과 다르면
-     * 리마인드({@code riskRemind=true})와 함께 관리자 검토용 제보(BLOCKAGE, PENDING)를 만듭니다.
+     * 사진으로 판정하고 그 값으로 저장합니다. 아래 경우 리마인드({@code riskRemind=true})와 함께
+     * 관리자 검토용 제보(BLOCKAGE, PENDING)를 만듭니다.
+     * <ul>
+     *   <li>사용자가 체크한 위험값이 AI 판정과 다름</li>
+     *   <li>AI 확신도가 기준({@code policy.ai-confidence-threshold}) 미만</li>
+     * </ul>
      */
     @Transactional
     public DrainCreateResponse createDrain(Long userId, DrainCreateRequest request) {
@@ -171,8 +177,11 @@ public class DrainService {
         int dirtLevel = assessment.dirtLevel();
         boolean isRisk = assessment.risk();
 
-        // 5. 사용자 체크값과 AI 판정이 다르면 리마인드 + 관리자 검토용 제보
-        boolean riskRemind = request.isRisk() != null && request.isRisk() != isRisk;
+        // 5. 사용자 체크 불일치 또는 AI 저확신이면 리마인드 + 관리자 검토용 제보
+        boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
+        boolean lowConfidence =
+                assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();
+        boolean needsReview = mismatched || lowConfidence;
 
         Drain drain = Drain.builder()
                 .registeredBy(user)
@@ -186,11 +195,15 @@ public class DrainService {
         Drain saved = drainRepository.save(drain);
 
         Long riskReportId = null;
-        if (riskRemind) {
+        if (needsReview) {
             String description = request.riskDescription();
             if (description == null || description.isBlank()) {
-                description = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험=" + isRisk
-                        + ")이 달라 관리자 확인 필요";
+                if (mismatched) {
+                    description = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험="
+                            + isRisk + ")이 달라 관리자 확인 필요";
+                } else {
+                    description = "AI 확신도(" + assessment.confidence() + ")가 기준 미만이라 관리자 확인 필요";
+                }
             }
             Report report = Report.builder()
                     .user(user)
@@ -211,7 +224,8 @@ public class DrainService {
                 saved.getPhotoUrl(),
                 saved.getDirtLevel(),
                 saved.isRisk(),
-                riskRemind,
+                assessment.confidence(),
+                needsReview,
                 riskReportId
         );
     }
