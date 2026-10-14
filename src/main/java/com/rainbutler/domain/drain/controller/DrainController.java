@@ -1,11 +1,15 @@
 package com.rainbutler.domain.drain.controller;
 
+import com.rainbutler.domain.drain.dto.Request.DrainCreateRequest;
+import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.service.DrainService;
 import com.rainbutler.global.response.ApiResponse;
+import com.rainbutler.global.security.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,6 +47,17 @@ public class DrainController {
             @PathVariable Long drainId
     ) {
         DrainDetailResponse response = drainService.getDrainDetail(drainId);
+
+        return ApiResponse.ok(response);
+    }
+
+    @Operation(summary = "빗물받이 생성", description = "현장에서 촬영한 사진과 위치로 빗물받이를 등록합니다. 더러움 단계는 서버 AI 판정으로 결정됩니다.")
+    @PostMapping
+    public ApiResponse<DrainCreateResponse> createDrain(
+            @LoginUserId Long userId,
+            @Valid @RequestBody DrainCreateRequest request
+    ) {
+        DrainCreateResponse response = drainService.createDrain(userId, request);
 
         return ApiResponse.ok(response);
     }

@@ -1,7 +1,5 @@
 package com.rainbutler.domain.drain.dto.Response;
 
-import jdk.jshell.Snippet;
-
 import java.time.LocalDateTime;
 
 public record DrainDetailResponse (
