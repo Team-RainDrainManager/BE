@@ -41,15 +41,13 @@ public class DrainAiClassifier {
 
     private final RestClient restClient;
     private final AiProperties properties;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DrainAiClassifier(
             @Qualifier("geminiRestClient") RestClient restClient,
-            AiProperties properties,
-            ObjectMapper objectMapper) {
+            AiProperties properties) {
         this.restClient = restClient;
         this.properties = properties;
-        this.objectMapper = objectMapper;
         if (!properties.isConfigured()) {
             log.warn("Gemini 키(GEMINI_API_KEY)가 설정되지 않아 AI 판정 없이 기본값으로 저장합니다.");
         }
