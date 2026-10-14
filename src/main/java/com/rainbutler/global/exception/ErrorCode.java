@@ -48,6 +48,7 @@ public enum ErrorCode {
 
     // ───────── 사진 ─────────
     DUPLICATE_PHOTO(HttpStatus.CONFLICT, "이미 등록된 사진이에요. 새로 촬영한 사진을 올려 주세요."),
+    AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 판정에 실패했어요. 잠시 후 다시 시도해 주세요."),
 
     // ───────── 점검 요청 ─────────
     REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 요청을 찾을 수 없어요."),
