@@ -27,11 +27,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DrainService {
+
+    /** 판독할 수 있는 사진 용도 (등록 · 청소 · 점검 전후) */
+    private static final Set<UploadPurpose> ASSESSABLE_PURPOSES =
+            Set.of(UploadPurpose.DRAIN, UploadPurpose.BEFORE, UploadPurpose.AFTER);
 
     private final DrainRepository drainRepository;
     private final AdoptionRepository adoptionRepository;
@@ -141,15 +146,15 @@ public class DrainService {
      * 사진을 단독 판독합니다. (DB에 저장하지 않습니다)
      *
      * <p>생성·정기 점검·청소 확인이 같은 판정값을 씁니다. 빗물받이가 아닌 사진은 거절합니다.
+     * 사진은 본인이 S3에 올린 DRAIN · BEFORE · AFTER 용도 사진만 받습니다.
      */
-    public DrainAssessmentResponse assessPhoto(DrainAssessmentRequest request) {
-        if (request.photoUrl() == null || request.photoUrl().isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "판독할 사진을 등록해 주세요."
-            );
-        }
-        DrainAiClassifier.Assessment assessment = drainAiClassifier.assess(request.photoUrl());
+    public DrainAssessmentResponse assessPhoto(Long userId, DrainAssessmentRequest request) {
+        // 본인이 올린 사진인지 검증 (key 형식 · 용도 · 업로드 여부 · 타입 · 크기)
+        String photoKey =
+                storageService.verifyUploaded(userId, request.photoKey(), ASSESSABLE_PURPOSES);
+        // AI에는 우리 버킷의 조회용 presigned URL만 넘긴다 (임의 주소를 내려받지 않음)
+        DrainAiClassifier.Assessment assessment =
+                drainAiClassifier.assess(storageService.toReadUrl(photoKey));
         return new DrainAssessmentResponse(
                 assessment.grade(),
                 assessment.dirtLevel(),

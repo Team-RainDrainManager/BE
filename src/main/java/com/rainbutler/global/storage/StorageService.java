@@ -5,6 +5,7 @@ import com.rainbutler.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -125,6 +126,29 @@ public class StorageService {
             throw new BusinessException(ErrorCode.PHOTO_TOO_LARGE);
         }
         return key;
+    }
+
+    /**
+     * 사진 key가 허용한 용도 중 하나로 올린 정상 사진인지 확인합니다. (판독처럼 여러 용도 사진을 받는 API용)
+     *
+     * <p>용도는 key의 두 번째 경로({@code {prefix}/{purpose}/...})로 정하고, 그 용도로
+     * {@link #verifyUploaded(Long, String, UploadPurpose)} 검증을 그대로 합니다.
+     *
+     * @param userId 요청자 id
+     * @param key 사진 key
+     * @param allowedPurposes 허용하는 사진 용도
+     * @return 검증된 key
+     * @throws BusinessException 허용하지 않는 용도이거나 형식이 틀린 key (INVALID_PHOTO_KEY) 외 검증 오류
+     */
+    public String verifyUploaded(
+            Long userId, String key, Collection<UploadPurpose> allowedPurposes) {
+        requireConfigured();
+        UploadPurpose purpose = allowedPurposes.stream()
+                .filter(candidate -> key != null && key.startsWith(
+                        properties.keyPrefix() + "/" + candidate.pathSegment() + "/"))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PHOTO_KEY));
+        return verifyUploaded(userId, key, purpose);
     }
 
     /**

@@ -12,6 +12,7 @@ import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -168,6 +169,30 @@ class StorageServiceTest {
                 .willThrow(SdkClientException.create("connection reset"));
         assertErrorCode(() -> storageService.verifyUploaded(USER_ID, KEY, UploadPurpose.DRAIN),
                 ErrorCode.STORAGE_ERROR);
+    }
+
+    @Test
+    void 허용한_용도_중_하나로_올린_사진이면_통과한다() {
+        givenHead(HeadObjectResponse.builder().contentType("image/jpeg").contentLength(1024L)
+                .build());
+        String beforeKey = "test/before/12/3f2a9c1e-1234-4abc-9def-0123456789ab.jpg";
+
+        assertThat(storageService.verifyUploaded(USER_ID, beforeKey,
+                Set.of(UploadPurpose.DRAIN, UploadPurpose.BEFORE, UploadPurpose.AFTER)))
+                .isEqualTo(beforeKey);
+    }
+
+    @Test
+    void 허용하지_않은_용도의_사진이면_S3를_보지_않고_INVALID_PHOTO_KEY() {
+        String reportKey = "test/report/12/3f2a9c1e-1234-4abc-9def-0123456789ab.jpg";
+        Set<UploadPurpose> allowed =
+                Set.of(UploadPurpose.DRAIN, UploadPurpose.BEFORE, UploadPurpose.AFTER);
+
+        assertErrorCode(() -> storageService.verifyUploaded(USER_ID, reportKey, allowed),
+                ErrorCode.INVALID_PHOTO_KEY);
+        assertErrorCode(() -> storageService.verifyUploaded(USER_ID, (String) null, allowed),
+                ErrorCode.INVALID_PHOTO_KEY);
+        verify(s3Client, never()).headObject(any(HeadObjectRequest.class));
     }
 
     @Test

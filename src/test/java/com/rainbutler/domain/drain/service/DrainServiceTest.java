@@ -9,7 +9,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.dto.Request.DrainAssessmentRequest;
 import com.rainbutler.domain.drain.dto.Request.DrainCreateRequest;
+import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
@@ -25,6 +27,7 @@ import com.rainbutler.global.storage.UploadPurpose;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +45,8 @@ class DrainServiceTest {
     private static final String PHOTO_KEY =
             "local/drain/3/3f2a9c1e-1234-4abc-9def-0123456789ab.jpg";
     private static final String READ_URL = "https://bucket.s3.amazonaws.com/read-url";
+    private static final Set<UploadPurpose> ASSESSABLE =
+            Set.of(UploadPurpose.DRAIN, UploadPurpose.BEFORE, UploadPurpose.AFTER);
 
     @Mock
     private DrainRepository drainRepository;
@@ -135,6 +140,34 @@ class DrainServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.STORAGE_NOT_CONFIGURED);
         verify(drainRepository, never()).save(any());
+    }
+
+    @Test
+    void 판독은_DRAIN_BEFORE_AFTER_사진만_검증하고_AI에는_조회_URL을_넘긴다() {
+        String beforeKey = "local/before/3/3f2a9c1e-1234-4abc-9def-0123456789ab.jpg";
+        given(storageService.verifyUploaded(USER_ID, beforeKey, ASSESSABLE)).willReturn(beforeKey);
+        given(storageService.toReadUrl(beforeKey)).willReturn(READ_URL);
+        given(drainAiClassifier.assess(READ_URL))
+                .willReturn(new DrainAiClassifier.Assessment(3, true, 0.9, "많이 막힘", 2, true));
+
+        DrainAssessmentResponse response =
+                drainService.assessPhoto(USER_ID, new DrainAssessmentRequest(beforeKey));
+
+        assertThat(response.dirtLevel()).isEqualTo(3);
+        assertThat(response.isRisk()).isTrue();
+        verify(drainRepository, never()).save(any());
+    }
+
+    @Test
+    void 판독_사진_검증에_실패하면_AI를_부르지_않는다() {
+        given(storageService.verifyUploaded(USER_ID, PHOTO_KEY, ASSESSABLE))
+                .willThrow(new BusinessException(ErrorCode.PHOTO_FORBIDDEN));
+
+        assertThatThrownBy(() ->
+                drainService.assessPhoto(USER_ID, new DrainAssessmentRequest(PHOTO_KEY)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.PHOTO_FORBIDDEN);
+        verify(drainAiClassifier, never()).assess(anyString());
     }
 
     private void givenVerifiedPhotoAndUser() {
