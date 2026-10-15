@@ -68,6 +68,8 @@ rain-butler:
     upload-url-ttl: 5m
     read-url-ttl: 1h
     max-file-size: 10MB
+  firebase:
+    credentials-base64: ${FIREBASE_CREDENTIALS_BASE64:}   # 서비스 계정 JSON을 base64 한 줄로. 비면 발송 생략
   policy:
     max-adoptions-per-user: 3
     management-cycle-days: 14

@@ -41,6 +41,15 @@ dependencies {
 		exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
 	}
 
+	// FCM
+	implementation("com.google.firebase:firebase-admin:9.11.0") {
+		// FCM(Messaging)만 쓴다. Firestore · Cloud Storage 클라이언트(gRPC · protobuf)는 빼서 이미지를 줄인다
+		exclude(group = "com.google.cloud", module = "google-cloud-firestore")
+		exclude(group = "com.google.cloud", module = "google-cloud-storage")
+	}
+	// 위에서 뺀 모듈이 가져오던 JSON 처리기. Firebase 초기화에 필요하다 (google-http-client와 같은 버전)
+	implementation("com.google.http-client:google-http-client-jackson2:2.2.0")
+
 	// DB
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
