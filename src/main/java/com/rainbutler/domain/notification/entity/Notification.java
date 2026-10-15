@@ -78,4 +78,13 @@ public class Notification extends BaseEntity {
         this.title = title;
         this.body = body;
     }
+
+    /**
+     * 푸시가 한 기기 이상에 발송됐음을 기록합니다. 이미 기록됐으면 처음 시각을 유지합니다.
+     */
+    public void markSent() {
+        if (this.sentAt == null) {
+            this.sentAt = LocalDateTime.now();
+        }
+    }
 }
