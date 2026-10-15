@@ -20,6 +20,8 @@ import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.storage.StorageService;
+import com.rainbutler.global.storage.UploadPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,7 @@ public class DrainService {
     private final ReportRepository reportRepository;
     private final DrainAiClassifier drainAiClassifier;
     private final PolicyProperties policyProperties;
+    private final StorageService storageService;
 
     /**
      * 지도 영역 내 빗물받이 목록 조회
@@ -127,7 +130,7 @@ public class DrainService {
                 drain.getAdoptionStatus().name(),
                 drain.getLatitude(),
                 drain.getLongitude(),
-                drain.getPhotoUrl(),
+                storageService.toReadUrl(drain.getPhotoUrl()),
                 drain.getDirtLevel(),
                 adoptionResponse
         );
@@ -184,13 +187,9 @@ public class DrainService {
                     "경도는 -180 이상 180 이하여야 합니다."
             );
         }
-        // 3. 사진 필수 (빈 문자열 방지)
-        if (request.photoUrl() == null || request.photoUrl().isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "현장 사진을 등록해 주세요."
-            );
-        }
+        // 3. 사진: 본인이 S3에 올린 사진인지 검증 (key 형식 · 업로드 여부 · 타입 · 크기). DB에는 key를 저장한다
+        String photoKey = storageService.verifyUploaded(
+                userId, request.photoKey(), UploadPurpose.DRAIN);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
@@ -198,12 +197,13 @@ public class DrainService {
                 );
 
         // 4. 같은 사진으로 등록된 빗물받이가 있으면 거절
-        if (drainRepository.existsByPhotoUrl(request.photoUrl())) {
+        if (drainRepository.existsByPhotoUrl(photoKey)) {
             throw new BusinessException(ErrorCode.DUPLICATE_PHOTO);
         }
 
-        // 5. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부)
-        DrainAiClassifier.Assessment assessment = drainAiClassifier.assess(request.photoUrl());
+        // 5. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부). AI에는 조회용 presigned URL을 넘긴다
+        DrainAiClassifier.Assessment assessment =
+                drainAiClassifier.assess(storageService.toReadUrl(photoKey));
         int dirtLevel = assessment.dirtLevel();
         // 올린 사람이 위험하다고 하면 AI 결과와 관계없이 위험으로 저장
         boolean isRisk = Boolean.TRUE.equals(request.isRisk()) || assessment.risk();
@@ -219,7 +219,7 @@ public class DrainService {
                 .registeredBy(user)
                 .latitude(request.latitude())
                 .longitude(request.longitude())
-                .photoUrl(request.photoUrl())
+                .photoUrl(photoKey)
                 .dirtLevel(dirtLevel)
                 .status(DrainStatus.ACTIVE)
                 .isRisk(isRisk)
@@ -244,7 +244,7 @@ public class DrainService {
                     .drain(saved)
                     .type(ReportType.BLOCKAGE)
                     .description(description)
-                    .photoUrl(request.photoUrl())
+                    .photoUrl(photoKey)
                     .build();
             riskReportId = reportRepository.save(report).getId();
         }
@@ -255,7 +255,7 @@ public class DrainService {
                 saved.getAdoptionStatus().name(),
                 saved.getLatitude(),
                 saved.getLongitude(),
-                saved.getPhotoUrl(),
+                storageService.toReadUrl(saved.getPhotoUrl()),
                 saved.getDirtLevel(),
                 saved.isRisk(),
                 assessment.confidence(),

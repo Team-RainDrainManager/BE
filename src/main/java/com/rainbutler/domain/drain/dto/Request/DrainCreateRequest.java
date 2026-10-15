@@ -9,7 +9,8 @@ import jakarta.validation.constraints.Size;
 /**
  * 빗물받이 생성 요청입니다.
  *
- * <p>위치(촬영 위치 그대로)와 현장 사진은 필수입니다. 더러움 단계와 위험 여부는 서버 AI가
+ * <p>위치(촬영 위치 그대로)와 현장 사진은 필수입니다. 사진은 {@code POST /api/v1/uploads/presigned-url}
+ * (purpose=DRAIN)로 S3에 먼저 올리고, 받은 {@code key}를 {@code photoKey}로 보냅니다. 더러움 단계와 위험 여부는 서버 AI가
  * 사진으로 판정하므로, {@code isRisk}는 사용자 의견(체크 여부)일 뿐 저장값이 아닙니다.
  * 사용자 체크값과 AI 판정이 다르면 응답의 리마인드로 알려주고 관리자 검토용 제보를 함께 만듭니다.
  */
@@ -25,7 +26,7 @@ public record DrainCreateRequest(
         Double longitude,
 
         @NotBlank(message = "현장 사진을 등록해 주세요.")
-        String photoUrl,
+        String photoKey,
 
         /**
          * 사용자가 직접 체크한 위험 여부입니다. null이면 체크하지 않은 것입니다.
