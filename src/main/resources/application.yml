@@ -58,7 +58,7 @@ rain-butler:
     allowed-redirect-uris: ${KAKAO_ALLOWED_REDIRECT_URIS:http://localhost:5173/oauth/kakao,http://localhost:8080/api/v1/auth/kakao/callback}
   ai:
     gemini-api-key: ${GEMINI_API_KEY:}       # 비어 있으면 AI 판정 없이 기본값으로 저장
-    model: ${GEMINI_MODEL:gemini-2.0-flash}
+    model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
   policy:
     max-adoptions-per-user: 3
     management-cycle-days: 14

@@ -1,6 +1,8 @@
 package com.rainbutler.domain.drain.controller;
 
+import com.rainbutler.domain.drain.dto.Request.DrainAssessmentRequest;
 import com.rainbutler.domain.drain.dto.Request.DrainCreateRequest;
+import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
@@ -58,6 +60,16 @@ public class DrainController {
             @Valid @RequestBody DrainCreateRequest request
     ) {
         DrainCreateResponse response = drainService.createDrain(userId, request);
+
+        return ApiResponse.ok(response);
+    }
+
+    @Operation(summary = "빗물받이 사진 판독", description = "사진 1장을 AI로 판독합니다. 저장하지 않으며, 생성·점검·청소 확인이 같은 판정값을 씁니다.")
+    @PostMapping("/assessments")
+    public ApiResponse<DrainAssessmentResponse> assessPhoto(
+            @Valid @RequestBody DrainAssessmentRequest request
+    ) {
+        DrainAssessmentResponse response = drainService.assessPhoto(request);
 
         return ApiResponse.ok(response);
     }

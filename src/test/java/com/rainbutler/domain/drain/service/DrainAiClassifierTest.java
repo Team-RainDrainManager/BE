@@ -19,11 +19,10 @@ class DrainAiClassifierTest {
     }
 
     @Test
-    @DisplayName("신고 필요 또는 3등급이면 위험")
+    @DisplayName("3등급일 때만 위험")
     void toRisk() {
-        assertThat(DrainAiClassifier.toRisk(0, false)).isFalse();
-        assertThat(DrainAiClassifier.toRisk(2, false)).isFalse();
-        assertThat(DrainAiClassifier.toRisk(3, false)).isTrue();
-        assertThat(DrainAiClassifier.toRisk(1, true)).isTrue();
+        assertThat(DrainAiClassifier.toRisk(0)).isFalse();
+        assertThat(DrainAiClassifier.toRisk(2)).isFalse();
+        assertThat(DrainAiClassifier.toRisk(3)).isTrue();
     }
 }
