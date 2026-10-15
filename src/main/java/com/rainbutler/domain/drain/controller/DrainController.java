@@ -67,9 +67,10 @@ public class DrainController {
     @Operation(summary = "빗물받이 사진 판독", description = "사진 1장을 AI로 판독합니다. 저장하지 않으며, 생성·점검·청소 확인이 같은 판정값을 씁니다.")
     @PostMapping("/assessments")
     public ApiResponse<DrainAssessmentResponse> assessPhoto(
+            @LoginUserId Long userId,
             @Valid @RequestBody DrainAssessmentRequest request
     ) {
-        DrainAssessmentResponse response = drainService.assessPhoto(request);
+        DrainAssessmentResponse response = drainService.assessPhoto(userId, request);
 
         return ApiResponse.ok(response);
     }

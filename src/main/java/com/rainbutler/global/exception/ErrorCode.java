@@ -49,6 +49,14 @@ public enum ErrorCode {
     // ───────── 사진 ─────────
     DUPLICATE_PHOTO(HttpStatus.CONFLICT, "이미 등록된 사진이에요. 새로 촬영한 사진을 올려 주세요."),
     AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 판정에 실패했어요. 잠시 후 다시 시도해 주세요."),
+    UNSUPPORTED_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "JPG, PNG, WEBP 사진만 올릴 수 있어요."),
+    INVALID_PHOTO_KEY(HttpStatus.BAD_REQUEST, "사진 정보가 올바르지 않아요. 다시 업로드해 주세요."),
+    PHOTO_NOT_UPLOADED(HttpStatus.BAD_REQUEST, "사진 업로드가 끝나지 않았어요. 다시 업로드해 주세요."),
+    PHOTO_TOO_LARGE(HttpStatus.BAD_REQUEST, "사진은 10MB 이하만 올릴 수 있어요."),
+    PHOTO_FORBIDDEN(HttpStatus.FORBIDDEN, "직접 올린 사진만 사용할 수 있어요."),
+    STORAGE_ERROR(HttpStatus.BAD_GATEWAY, "사진 저장소와 통신하지 못했어요. 잠시 후 다시 시도해 주세요."),
+    STORAGE_NOT_CONFIGURED(HttpStatus.INTERNAL_SERVER_ERROR,
+            "사진 업로드를 사용할 수 없어요. 관리자에게 문의해 주세요."),
 
     // ───────── 점검 요청 ─────────
     REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 요청을 찾을 수 없어요."),

@@ -16,6 +16,14 @@
 | 더러움 단계 | `integer` 1~3 | `Integer` |
 | AI 확신도 | `numeric(3,2)` | `BigDecimal` |
 
+### 사진 컬럼 (S3)
+
+- 사진 컬럼(`*_photo_url`, `drain.photo_url`, `report.photo_url` 등)에는 **전체 URL이 아니라 S3 key**를 저장한다.
+  key 형식: `{prefix}/{purpose}/{userId}/{UUID}.{ext}` (예: `prod/drain/12/3f2a….jpg`)
+- 버킷은 비공개다. 응답에서는 `StorageService.toReadUrl(key)`로 조회용 presigned URL(1시간)로 바꿔 내려준다.
+  값이 `http`로 시작하면(기존 목 데이터, 카카오 프로필) 그대로 내려준다.
+- 사진을 저장하기 전에 `StorageService.verifyUploaded(userId, key, purpose)`로 본인이 올린 사진인지 검증한다.
+
 ## v6.2 → v6.3
 
 - `users`: `real_name`, `identity_verified_at`, `location_updated_at`

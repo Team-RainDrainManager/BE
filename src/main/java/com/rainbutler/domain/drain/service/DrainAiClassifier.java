@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rainbutler.domain.drain.ai.AiProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import java.net.URI;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -124,8 +125,9 @@ public class DrainAiClassifier {
      */
     private byte[] downloadPhoto(String photoUrl) {
         try {
+            // presigned URL은 이미 인코딩돼 있어 문자열로 넘기면 다시 인코딩돼 서명이 깨진다 → URI로 넘긴다
             byte[] body = restClient.get()
-                    .uri(photoUrl)
+                    .uri(URI.create(photoUrl))
                     .retrieve()
                     .body(byte[].class);
             if (body == null || body.length == 0) {
@@ -134,7 +136,8 @@ public class DrainAiClassifier {
                         "사진을 가져오지 못했어요. 사진 주소를 확인해 주세요.");
             }
             return body;
-        } catch (RestClientException e) {
+        } catch (RestClientException | IllegalArgumentException e) {
+            // IllegalArgumentException: URI.create가 형식이 잘못된 주소를 거절한 경우
             log.warn("[AI 사진 내려받기 실패] {}", e.getMessage());
             throw new BusinessException(
                     ErrorCode.INVALID_INPUT,

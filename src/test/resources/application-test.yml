@@ -14,3 +14,8 @@ rain-butler:
     client-id: test-kakao-client-id
     client-secret: test-kakao-client-secret
     allowed-redirect-uris: http://localhost:5173/oauth/kakao
+  s3:
+    bucket: test-bucket
+    key-prefix: test
+    access-key: test-access-key
+    secret-key: test-secret-key
