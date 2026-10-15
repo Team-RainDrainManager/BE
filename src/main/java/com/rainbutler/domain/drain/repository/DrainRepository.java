@@ -17,4 +17,12 @@ public interface DrainRepository extends JpaRepository<Drain, Long> {
             Double minLongitude,
             Double maxLongitude
     );
+
+    /**
+     * 같은 사진으로 등록된 빗물받이가 있는지 확인합니다. (중복 생성 방지)
+     *
+     * @param photoUrl 현장 사진 URL
+     * @return 존재 여부
+     */
+    boolean existsByPhotoUrl(String photoUrl);
 }

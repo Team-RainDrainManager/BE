@@ -3,7 +3,9 @@ package com.rainbutler.domain.drain.service;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.dto.Request.DrainAssessmentRequest;
 import com.rainbutler.domain.drain.dto.Request.DrainCreateRequest;
+import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
@@ -133,11 +135,34 @@ public class DrainService {
     }
 
     /**
+     * 사진을 단독 판독합니다. (DB에 저장하지 않습니다)
+     *
+     * <p>생성·정기 점검·청소 확인이 같은 판정값을 씁니다. 빗물받이가 아닌 사진은 거절합니다.
+     */
+    public DrainAssessmentResponse assessPhoto(DrainAssessmentRequest request) {
+        if (request.photoUrl() == null || request.photoUrl().isBlank()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "판독할 사진을 등록해 주세요."
+            );
+        }
+        DrainAiClassifier.Assessment assessment = drainAiClassifier.assess(request.photoUrl());
+        return new DrainAssessmentResponse(
+                assessment.grade(),
+                assessment.dirtLevel(),
+                assessment.risk(),
+                assessment.needsReport(),
+                assessment.confidence(),
+                assessment.reason()
+        );
+    }
+
+    /**
      * 빗물받이를 생성합니다. (관리자 직접 등록 + 일반 사용자 제보 등록 공통)
      *
      * <p>상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. 더러움 단계와 위험 여부는 서버 AI가
-     * 사진으로 판정하고 그 값으로 저장합니다. 아래 경우 리마인드({@code riskRemind=true})와 함께
-     * 관리자 검토용 제보(BLOCKAGE, PENDING)를 만듭니다.
+     * 사진으로 판정하고 그 값으로 저장합니다. 3등급(위험)이면 지자체 신고용 제보(BLOCKAGE, PENDING)를
+     * 만듭니다. 아래 경우 리마인드({@code riskRemind=true})도 함께 띄웁니다.
      * <ul>
      *   <li>사용자가 체크한 위험값이 AI 판정과 다름</li>
      *   <li>AI 확신도가 기준({@code policy.ai-confidence-threshold}) 미만</li>
@@ -172,16 +197,23 @@ public class DrainService {
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
                 );
 
-        // 4. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부) → 그 값으로 생성
+        // 4. 같은 사진으로 등록된 빗물받이가 있으면 거절
+        if (drainRepository.existsByPhotoUrl(request.photoUrl())) {
+            throw new BusinessException(ErrorCode.DUPLICATE_PHOTO);
+        }
+
+        // 5. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부)
         DrainAiClassifier.Assessment assessment = drainAiClassifier.assess(request.photoUrl());
         int dirtLevel = assessment.dirtLevel();
-        boolean isRisk = assessment.risk();
+        // 올린 사람이 위험하다고 하면 AI 결과와 관계없이 위험으로 저장
+        boolean isRisk = Boolean.TRUE.equals(request.isRisk()) || assessment.risk();
 
-        // 5. 사용자 체크 불일치 또는 AI 저확신이면 리마인드 + 관리자 검토용 제보
+        // 6. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 생성
         boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
         boolean lowConfidence =
                 assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();
-        boolean needsReview = mismatched || lowConfidence;
+        boolean riskRemind = mismatched || lowConfidence;
+        boolean needsReport = riskRemind || isRisk;
 
         Drain drain = Drain.builder()
                 .registeredBy(user)
@@ -195,10 +227,12 @@ public class DrainService {
         Drain saved = drainRepository.save(drain);
 
         Long riskReportId = null;
-        if (needsReview) {
+        if (needsReport) {
             String description = request.riskDescription();
             if (description == null || description.isBlank()) {
-                if (mismatched) {
+                if (isRisk) {
+                    description = "AI 판정 위험(3등급)으로 지자체 신고 대상";
+                } else if (mismatched) {
                     description = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험="
                             + isRisk + ")이 달라 관리자 확인 필요";
                 } else {
@@ -225,7 +259,7 @@ public class DrainService {
                 saved.getDirtLevel(),
                 saved.isRisk(),
                 assessment.confidence(),
-                needsReview,
+                riskRemind,
                 riskReportId
         );
     }

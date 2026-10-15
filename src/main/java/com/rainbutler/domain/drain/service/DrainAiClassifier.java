@@ -54,14 +54,22 @@ public class DrainAiClassifier {
     }
 
     /**
-     * AI 판정 결과입니다.
+     * AI 판정 결과입니다. 생성·정기 점검·청소 확인이 공통으로 씁니다.
      *
      * @param dirtLevel 더러움 단계 (1~3, 촬영기 등급 +1을 3으로 자른 값)
-     * @param risk 위험 빗물받이 여부 (신고 필요 또는 3등급)
+     * @param risk 위험 빗물받이 여부 (3등급일 때만 true, 지자체 신고 대상)
      * @param confidence AI 확신도 (0~1)
      * @param reason 판정 이유 한 문장
+     * @param grade 촬영기 등급 (0~3)
+     * @param needsReport 덮개 안쪽 막힘 신고 필요 여부
      */
-    public record Assessment(int dirtLevel, boolean risk, double confidence, String reason) {
+    public record Assessment(
+            int dirtLevel,
+            boolean risk,
+            double confidence,
+            String reason,
+            int grade,
+            boolean needsReport) {
     }
 
     /**
@@ -73,7 +81,7 @@ public class DrainAiClassifier {
     public Assessment assess(String photoUrl) {
         if (!properties.isConfigured()) {
             // 키 없으면 목 테스트용 기본값 (확신도 1.0이라 검토 제보가 생기지 않는다)
-            return new Assessment(1, false, 1.0, "AI 미설정 기본값");
+            return new Assessment(1, false, 1.0, "AI 미설정 기본값", 0, false);
         }
         byte[] image = downloadPhoto(photoUrl);
         GeminiGrade grade = gradePhoto(image);
@@ -84,9 +92,11 @@ public class DrainAiClassifier {
         }
         return new Assessment(
                 toDirtLevel(grade.grade()),
-                toRisk(grade.grade(), grade.needsReport()),
+                toRisk(grade.grade()),
                 grade.confidence(),
-                grade.reason());
+                grade.reason(),
+                grade.grade(),
+                grade.needsReport());
     }
 
     /**
@@ -100,14 +110,13 @@ public class DrainAiClassifier {
     }
 
     /**
-     * 위험 여부를 정합니다. (덮개 안쪽 막힘 신고 필요 또는 3등급이면 위험)
+     * 위험 여부를 정합니다. (3등급일 때만 위험 → 지자체 신고 대상)
      *
      * @param grade 촬영기 등급 (0~3)
-     * @param needsReport 덮개 안쪽 막힘 신고 필요 여부
      * @return 위험 여부
      */
-    static boolean toRisk(int grade, boolean needsReport) {
-        return needsReport || grade >= 3;
+    static boolean toRisk(int grade) {
+        return grade >= 3;
     }
 
     /**
