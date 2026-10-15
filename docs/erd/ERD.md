@@ -34,6 +34,12 @@
 - `report.new_latitude/new_longitude` (위치 수정 제보)
 - 시각 `timestamptz` → `timestamp`, `dirt_level` `smallint` → `integer` (JPA 스키마 검증과 타입 맞춤)
 
+## 이후 변경 (Flyway)
+
+- V2: 자체 로그인 `users.password`, `provider_id` nullable, `refresh_token` 테이블
+- V3: 웹 푸시용 `push_subscription` → FCM 기기 토큰 `fcm_token` (사용자당 여러 기기, 무효 토큰은 하드 삭제)
+- `erd.png`는 V2 · V3 반영 전 그림이다 (`erd.dbml`이 기준)
+
 ## 공통 컬럼 (BaseEntity)
 
 모든 테이블에 `created_at`, `updated_at`, `deleted_at`이 있다 → `com.rainbutler.global.common.BaseEntity`를 상속.
