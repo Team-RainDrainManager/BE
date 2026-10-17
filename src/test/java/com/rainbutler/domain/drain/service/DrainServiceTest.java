@@ -66,7 +66,8 @@ class DrainServiceTest {
     @BeforeEach
     void setUp() {
         PolicyProperties policy = new PolicyProperties(3, 14, 28, 28, 35, 300, 3, 50,
-                new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90);
+                new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
+                LocalTime.of(22, 0), LocalTime.of(8, 0));
         drainService = new DrainService(drainRepository, adoptionRepository, userRepository,
                 reportRepository, drainAiClassifier, policy, storageService);
     }

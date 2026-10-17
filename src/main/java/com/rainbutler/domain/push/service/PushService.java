@@ -12,6 +12,8 @@ import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import java.time.Clock;
+import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 알림을 저장하고 푸시를 보냅니다. 다른 도메인은 {@link #notify}만 호출합니다.
  *
+ * <p>푸시는 알림 수신에 동의한 사용자에게만 보내고, 야간(기본 22시~08시)에는 야간 푸시 동의자에게만 보냅니다.
+ *
  * <p>알림 행은 업무 트랜잭션과 함께 저장되고(앱 안 알림함용, 푸시 실패와 상관없이 남는다), 푸시는 그 트랜잭션이
  * <b>커밋된 뒤 비동기</b>로 보냅니다. 그래서 발송이 실패해도 업무 처리가 롤백되지 않고, 롤백된 업무의 알림은
  * 발송되지 않습니다.
@@ -43,6 +47,8 @@ public class PushService {
     private final AdoptionRepository adoptionRepository;
     private final FcmTokenRepository fcmTokenRepository;
     private final FcmSender fcmSender;
+    private final PushConsentPolicy pushConsentPolicy;
+    private final Clock clock;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate newTransaction;
 
@@ -52,6 +58,8 @@ public class PushService {
             AdoptionRepository adoptionRepository,
             FcmTokenRepository fcmTokenRepository,
             FcmSender fcmSender,
+            PushConsentPolicy pushConsentPolicy,
+            Clock clock,
             ApplicationEventPublisher eventPublisher,
             PlatformTransactionManager transactionManager) {
         this.notificationRepository = notificationRepository;
@@ -60,6 +68,8 @@ public class PushService {
         this.adoptionRepository = adoptionRepository;
         this.fcmTokenRepository = fcmTokenRepository;
         this.fcmSender = fcmSender;
+        this.pushConsentPolicy = pushConsentPolicy;
+        this.clock = clock;
         this.eventPublisher = eventPublisher;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -133,6 +143,13 @@ public class PushService {
 
     private void send(PushRequestedEvent event) throws Exception {
         if (!fcmSender.isEnabled()) {
+            return;
+        }
+        // 알림 수신 · 야간 푸시 동의를 발송 시점 기준으로 확인한다 (미동의면 알림함에만 남는다)
+        User user = userRepository.findById(event.userId()).orElse(null);
+        if (user == null || !pushConsentPolicy.allows(user, LocalTime.now(clock))) {
+            log.info("[푸시 생략] notificationId={} 알림 수신 또는 야간 푸시 미동의",
+                    event.notificationId());
             return;
         }
         List<String> tokens = fcmTokenRepository.findAllByUser_Id(event.userId()).stream()

@@ -26,9 +26,13 @@ import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.support.IntegrationTestSupport;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -65,6 +69,15 @@ class PushServiceTest extends IntegrationTestSupport {
 
     @MockitoBean
     private FcmSender fcmSender;
+
+    /** 발송 시각을 고정한다 (기본: 낮 14시) */
+    @MockitoBean
+    private Clock clock;
+
+    @BeforeEach
+    void setUp() {
+        fixClock(14, 0);
+    }
 
     @Test
     void notify는_알림을_저장하고_type과_notificationId를_담은_발송_이벤트를_발행한다() {
@@ -163,6 +176,37 @@ class PushServiceTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 알림_수신에_동의하지_않은_사용자에게는_보내지_않고_알림함에만_남긴다() throws Exception {
+        User user = saveUser(false, true);
+        saveToken(user);
+        Notification notification = saveNotification(user);
+        given(fcmSender.isEnabled()).willReturn(true);
+
+        pushService.deliver(event(notification, user));
+
+        verify(fcmSender, never()).send(anyList(), anyString(), anyString(), anyMap());
+        assertThat(notificationRepository.findById(notification.getId())).isPresent()
+                .get().extracting(Notification::getSentAt).isNull();
+    }
+
+    @Test
+    void 야간에는_야간_푸시에_동의한_사용자에게만_보낸다() throws Exception {
+        fixClock(23, 30);
+        User nightOff = saveUser(true, false);
+        User nightOn = saveUser(true, true);
+        saveToken(nightOff);
+        String nightOnToken = saveToken(nightOn);
+        given(fcmSender.isEnabled()).willReturn(true);
+        given(fcmSender.send(anyList(), anyString(), anyString(), anyMap()))
+                .willReturn(new FcmSender.SendResult(1, 0, List.of()));
+
+        pushService.deliver(event(saveNotification(nightOff), nightOff));
+        pushService.deliver(event(saveNotification(nightOn), nightOn));
+
+        verify(fcmSender).send(eq(List.of(nightOnToken)), anyString(), anyString(), anyMap());
+    }
+
+    @Test
     void 토큰이_없으면_발송하지_않는다() throws Exception {
         User user = saveUser();
         Notification notification = saveNotification(user);
@@ -192,9 +236,22 @@ class PushServiceTest extends IntegrationTestSupport {
                 notification.getBody(), Map.of("type", notification.getType().name()));
     }
 
+    /** 알림 · 야간 푸시 모두 동의한 사용자 */
     private User saveUser() {
-        return userRepository.save(User.local(
-                UUID.randomUUID() + "@test.com", "{noop}irrelevant", "푸시집사"));
+        return saveUser(true, true);
+    }
+
+    private User saveUser(boolean notificationEnabled, boolean nightPushConsent) {
+        User user = User.local(UUID.randomUUID() + "@test.com", "{noop}irrelevant", "푸시집사");
+        user.completeOnboarding(LocalDateTime.now(), notificationEnabled, nightPushConsent);
+        return userRepository.save(user);
+    }
+
+    private void fixClock(int hour, int minute) {
+        ZoneId seoul = ZoneId.of("Asia/Seoul");
+        given(clock.getZone()).willReturn(seoul);
+        given(clock.instant()).willReturn(LocalDateTime.of(2026, 10, 17, hour, minute)
+                .atZone(seoul).toInstant());
     }
 
     private String saveToken(User user) {
