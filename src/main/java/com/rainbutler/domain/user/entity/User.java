@@ -146,6 +146,15 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 닉네임을 바꿉니다. 검증 · 앞뒤 공백 제거는 요청 단계에서 끝난 값을 받습니다.
+     *
+     * @param nickname 새 닉네임
+     */
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    /**
      * 활동 위치를 갱신합니다. 대신 점검 대상 판정에 사용합니다.
      *
      * @param latitude 위도

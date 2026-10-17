@@ -1,5 +1,7 @@
 package com.rainbutler.domain.auth.dto;
 
+import com.rainbutler.domain.user.validation.NicknamePolicy;
+import com.rainbutler.domain.user.validation.ValidNickname;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -25,12 +27,12 @@ public record SignupRequest(
         String password,
 
         @Schema(example = "빗물집사")
-        @NotBlank @Size(min = 2, max = 20)
+        @ValidNickname
         String nickname) {
 
     /** 검증 전에 앞뒤 공백을 지웁니다. */
     public SignupRequest {
         email = email == null ? null : email.strip();
-        nickname = nickname == null ? null : nickname.strip();
+        nickname = NicknamePolicy.normalize(nickname);
     }
 }
