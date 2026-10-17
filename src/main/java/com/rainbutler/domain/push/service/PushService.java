@@ -78,6 +78,15 @@ public class PushService {
     /**
      * 알림을 저장하고 커밋 후 푸시를 보냅니다. 호출하는 쪽 트랜잭션 안에서 부르세요.
      *
+     * <p>사용자 알림 설정에 따라 다르게 처리합니다.
+     * <ul>
+     *   <li>알림 수신이 꺼져 있으면 알림을 <b>만들지 않고 null</b>을 돌려줍니다. 호출하는 쪽은 null을
+     *   "보내지 않음"으로 처리하세요.</li>
+     *   <li>야간(기본 22시~08시)인데 야간 푸시에 동의하지 않았으면 알림은 저장하고 푸시는 보내지 않습니다.
+     *   (알림함에서만 보임)</li>
+     *   <li>그 밖에는 알림을 저장하고 커밋 후 푸시를 보냅니다.</li>
+     * </ul>
+     *
      * @param userId 받을 사용자 id
      * @param type 알림 종류
      * @param title 알림 제목
@@ -85,13 +94,17 @@ public class PushService {
      * @param requestId 관련 점검 요청 id (없으면 null)
      * @param adoptionId 관련 입양 id (없으면 null)
      * @param data 앱으로 함께 보낼 데이터 (없으면 null)
-     * @return 저장된 알림 id
+     * @return 저장된 알림 id (알림 수신이 꺼져 있어 만들지 않았으면 null)
      */
     @Transactional
     public Long notify(Long userId, NotificationType type, String title, String body,
             Long requestId, Long adoptionId, Map<String, String> data) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        // 1. 알림 수신이 꺼져 있으면 만들지도 보내지도 않는다
+        if (!user.isNotificationEnabled()) {
+            return null;
+        }
         Notification notification = notificationRepository.save(Notification.builder()
                 .user(user)
                 .type(type)
@@ -103,6 +116,12 @@ public class PushService {
                         ? null : adoptionRepository.getReferenceById(adoptionId))
                 .build());
 
+        // 2. 야간에 야간 푸시 미동의면 알림함에만 남기고 푸시하지 않는다
+        if (!pushConsentPolicy.allows(user, LocalTime.now(clock))) {
+            return notification.getId();
+        }
+
+        // 3. 커밋 후 비동기로 푸시한다
         Map<String, String> payload = new LinkedHashMap<>();
         if (data != null) {
             payload.putAll(data);
@@ -145,7 +164,7 @@ public class PushService {
         if (!fcmSender.isEnabled()) {
             return;
         }
-        // 알림 수신 · 야간 푸시 동의를 발송 시점 기준으로 확인한다 (미동의면 알림함에만 남는다)
+        // 저장 뒤 발송 전에 설정을 바꿨을 수 있어 발송 시점에 한 번 더 확인한다 (미동의면 알림함에만 남는다)
         User user = userRepository.findById(event.userId()).orElse(null);
         if (user == null || !pushConsentPolicy.allows(user, LocalTime.now(clock))) {
             log.info("[푸시 생략] notificationId={} 알림 수신 또는 야간 푸시 미동의",
