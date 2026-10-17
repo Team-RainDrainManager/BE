@@ -208,6 +208,21 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 알림 설정을 바꿉니다. null인 값은 바꾸지 않습니다.
+     *
+     * @param notifications 활동 알림 수신 (null이면 유지)
+     * @param nightConsent 야간 푸시 수신 (null이면 유지)
+     */
+    public void updateNotificationSettings(Boolean notifications, Boolean nightConsent) {
+        if (notifications != null) {
+            this.notificationEnabled = notifications;
+        }
+        if (nightConsent != null) {
+            this.nightPushConsent = nightConsent;
+        }
+    }
+
+    /**
      * 온보딩을 마치지 않았으면 막습니다. 공공재를 직접 관리하는 기능(입양 · 점검 · 대신 점검 등) 앞에서 부릅니다.
      *
      * @throws BusinessException 온보딩 미완료 (ONBOARDING_REQUIRED 403)
