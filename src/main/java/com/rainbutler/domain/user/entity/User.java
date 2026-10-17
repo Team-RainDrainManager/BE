@@ -77,6 +77,17 @@ public class User extends BaseEntity {
     /** 활동 위치 갱신 시각 */
     private LocalDateTime locationUpdatedAt;
 
+    /** 온보딩(약관 동의 + 본인인증) 완료 시각. null이면 미완료 */
+    private LocalDateTime onboardingCompletedAt;
+
+    /** 활동 알림 수신 동의 (동의 전에는 알림을 보내지 않는다) */
+    @Column(nullable = false)
+    private boolean notificationEnabled;
+
+    /** 야간(22시~08시) 푸시 수신 동의 */
+    @Column(nullable = false)
+    private boolean nightPushConsent;
+
     /** 정적 팩토리에서만 사용합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder(access = AccessLevel.PRIVATE)
     private User(
