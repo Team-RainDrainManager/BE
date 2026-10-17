@@ -93,6 +93,27 @@ Table user_terms_agreement {
   Note: '동의·철회 이력. 수정하지 않고 새 행 추가'
 }
 
+Table sanction {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  report_id bigint [ref: > report.id, note: '원인 제보 (없을 수 있음)']
+  imposed_by bigint [ref: > users.id, note: '부과한 관리자·시청 사용자']
+  reason varchar [not null, note: '제재 사유 (사용자에게 보임)']
+  starts_at timestamp [not null, note: '시작 시각. 제재 중에 추가로 부과되면 기존 종료 시각부터 시작']
+  until timestamp [note: '종료 시각. 영구면 null']
+  permanent boolean [not null, default: false, note: '영구 제재 여부']
+  revoked_at timestamp [note: '관리자 해제 시각. 해제된 제재는 누적 횟수에서 제외']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (user_id, starts_at) [name: 'idx_sanction_user']
+  }
+
+  Note: '사용자 제재. 허위 제보 1회 7일 · 2회 14일 · 3회 이상 영구'
+}
+
 Table fcm_token {
   id bigint [pk, increment]
   user_id bigint [not null, ref: > users.id]

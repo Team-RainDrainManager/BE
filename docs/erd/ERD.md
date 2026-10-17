@@ -40,7 +40,8 @@
 - V3: 웹 푸시용 `push_subscription` → FCM 기기 토큰 `fcm_token` (사용자당 여러 기기, 무효 토큰은 하드 삭제)
 - V4: 온보딩. 약관 마스터 `terms`(type · version, 버전별 1행), 동의 이력 `user_terms_agreement`(수정 없이 새 행 추가),
   `users.onboarding_completed_at` · `notification_enabled`(기본 false) · `night_push_consent`(기본 false), v1 약관 7개 시드
-- `erd.png`는 V2 ~ V4 반영 전 그림이다 (`erd.dbml`이 기준)
+- V5: 사용자 제재 `sanction` (허위 제보 1회 7일 · 2회 14일 · 3회 이상 영구, 영구면 `until` null, 해제된 제재는 누적에서 제외)
+- `erd.png`는 V2 ~ V5 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 
