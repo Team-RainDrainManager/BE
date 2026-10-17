@@ -1,6 +1,8 @@
 package com.rainbutler.domain.user.entity;
 
 import com.rainbutler.global.entity.BaseEntity;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -194,5 +196,16 @@ public class User extends BaseEntity {
      */
     public boolean isOnboardingCompleted() {
         return this.onboardingCompletedAt != null;
+    }
+
+    /**
+     * 온보딩을 마치지 않았으면 막습니다. 공공재를 직접 관리하는 기능(입양 · 점검 · 대신 점검 등) 앞에서 부릅니다.
+     *
+     * @throws BusinessException 온보딩 미완료 (ONBOARDING_REQUIRED 403)
+     */
+    public void requireOnboardingCompleted() {
+        if (!isOnboardingCompleted()) {
+            throw new BusinessException(ErrorCode.ONBOARDING_REQUIRED);
+        }
     }
 }
