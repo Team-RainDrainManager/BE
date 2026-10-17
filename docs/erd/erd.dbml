@@ -25,6 +25,9 @@ Table users {
   latitude "double precision" [note: '활동 위치 - 대신 점검 대상 판정']
   longitude "double precision"
   location_updated_at timestamp [note: '활동 위치 갱신 시각']
+  onboarding_completed_at timestamp [note: '온보딩(약관 동의 + 본인인증) 완료 시각. null이면 미완료']
+  notification_enabled boolean [not null, default: false, note: '활동 알림 수신 동의']
+  night_push_consent boolean [not null, default: false, note: '야간(22시~08시) 푸시 수신 동의']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
@@ -51,6 +54,43 @@ Table refresh_token {
   }
 
   Note: '재발급마다 회전. 폐기된 토큰이 다시 오면 해당 사용자 토큰 전부 폐기 (탈취 감지)'
+}
+
+Table terms {
+  id bigint [pk, increment]
+  type varchar [not null, note: 'AGE_14 / SERVICE / PRIVACY / LOCATION / SAFETY / NOTIFICATION / NIGHT_PUSH']
+  version int [not null, note: '약관 버전 (type별 1부터)']
+  title varchar [not null, note: '체크박스 문구 ([필수]/[선택] 접두어 제외)']
+  required boolean [not null, note: '필수 동의 여부']
+  content_path varchar [note: '약관 전문 markdown의 classpath 경로 (전문 없으면 null)']
+  display_order int [not null, note: '화면 표시 순서']
+  effective_at timestamp [not null, note: '시행 시각']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (type, version) [unique, name: 'uq_terms_type_version']
+  }
+
+  Note: '약관 마스터. 개정하면 같은 type에 version을 올린 새 행을 추가한다'
+}
+
+Table user_terms_agreement {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  terms_id bigint [not null, ref: > terms.id]
+  agreed boolean [not null, note: '동의 여부 (선택 약관 미동의도 false로 남긴다)']
+  agreed_at timestamp [not null, note: '동의(또는 철회) 시각']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (user_id, terms_id, agreed_at) [name: 'idx_user_terms_agreement_user']
+  }
+
+  Note: '동의·철회 이력. 수정하지 않고 새 행 추가'
 }
 
 Table fcm_token {

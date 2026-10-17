@@ -1,6 +1,8 @@
 package com.rainbutler.domain.user.entity;
 
 import com.rainbutler.global.entity.BaseEntity;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -77,6 +79,17 @@ public class User extends BaseEntity {
     /** 활동 위치 갱신 시각 */
     private LocalDateTime locationUpdatedAt;
 
+    /** 온보딩(약관 동의 + 본인인증) 완료 시각. null이면 미완료 */
+    private LocalDateTime onboardingCompletedAt;
+
+    /** 활동 알림 수신 동의 (동의 전에는 알림을 보내지 않는다) */
+    @Column(nullable = false)
+    private boolean notificationEnabled;
+
+    /** 야간(22시~08시) 푸시 수신 동의 */
+    @Column(nullable = false)
+    private boolean nightPushConsent;
+
     /** 정적 팩토리에서만 사용합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder(access = AccessLevel.PRIVATE)
     private User(
@@ -142,5 +155,57 @@ public class User extends BaseEntity {
         this.latitude = latitude;
         this.longitude = longitude;
         this.locationUpdatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 본인인증 완료를 기록합니다. 인증 시각만 남기고 실명 등 개인정보는 저장하지 않습니다.
+     *
+     * @param now 인증 시각
+     */
+    public void markIdentityVerified(LocalDateTime now) {
+        this.identityVerifiedAt = now;
+    }
+
+    /**
+     * 본인인증을 마쳤는지 확인합니다.
+     *
+     * @return 본인인증 여부
+     */
+    public boolean isIdentityVerified() {
+        return this.identityVerifiedAt != null;
+    }
+
+    /**
+     * 온보딩을 완료하고 선택 약관 동의값을 알림 설정에 반영합니다.
+     *
+     * @param now 완료 시각
+     * @param notificationEnabled 활동 알림 수신 동의
+     * @param nightPushConsent 야간 푸시 수신 동의
+     */
+    public void completeOnboarding(
+            LocalDateTime now, boolean notificationEnabled, boolean nightPushConsent) {
+        this.notificationEnabled = notificationEnabled;
+        this.nightPushConsent = nightPushConsent;
+        this.onboardingCompletedAt = now;
+    }
+
+    /**
+     * 온보딩(약관 동의 + 본인인증)을 마쳤는지 확인합니다.
+     *
+     * @return 온보딩 완료 여부
+     */
+    public boolean isOnboardingCompleted() {
+        return this.onboardingCompletedAt != null;
+    }
+
+    /**
+     * 온보딩을 마치지 않았으면 막습니다. 공공재를 직접 관리하는 기능(입양 · 점검 · 대신 점검 등) 앞에서 부릅니다.
+     *
+     * @throws BusinessException 온보딩 미완료 (ONBOARDING_REQUIRED 403)
+     */
+    public void requireOnboardingCompleted() {
+        if (!isOnboardingCompleted()) {
+            throw new BusinessException(ErrorCode.ONBOARDING_REQUIRED);
+        }
     }
 }

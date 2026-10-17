@@ -21,6 +21,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param rainNoticeTime 비 예보 알림 발송 시각
  * @param rainReplyDeadlineTime 비 예보 요청 응답 마감 시각
  * @param restCooldownDays 점검 쉬기 신청 가능 간격 (일, 90일에 한 번)
+ * @param nightPushStartTime 야간 푸시 시간대 시작 (이 시각부터 야간 동의자에게만 발송)
+ * @param nightPushEndTime 야간 푸시 시간대 끝 (이 시각 전까지 야간)
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -35,5 +37,7 @@ public record PolicyProperties(
         BigDecimal aiConfidenceThreshold,
         LocalTime rainNoticeTime,
         LocalTime rainReplyDeadlineTime,
-        int restCooldownDays) {
+        int restCooldownDays,
+        LocalTime nightPushStartTime,
+        LocalTime nightPushEndTime) {
 }
