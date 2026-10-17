@@ -2,6 +2,7 @@ package com.rainbutler.domain.sanction.service;
 
 import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.sanction.dto.SanctionResponse;
 import com.rainbutler.domain.sanction.entity.Sanction;
 import com.rainbutler.domain.sanction.repository.SanctionRepository;
 import com.rainbutler.domain.user.entity.User;
@@ -126,6 +127,19 @@ public class SanctionService {
      */
     public List<Sanction> findHistory(Long userId) {
         return sanctionRepository.findAllByUser_IdOrderByStartsAtDescIdDesc(userId);
+    }
+
+    /**
+     * 내 제재 내역을 최신순으로 조회합니다. 각 항목에 지금 효력이 있는지(active)를 담습니다.
+     *
+     * @param userId 로그인 사용자 id
+     * @return 제재 내역 (해제된 제재 포함)
+     */
+    public List<SanctionResponse> getMyHistory(Long userId) {
+        LocalDateTime now = now();
+        return findHistory(userId).stream()
+                .map(sanction -> SanctionResponse.of(sanction, now))
+                .toList();
     }
 
     /**
