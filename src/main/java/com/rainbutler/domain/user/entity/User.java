@@ -154,4 +154,45 @@ public class User extends BaseEntity {
         this.longitude = longitude;
         this.locationUpdatedAt = LocalDateTime.now();
     }
+
+    /**
+     * 본인인증 완료를 기록합니다. 인증 시각만 남기고 실명 등 개인정보는 저장하지 않습니다.
+     *
+     * @param now 인증 시각
+     */
+    public void markIdentityVerified(LocalDateTime now) {
+        this.identityVerifiedAt = now;
+    }
+
+    /**
+     * 본인인증을 마쳤는지 확인합니다.
+     *
+     * @return 본인인증 여부
+     */
+    public boolean isIdentityVerified() {
+        return this.identityVerifiedAt != null;
+    }
+
+    /**
+     * 온보딩을 완료하고 선택 약관 동의값을 알림 설정에 반영합니다.
+     *
+     * @param now 완료 시각
+     * @param notificationEnabled 활동 알림 수신 동의
+     * @param nightPushConsent 야간 푸시 수신 동의
+     */
+    public void completeOnboarding(
+            LocalDateTime now, boolean notificationEnabled, boolean nightPushConsent) {
+        this.notificationEnabled = notificationEnabled;
+        this.nightPushConsent = nightPushConsent;
+        this.onboardingCompletedAt = now;
+    }
+
+    /**
+     * 온보딩(약관 동의 + 본인인증)을 마쳤는지 확인합니다.
+     *
+     * @return 온보딩 완료 여부
+     */
+    public boolean isOnboardingCompleted() {
+        return this.onboardingCompletedAt != null;
+    }
 }

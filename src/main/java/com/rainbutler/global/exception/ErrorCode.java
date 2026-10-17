@@ -37,6 +37,10 @@ public enum ErrorCode {
 
     // ───────── 약관 · 온보딩 ─────────
     TERMS_NOT_FOUND(HttpStatus.NOT_FOUND, "약관을 찾을 수 없어요."),
+    REQUIRED_TERMS_NOT_AGREED(HttpStatus.BAD_REQUEST, "필수 약관에 모두 동의해 주세요."),
+    TERMS_OUTDATED(HttpStatus.BAD_REQUEST, "약관이 변경됐어요. 다시 확인해 주세요."),
+    IDENTITY_VERIFICATION_REQUIRED_ON_ONBOARDING(HttpStatus.BAD_REQUEST, "본인인증을 진행해 주세요."),
+    ONBOARDING_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 온보딩을 마쳤어요. 알림 설정은 설정에서 바꿀 수 있어요."),
 
     // ───────── 사용자 ─────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없어요."),
