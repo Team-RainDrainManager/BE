@@ -35,6 +35,9 @@ public enum ErrorCode {
     KAKAO_AUTH_FAILED(HttpStatus.UNAUTHORIZED, "카카오 로그인에 실패했어요. 다시 시도해 주세요."),
     KAKAO_API_ERROR(HttpStatus.BAD_GATEWAY, "카카오 서버와 통신하지 못했어요. 잠시 후 다시 시도해 주세요."),
 
+    // ───────── 약관 · 온보딩 ─────────
+    TERMS_NOT_FOUND(HttpStatus.NOT_FOUND, "약관을 찾을 수 없어요."),
+
     // ───────── 사용자 ─────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없어요."),
 
