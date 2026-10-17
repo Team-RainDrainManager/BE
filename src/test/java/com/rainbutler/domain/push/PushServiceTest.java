@@ -35,6 +35,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -66,6 +67,9 @@ class PushServiceTest extends IntegrationTestSupport {
 
     @Autowired
     private ApplicationEvents events;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @MockitoBean
     private FcmSender fcmSender;
@@ -126,6 +130,64 @@ class PushServiceTest extends IntegrationTestSupport {
         });
 
         verify(fcmSender, after(1500).never()).send(anyList(), anyString(), anyString(), anyMap());
+    }
+
+    @Test
+    void 알림_수신이_꺼져_있으면_알림을_만들지도_보내지도_않는다() {
+        User user = saveUser(false, true);
+
+        Long notificationId = notifyInTransaction(user);
+
+        assertThat(notificationId).isNull();
+        assertThat(notificationCount(user)).isZero();
+        assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
+    }
+
+    @Test
+    void 야간에_야간_푸시_미동의면_알림함에만_남기고_푸시하지_않는다() {
+        fixClock(22, 0);
+        User user = saveUser(true, false);
+
+        Long notificationId = notifyInTransaction(user);
+
+        assertThat(notificationId).isNotNull();
+        assertThat(notificationCount(user)).isEqualTo(1);
+        assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
+    }
+
+    @Test
+    void 야간에_야간_푸시_동의면_푸시한다() {
+        fixClock(23, 0);
+        User user = saveUser(true, true);
+
+        notifyInTransaction(user);
+
+        assertThat(events.stream(PushRequestedEvent.class)).hasSize(1);
+    }
+
+    @Test
+    void 야간_경계_21시59분과_08시는_주간이라_미동의자에게도_푸시한다() {
+        User user = saveUser(true, false);
+
+        fixClock(21, 59);
+        notifyInTransaction(user);
+        fixClock(8, 0);
+        notifyInTransaction(user);
+
+        assertThat(events.stream(PushRequestedEvent.class)).hasSize(2);
+    }
+
+    @Test
+    void 야간_경계_22시와_07시59분은_야간이라_미동의자에게_푸시하지_않는다() {
+        User user = saveUser(true, false);
+
+        fixClock(22, 0);
+        notifyInTransaction(user);
+        fixClock(7, 59);
+        notifyInTransaction(user);
+
+        assertThat(notificationCount(user)).isEqualTo(2);
+        assertThat(events.stream(PushRequestedEvent.class)).isEmpty();
     }
 
     @Test
@@ -245,6 +307,17 @@ class PushServiceTest extends IntegrationTestSupport {
         User user = User.local(UUID.randomUUID() + "@test.com", "{noop}irrelevant", "푸시집사");
         user.completeOnboarding(LocalDateTime.now(), notificationEnabled, nightPushConsent);
         return userRepository.save(user);
+    }
+
+    private Long notifyInTransaction(User user) {
+        return transactionTemplate.execute(status -> pushService.notify(user.getId(),
+                NotificationType.MANAGEMENT_DUE, "관리 예정일", "오늘은 빗물받이를 살펴보는 날이에요",
+                null, null, null));
+    }
+
+    private int notificationCount(User user) {
+        return jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM notification WHERE user_id = ?", Integer.class, user.getId());
     }
 
     private void fixClock(int hour, int minute) {
