@@ -208,6 +208,32 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 알림 설정을 바꿉니다. null인 값은 바꾸지 않습니다.
+     *
+     * @param notifications 활동 알림 수신 (null이면 유지)
+     * @param nightConsent 야간 푸시 수신 (null이면 유지)
+     */
+    public void updateNotificationSettings(Boolean notifications, Boolean nightConsent) {
+        if (notifications != null) {
+            this.notificationEnabled = notifications;
+        }
+        if (nightConsent != null) {
+            this.nightPushConsent = nightConsent;
+        }
+    }
+
+    /**
+     * 야간(기본 22시~08시)에 푸시를 받을 수 있는지 확인합니다. (알림 수신 + 야간 푸시 모두 동의)
+     *
+     * <p>예보 배치용: 06시 발송 대상 중 미동의자는 전날 21시에 보낸다(명세 B1).
+     *
+     * @return 야간 푸시 허용 여부
+     */
+    public boolean isNightPushAllowed() {
+        return this.notificationEnabled && this.nightPushConsent;
+    }
+
+    /**
      * 온보딩을 마치지 않았으면 막습니다. 공공재를 직접 관리하는 기능(입양 · 점검 · 대신 점검 등) 앞에서 부릅니다.
      *
      * @throws BusinessException 온보딩 미완료 (ONBOARDING_REQUIRED 403)

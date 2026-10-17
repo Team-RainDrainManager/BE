@@ -41,7 +41,7 @@ public class PushConsentPolicy {
      * @param now 확인할 시각
      * @return 야간 여부
      */
-    boolean isNightTime(LocalTime now) {
+    public boolean isNightTime(LocalTime now) {
         LocalTime start = policyProperties.nightPushStartTime();
         LocalTime end = policyProperties.nightPushEndTime();
         if (start.isAfter(end)) {
