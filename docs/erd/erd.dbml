@@ -28,6 +28,8 @@ Table users {
   onboarding_completed_at timestamp [note: '온보딩(약관 동의 + 본인인증) 완료 시각. null이면 미완료']
   notification_enabled boolean [not null, default: false, note: '활동 알림 수신 동의']
   night_push_consent boolean [not null, default: false, note: '야간(22시~08시) 푸시 수신 동의']
+  pause_until timestamp [note: '점검 쉬기 종료 시각. 이 시각 전이면 쉬는 중']
+  last_pause_requested_at timestamp [note: '마지막 쉬기 신청 시각 (90일 쿨다운 판정)']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp

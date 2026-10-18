@@ -90,6 +90,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean nightPushConsent;
 
+    /** 점검 쉬기 종료 시각. 이 시각 전이면 쉬는 중 */
+    private LocalDateTime pauseUntil;
+
+    /** 마지막 쉬기 신청 시각 (쿨다운 판정) */
+    private LocalDateTime lastPauseRequestedAt;
+
     /** 정적 팩토리에서만 사용합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder(access = AccessLevel.PRIVATE)
     private User(
@@ -231,6 +237,38 @@ public class User extends BaseEntity {
      */
     public boolean isNightPushAllowed() {
         return this.notificationEnabled && this.nightPushConsent;
+    }
+
+    /**
+     * 점검 쉬기 중인지 확인합니다.
+     *
+     * @param now 기준 시각
+     * @return 쉬는 중 여부 (종료 시각 정각부터는 쉬는 중이 아니다)
+     */
+    public boolean isPaused(LocalDateTime now) {
+        return this.pauseUntil != null && now.isBefore(this.pauseUntil);
+    }
+
+    /**
+     * 다음에 쉬기를 신청할 수 있는 시각입니다.
+     *
+     * @param cooldownDays 신청 간격 (일)
+     * @return 마지막 신청 시각 + 간격 (신청한 적 없으면 null)
+     */
+    public LocalDateTime nextPauseAvailableAt(int cooldownDays) {
+        return this.lastPauseRequestedAt == null
+                ? null : this.lastPauseRequestedAt.plusDays(cooldownDays);
+    }
+
+    /**
+     * 점검 쉬기를 시작합니다. 신청 조건 검사는 서비스에서 끝난 상태로 부릅니다.
+     *
+     * @param now 신청 시각
+     * @param pauseDays 쉬는 기간 (일)
+     */
+    public void startPause(LocalDateTime now, int pauseDays) {
+        this.lastPauseRequestedAt = now;
+        this.pauseUntil = now.plusDays(pauseDays);
     }
 
     /**

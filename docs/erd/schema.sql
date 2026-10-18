@@ -21,6 +21,8 @@ CREATE TABLE "users" (
   "onboarding_completed_at" timestamp,
   "notification_enabled" boolean NOT NULL DEFAULT false,
   "night_push_consent" boolean NOT NULL DEFAULT false,
+  "pause_until" timestamp,
+  "last_pause_requested_at" timestamp,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "deleted_at" timestamp
@@ -344,6 +346,10 @@ COMMENT ON COLUMN "users"."onboarding_completed_at" IS '온보딩(약관 동의 
 COMMENT ON COLUMN "users"."notification_enabled" IS '활동 알림 수신 동의 (동의 전에는 알림을 보내지 않는다)';
 
 COMMENT ON COLUMN "users"."night_push_consent" IS '야간(22시~08시) 푸시 수신 동의';
+
+COMMENT ON COLUMN "users"."pause_until" IS '점검 쉬기 종료 시각. 이 시각 전이면 쉬는 중';
+
+COMMENT ON COLUMN "users"."last_pause_requested_at" IS '마지막 쉬기 신청 시각 (90일 쿨다운 판정)';
 
 COMMENT ON TABLE "terms" IS '약관 마스터. 개정하면 같은 type에 version을 올린 새 행을 추가한다';
 
