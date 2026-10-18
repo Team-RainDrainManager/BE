@@ -37,7 +37,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
-        return toResponse(e.getErrorCode(), ErrorResponse.of(e.getErrorCode(), e.getMessage()), e);
+        return toResponse(e.getErrorCode(),
+                ErrorResponse.of(e.getErrorCode(), e.getMessage(), e.getDetails()), e);
     }
 
     /**

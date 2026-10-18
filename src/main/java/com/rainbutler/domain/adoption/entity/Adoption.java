@@ -101,4 +101,15 @@ public class Adoption extends BaseEntity {
         this.score = 0;
         this.ignoreCount = 0;
     }
+
+    /**
+     * 다음 관리 예정일을 미룹니다. 이미 더 늦으면 그대로 둡니다. (점검 쉬기)
+     *
+     * @param until 이 시각 이후로 미룬다
+     */
+    public void postponeNextManagement(LocalDateTime until) {
+        if (this.nextManagementAt == null || this.nextManagementAt.isBefore(until)) {
+            this.nextManagementAt = until;
+        }
+    }
 }

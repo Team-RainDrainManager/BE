@@ -17,7 +17,7 @@ class PushConsentPolicyTest {
     private final PushConsentPolicy policy = new PushConsentPolicy(new PolicyProperties(
             3, 14, 28, 28, 35, 300, 3, 50, new BigDecimal("0.7"),
             LocalTime.of(6, 0), LocalTime.of(20, 0), 90, LocalTime.of(22, 0), LocalTime.of(8, 0),
-            7, 14, 3));
+            7, 14, 3, 14));
 
     @Test
     void 알림_수신에_동의하지_않으면_낮에도_보내지_않는다() {
