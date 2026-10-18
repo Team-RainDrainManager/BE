@@ -45,6 +45,7 @@ public enum ErrorCode {
 
     // ───────── 사용자 ─────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없어요."),
+    USER_SANCTIONED(HttpStatus.FORBIDDEN, "제재 기간에는 이용할 수 없어요."),
 
     // ───────── 빗물받이 ─────────
     DRAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "빗물받이를 찾을 수 없어요."),

@@ -85,3 +85,6 @@ rain-butler:
     rest-cooldown-days: 90
     night-push-start-time: "22:00"   # 야간 푸시 시간대 (22시~08시는 야간 동의자에게만 발송)
     night-push-end-time: "08:00"
+    sanction-first-days: 7           # 허위 제보 제재: 1회 7일 · 2회 14일 · 3회 이상 영구
+    sanction-second-days: 14
+    sanction-permanent-count: 3

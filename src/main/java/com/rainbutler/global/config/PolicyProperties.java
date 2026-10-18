@@ -23,6 +23,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param restCooldownDays 점검 쉬기 신청 가능 간격 (일, 90일에 한 번)
  * @param nightPushStartTime 야간 푸시 시간대 시작 (이 시각부터 야간 동의자에게만 발송)
  * @param nightPushEndTime 야간 푸시 시간대 끝 (이 시각 전까지 야간)
+ * @param sanctionFirstDays 허위 제보 1회째 제재 일수
+ * @param sanctionSecondDays 허위 제보 2회째 제재 일수
+ * @param sanctionPermanentCount 이 횟수째부터 영구 제재
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -39,5 +42,8 @@ public record PolicyProperties(
         LocalTime rainReplyDeadlineTime,
         int restCooldownDays,
         LocalTime nightPushStartTime,
-        LocalTime nightPushEndTime) {
+        LocalTime nightPushEndTime,
+        int sanctionFirstDays,
+        int sanctionSecondDays,
+        int sanctionPermanentCount) {
 }
