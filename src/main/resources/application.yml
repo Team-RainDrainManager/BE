@@ -88,3 +88,4 @@ rain-butler:
     sanction-first-days: 7           # 허위 제보 제재: 1회 7일 · 2회 14일 · 3회 이상 영구
     sanction-second-days: 14
     sanction-permanent-count: 3
+    pause-days: 14                   # 점검 쉬기 기간 (신청 간격은 rest-cooldown-days)

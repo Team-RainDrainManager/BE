@@ -1,5 +1,6 @@
 package com.rainbutler.global.exception;
 
+import java.util.Map;
 import lombok.Getter;
 
 /**
@@ -14,6 +15,9 @@ public class BusinessException extends RuntimeException {
 
     private final ErrorCode errorCode;
 
+    /** 에러 응답에 함께 실을 추가 정보 (없으면 null) */
+    private final Map<String, Object> details;
+
     /**
      * ErrorCode의 기본 메시지로 예외를 만듭니다.
      *
@@ -22,6 +26,7 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
+        this.details = null;
     }
 
     /**
@@ -33,5 +38,18 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, String message) {
         super(message);
         this.errorCode = errorCode;
+        this.details = null;
+    }
+
+    /**
+     * 에러 응답에 추가 정보를 실어 예외를 만듭니다. (예: 다음 신청 가능 시각)
+     *
+     * @param errorCode 에러 코드
+     * @param details 응답의 error.details로 나갈 값
+     */
+    public BusinessException(ErrorCode errorCode, Map<String, Object> details) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+        this.details = details;
     }
 }

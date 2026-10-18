@@ -46,6 +46,9 @@ public enum ErrorCode {
     // ───────── 사용자 ─────────
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없어요."),
     USER_SANCTIONED(HttpStatus.FORBIDDEN, "제재 기간에는 이용할 수 없어요."),
+    PAUSE_ALREADY_ACTIVE(HttpStatus.CONFLICT, "이미 점검 쉬기 중이에요."),
+    PAUSE_NO_ADOPTION(HttpStatus.CONFLICT, "입양한 빗물받이가 있어야 쉬기를 신청할 수 있어요."),
+    PAUSE_COOLDOWN(HttpStatus.CONFLICT, "점검 쉬기는 90일에 한 번 신청할 수 있어요."),
 
     // ───────── 빗물받이 ─────────
     DRAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "빗물받이를 찾을 수 없어요."),
