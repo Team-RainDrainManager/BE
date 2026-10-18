@@ -76,6 +76,8 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// 운영(앱 시작 시 Asia/Seoul 고정 · Dockerfile TZ)과 같은 시간대로 테스트한다. CI 러너는 UTC라서 필요
+	systemProperty("user.timezone", "Asia/Seoul")
 }
 
 // 실행 가능한 bootJar 하나만 만든다 (plain jar 비활성화 → build/libs/에 jar 1개)
