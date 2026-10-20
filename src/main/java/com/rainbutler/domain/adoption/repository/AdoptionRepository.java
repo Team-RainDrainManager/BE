@@ -24,4 +24,13 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
      * @return 입양 목록
      */
     List<Adoption> findAllByUser_IdAndStatus(Long userId, AdoptionStatus status);
+
+    /**
+     * 사용자의 입양 중 해당 상태인 것의 수를 셉니다. (내 정보: 입양 중인 빗물받이 수)
+     *
+     * @param userId 사용자 id
+     * @param status 입양 상태
+     * @return 입양 수
+     */
+    long countByUser_IdAndStatus(Long userId, AdoptionStatus status);
 }
