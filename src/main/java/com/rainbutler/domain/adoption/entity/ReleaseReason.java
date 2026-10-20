@@ -13,5 +13,7 @@ public enum ReleaseReason {
     /** 기타 */
     OTHER,
     /** 35일 미관리 자동 파양 */
-    AUTO
+    AUTO,
+    /** 회원 탈퇴 */
+    WITHDRAWN
 }

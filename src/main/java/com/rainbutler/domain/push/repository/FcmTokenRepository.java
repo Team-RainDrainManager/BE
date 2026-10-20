@@ -39,4 +39,14 @@ public interface FcmTokenRepository extends JpaRepository<FcmToken, Long> {
     @Modifying
     @Query("DELETE FROM FcmToken t WHERE t.token IN :tokens")
     int deleteAllByTokenIn(@Param("tokens") Collection<String> tokens);
+
+    /**
+     * 사용자의 기기 토큰을 전부 하드 삭제합니다. (회원 탈퇴)
+     *
+     * @param userId 사용자 id
+     * @return 삭제한 수
+     */
+    @Modifying
+    @Query("DELETE FROM FcmToken t WHERE t.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

@@ -112,4 +112,19 @@ public class Adoption extends BaseEntity {
             this.nextManagementAt = until;
         }
     }
+
+    /**
+     * 입양을 해제합니다. 빗물받이는 다시 입양할 수 있게 됩니다. (직접 해제 · 자동 해제 · 회원 탈퇴 공통)
+     *
+     * <p>이 입양에 걸린 점검 요청 재공개는 호출하는 쪽에서 {@code InspectionRequest.reopen}으로 처리합니다.
+     *
+     * @param reason 해제 사유
+     * @param now 해제 시각
+     */
+    public void release(ReleaseReason reason, LocalDateTime now) {
+        this.status = AdoptionStatus.RELEASED;
+        this.releaseReason = reason;
+        this.releasedAt = now;
+        this.drain.markAvailable();
+    }
 }
