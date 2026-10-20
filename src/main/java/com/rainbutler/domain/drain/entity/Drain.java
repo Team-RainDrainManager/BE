@@ -84,4 +84,11 @@ public class Drain extends BaseEntity {
         this.isRisk = isRisk;
         this.adoptionStatus = DrainAdoptionStatus.AVAILABLE;
     }
+
+    /**
+     * 입양이 해제돼 다시 입양할 수 있게 합니다.
+     */
+    public void markAvailable() {
+        this.adoptionStatus = DrainAdoptionStatus.AVAILABLE;
+    }
 }

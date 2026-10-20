@@ -95,4 +95,18 @@ public class InspectionRequest extends BaseEntity {
         this.sentAt = sentAt;
         this.replyDeadlineAt = replyDeadlineAt;
     }
+
+    /**
+     * 요청을 대신 점검으로 다시 공개합니다. (입양 해제 · 대신 점검자 탈퇴)
+     *
+     * <p>입양자에게 간 요청(SENT · ACCEPTED)이나 누군가 맡았던 요청(CLAIMED)을 OPEN으로 돌리고, 맡았던 사람을 비웁니다.
+     *
+     * @param now 공개 시각
+     */
+    public void reopen(LocalDateTime now) {
+        this.status = RequestStatus.OPEN;
+        this.openedAt = now;
+        this.substituteUser = null;
+        this.claimedAt = null;
+    }
 }
