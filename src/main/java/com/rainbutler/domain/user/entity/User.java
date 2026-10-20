@@ -271,6 +271,32 @@ public class User extends BaseEntity {
         this.pauseUntil = now.plusDays(pauseDays);
     }
 
+    /** 탈퇴한 사용자에게 보이는 닉네임 */
+    public static final String WITHDRAWN_NICKNAME = "탈퇴한 사용자";
+
+    /**
+     * 회원 탈퇴: 개인정보를 비우고 소프트 삭제합니다. 활동 기록(청소 · 점검 · 제보 · 포인트)은 남습니다.
+     *
+     * <p>이메일 · 카카오 회원번호를 비우므로 같은 계정으로 다시 오면 새 계정으로 가입됩니다.
+     *
+     * @param now 탈퇴 시각
+     */
+    public void withdraw(LocalDateTime now) {
+        this.nickname = WITHDRAWN_NICKNAME;
+        this.email = null;
+        this.password = null;
+        this.providerId = null;
+        this.profileImage = null;
+        this.realName = null;
+        this.identityVerifiedAt = null;
+        this.latitude = null;
+        this.longitude = null;
+        this.locationUpdatedAt = null;
+        this.notificationEnabled = false;
+        this.nightPushConsent = false;
+        softDelete();
+    }
+
     /**
      * 온보딩을 마치지 않았으면 막습니다. 공공재를 직접 관리하는 기능(입양 · 점검 · 대신 점검 등) 앞에서 부릅니다.
      *

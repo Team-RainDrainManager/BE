@@ -38,7 +38,7 @@ Table users {
     (provider, provider_id) [unique]
   }
 
-  Note: '자체 로그인 이메일 유니크 (UNIQUE lower(email) WHERE provider=LOCAL) / LOCAL은 email·password, KAKAO는 provider_id 필수 (CHECK)'
+  Note: '자체 로그인 이메일 유니크 (UNIQUE lower(email) WHERE provider=LOCAL) / LOCAL은 email·password, KAKAO는 provider_id 필수 (CHECK, 탈퇴한 계정은 제외)'
 }
 
 Table refresh_token {
@@ -181,7 +181,7 @@ Table adoption {
   cleaning_id bigint [unique, not null, ref: - cleaning.id, note: '입양 조건 청소 (청소 1건 = 입양 1건)']
   nickname varchar [not null, note: '배수구에 붙인 이름']
   status varchar [not null, note: 'ACTIVE / RELEASED']
-  release_reason varchar [note: 'MOVED / NO_TIME / OTHER / AUTO(35일 미관리)']
+  release_reason varchar [note: 'MOVED / NO_TIME / OTHER / AUTO(35일 미관리) / WITHDRAWN(회원 탈퇴)']
   level int [not null, default: 1, note: '배수구 캐릭터 레벨 - 입양자 바뀌면 초기화']
   score int [not null, default: 0]
   ignore_count int [not null, default: 0, note: '비 예보 요청 연속 무응답']

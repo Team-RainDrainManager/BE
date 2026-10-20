@@ -425,7 +425,7 @@ COMMENT ON COLUMN "adoption"."nickname" IS '배수구에 붙인 이름';
 
 COMMENT ON COLUMN "adoption"."status" IS 'ACTIVE / RELEASED';
 
-COMMENT ON COLUMN "adoption"."release_reason" IS 'MOVED / NO_TIME / OTHER / AUTO(35일 미관리)';
+COMMENT ON COLUMN "adoption"."release_reason" IS 'MOVED / NO_TIME / OTHER / AUTO(35일 미관리) / WITHDRAWN(회원 탈퇴)';
 
 COMMENT ON COLUMN "adoption"."level" IS '배수구 캐릭터 레벨 - 입양자 바뀌면 초기화';
 
@@ -578,8 +578,8 @@ ALTER TABLE "notification" ADD FOREIGN KEY ("adoption_id") REFERENCES "adoption"
 CREATE UNIQUE INDEX uq_adoption_active_drain ON "adoption" ("drain_id") WHERE "status" = 'ACTIVE' AND "deleted_at" IS NULL;
 -- 자체 로그인 이메일 중복 방지 (대소문자 무시, 카카오 계정과는 별개)
 CREATE UNIQUE INDEX uq_users_local_email ON "users" (lower("email")) WHERE "provider" = 'LOCAL' AND "deleted_at" IS NULL;
--- 자체 로그인은 이메일 · 비밀번호, 카카오는 회원번호 필수
-ALTER TABLE "users" ADD CONSTRAINT ck_users_provider_credentials CHECK (("provider" = 'LOCAL' AND "email" IS NOT NULL AND "password" IS NOT NULL) OR ("provider" = 'KAKAO' AND "provider_id" IS NOT NULL));
+-- 자체 로그인은 이메일 · 비밀번호, 카카오는 회원번호 필수 (탈퇴한 계정은 제외)
+ALTER TABLE "users" ADD CONSTRAINT ck_users_provider_credentials CHECK ("deleted_at" IS NOT NULL OR ("provider" = 'LOCAL' AND "email" IS NOT NULL AND "password" IS NOT NULL) OR ("provider" = 'KAKAO' AND "provider_id" IS NOT NULL));
 -- 1인 1개 대여
 CREATE UNIQUE INDEX uq_tool_rental_active_user ON "tool_rental" ("user_id") WHERE "status" = 'RENTED' AND "deleted_at" IS NULL;
 -- 더러움 단계 1~3
