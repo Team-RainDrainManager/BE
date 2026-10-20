@@ -1,25 +1,36 @@
 package com.rainbutler.domain.user.service;
 
+import com.rainbutler.domain.adoption.entity.AdoptionStatus;
+import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.point.repository.PointHistoryRepository;
+import com.rainbutler.domain.sanction.service.SanctionService;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
+import com.rainbutler.domain.user.dto.PauseStatusResponse;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 사용자 정보를 조회합니다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PointHistoryRepository pointHistoryRepository;
+    private final AdoptionRepository adoptionRepository;
+    private final SanctionService sanctionService;
+    private final PauseService pauseService;
 
     /**
      * 로그인 사용자의 정보를 조회합니다.
@@ -29,9 +40,27 @@ public class UserService {
      * @throws BusinessException 사용자가 없을 때 (USER_NOT_FOUND)
      */
     public MeResponse getMe(Long userId) {
-        return userRepository.findById(userId)
-                .map(MeResponse::from)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        long participationScore = pointHistoryRepository.sumParticipationScore(userId);
+        if (user.getPoint() != null && user.getPoint() != participationScore) {
+            // 포인트 이력이 기준이다. 둘이 다르면 적립 · 회수 처리 어딘가에서 users.point 갱신이 빠진 것
+            log.warn("[포인트 불일치] userId={} users.point={} 이력 합={}",
+                    userId, user.getPoint(), participationScore);
+        }
+        long adoptionCount =
+                adoptionRepository.countByUser_IdAndStatus(userId, AdoptionStatus.ACTIVE);
+
+        MeResponse.SanctionSummary sanction = sanctionService.findActive(userId)
+                .map(active -> new MeResponse.SanctionSummary(
+                        true, active.getUntil(), active.isPermanent()))
+                .orElse(MeResponse.SanctionSummary.NONE);
+        PauseStatusResponse pauseStatus = pauseService.getStatus(userId);
+        MeResponse.PauseSummary pause = new MeResponse.PauseSummary(
+                pauseStatus.activeUntil(), pauseStatus.nextAvailableAt());
+
+        return MeResponse.of(user, participationScore, adoptionCount, sanction, pause);
     }
 
     /**
