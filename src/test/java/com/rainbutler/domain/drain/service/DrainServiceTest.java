@@ -17,6 +17,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
@@ -74,8 +75,13 @@ class DrainServiceTest {
         given(drainAiClassifier.assess(READ_URL))
                 .willReturn(new DrainAiClassifier.Assessment(2, false, 0.95, "조금 쌓임", 1, false));
         Drain savedDrain = Drain.builder()
+                .registeredBy(User.local("a@test.com", "{noop}x", "집사"))
+                .latitude(37.5)
+                .longitude(127.0)
                 .photoUrl(PHOTO_KEY)
                 .dirtLevel(2)
+                .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
+                .isRisk(false)
                 .build();
         given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any()))
                 .willReturn(new DrainWriter.SavedDrain(savedDrain, null));
@@ -92,8 +98,13 @@ class DrainServiceTest {
         given(drainAiClassifier.assess(READ_URL))
                 .willReturn(new DrainAiClassifier.Assessment(3, true, 0.4, "애매함", 3, false));
         Drain savedDrain = Drain.builder()
+                .registeredBy(User.local("a@test.com", "{noop}x", "집사"))
+                .latitude(37.5)
+                .longitude(127.0)
                 .photoUrl(PHOTO_KEY)
                 .dirtLevel(3)
+                .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
+                .isRisk(true)
                 .build();
         given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any()))
                 .willReturn(new DrainWriter.SavedDrain(savedDrain, 99L));
