@@ -3,7 +3,9 @@ package com.rainbutler.domain.cleaning.service;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.cleaning.dto.Request.CleaningStartRequest;
+import com.rainbutler.domain.cleaning.dto.Request.CleaningVerifyRequest;
 import com.rainbutler.domain.cleaning.dto.Response.CleaningStartResponse;
+import com.rainbutler.domain.cleaning.dto.Response.CleaningVerifyResponse;
 import com.rainbutler.domain.cleaning.entity.Cleaning;
 import com.rainbutler.domain.cleaning.entity.CleaningStatus;
 import com.rainbutler.domain.cleaning.entity.CleaningType;
@@ -166,5 +168,69 @@ public class CleaningService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
+    }
+
+    /**
+     * 청소 완료 인증을 진행합니다.
+     *
+     * <p>AI 판정 결과에 따라:
+     * <ul>
+     *   <li>afterGrade < beforeGrade: 인증 통과 (passed=true)</li>
+     *   <li>afterGrade >= beforeGrade: 인증 실패 (passed=false), 재시도 가능</li>
+     * </ul>
+     * 인증 통과해야 입양 가능합니다.
+     */
+    @Transactional
+    public CleaningVerifyResponse verifyCleaning(Long userId, Long cleaningId, CleaningVerifyRequest request) {
+        // 1. 청소 존재 확인
+        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        // 2. 본인의 청소인지 확인
+        if (!cleaning.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 3. 청소 상태 확인 (진행 중인 청소만 인증 가능)
+        if (cleaning.getStatus() != CleaningStatus.IN_PROGRESS) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 완료된 청소입니다.");
+        }
+
+        // 4. 사진 검증
+        String photoKey = storageService.verifyUploaded(userId, request.photoKey(), UploadPurpose.AFTER);
+
+        // 5. AI 판정 (청소 후 사진)
+        DrainAiClassifier.Assessment assessment =
+                drainAiClassifier.assess(storageService.toReadUrl(photoKey));
+
+        // 6. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→grade 0, 2→1, 3→2)
+        int beforeGrade = cleaning.getDirtLevel() != null ? cleaning.getDirtLevel() - 1 : 0;
+        int afterGrade = assessment.grade();
+
+        // 7. 인증 시도 횟수 증가
+        cleaning.incrementAttemptNo();
+
+        // 8. 청소 후 정보 저장
+        cleaning.setAfterPhotoUrl(photoKey);
+        cleaning.setAfterGrade(afterGrade);
+
+        // 9. 인증 통과 여부 판정 (afterGrade < beforeGrade)
+        boolean passed = afterGrade < beforeGrade;
+
+        // 10. 통과하면 청소 완료 상태로 변경
+        if (passed) {
+            cleaning.setStatus(CleaningStatus.COMPLETED);
+            cleaning.setCompletedAt(LocalDateTime.now());
+        }
+
+        Cleaning saved = cleaningRepository.save(cleaning);
+
+        return new CleaningVerifyResponse(
+                saved.getId(),
+                beforeGrade,
+                afterGrade,
+                passed,
+                saved.getAttemptNo()
+        );
     }
 }

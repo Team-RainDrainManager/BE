@@ -65,6 +65,16 @@ public class Cleaning extends BaseEntity {
     @Column(precision = 3, scale = 2)
     private BigDecimal dirtConfidence;
 
+    /** 청소 후 사진 */
+    private String afterPhotoUrl;
+
+    /** AI가 애프터 사진으로 판정한 등급 (0~3) */
+    private Integer afterGrade;
+
+    /** 인증 시도 횟수 */
+    @Column(nullable = false)
+    private Integer attemptNo;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CleaningStatus status;
@@ -119,6 +129,26 @@ public class Cleaning extends BaseEntity {
         this.locationMismatch = locationMismatch;
     }
 
+    /** 청소 후 사진 설정 */
+    public void setAfterPhotoUrl(String afterPhotoUrl) {
+        this.afterPhotoUrl = afterPhotoUrl;
+    }
+
+    /** 청소 후 등급 설정 */
+    public void setAfterGrade(Integer afterGrade) {
+        this.afterGrade = afterGrade;
+    }
+
+    /** 인증 시도 횟수 증가 */
+    public void incrementAttemptNo() {
+        this.attemptNo = (this.attemptNo == null ? 0 : this.attemptNo) + 1;
+    }
+
+    /** 완료 시각 설정 */
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
     private Cleaning(
@@ -140,5 +170,6 @@ public class Cleaning extends BaseEntity {
         this.startedAt = startedAt;
         this.status = CleaningStatus.IN_PROGRESS;
         this.reviewStatus = ReviewStatus.NOT_REQUIRED;
+        this.attemptNo = 0;
     }
 }
