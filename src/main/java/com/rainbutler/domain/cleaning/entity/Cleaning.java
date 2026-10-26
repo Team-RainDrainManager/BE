@@ -94,6 +94,31 @@ public class Cleaning extends BaseEntity {
 
     private LocalDateTime completedAt;
 
+    /** AI가 비포 사진으로 판정한 더러움 1~3 설정 */
+    public void setDirtLevel(Integer dirtLevel) {
+        this.dirtLevel = dirtLevel;
+    }
+
+    /** AI 확신도 설정 */
+    public void setDirtConfidence(BigDecimal dirtConfidence) {
+        this.dirtConfidence = dirtConfidence;
+    }
+
+    /** 청소 상태 설정 */
+    public void setStatus(CleaningStatus status) {
+        this.status = status;
+    }
+
+    /** 검토 상태 설정 */
+    public void setReviewStatus(ReviewStatus reviewStatus) {
+        this.reviewStatus = reviewStatus;
+    }
+
+    /** 위치 불일치 여부 설정 */
+    public void setLocationMismatch(boolean locationMismatch) {
+        this.locationMismatch = locationMismatch;
+    }
+
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
     private Cleaning(

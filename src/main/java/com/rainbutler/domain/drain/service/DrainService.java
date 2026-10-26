@@ -10,13 +10,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.entity.Drain;
-import com.rainbutler.domain.drain.entity.DrainStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
-import com.rainbutler.domain.report.entity.Report;
-import com.rainbutler.domain.report.entity.ReportType;
-import com.rainbutler.domain.report.repository.ReportRepository;
-import com.rainbutler.domain.user.entity.User;
-import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
@@ -40,9 +34,8 @@ public class DrainService {
 
     private final DrainRepository drainRepository;
     private final AdoptionRepository adoptionRepository;
-    private final UserRepository userRepository;
-    private final ReportRepository reportRepository;
     private final DrainAiClassifier drainAiClassifier;
+    private final DrainWriter drainWriter;
     private final PolicyProperties policyProperties;
     private final StorageService storageService;
 
@@ -168,15 +161,14 @@ public class DrainService {
     /**
      * 빗물받이를 생성합니다. (관리자 직접 등록 + 일반 사용자 제보 등록 공통)
      *
-     * <p>상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. 더러움 단계와 위험 여부는 서버 AI가
-     * 사진으로 판정하고 그 값으로 저장합니다. 3등급(위험)이면 지자체 신고용 제보(BLOCKAGE, PENDING)를
-     * 만듭니다. 아래 경우 리마인드({@code riskRemind=true})도 함께 띄웁니다.
+     * <p>트랜잭션을 열지 않고 검증·AI 판정을 끝낸 뒤, 저장은 짧은 트랜잭션({@code DrainWriter})에
+     * 맡깁니다. 상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. 3등급(위험)이면 지자체 신고용
+     * 제보(BLOCKAGE, PENDING)를 만듭니다. 아래 경우 리마인드({@code riskRemind=true})도 함께 띄웁니다.
      * <ul>
      *   <li>사용자가 체크한 위험값이 AI 판정과 다름</li>
      *   <li>AI 확신도가 기준({@code policy.ai-confidence-threshold}) 미만</li>
      * </ul>
      */
-    @Transactional
     public DrainCreateResponse createDrain(Long userId, DrainCreateRequest request) {
         // 1. 위도 범위 검증: -90 ~ 90 (Bean Validation과 같은 기준, 에러 코드는 LOCATION_INVALID_INPUT)
         if (request.latitude() < -90 || request.latitude() > 90) {
@@ -196,76 +188,54 @@ public class DrainService {
         String photoKey = storageService.verifyUploaded(
                 userId, request.photoKey(), UploadPurpose.DRAIN);
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new BusinessException(ErrorCode.USER_NOT_FOUND)
-                );
-
-        // 4. 같은 사진으로 등록된 빗물받이가 있으면 거절
+        // 4. 같은 사진으로 등록된 빗물받이가 있으면 거절 (AI 호출 전 빠른 실패)
         if (drainRepository.existsByPhotoUrl(photoKey)) {
             throw new BusinessException(ErrorCode.DUPLICATE_PHOTO);
         }
 
-        // 5. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부). AI에는 조회용 presigned URL을 넘긴다
-        DrainAiClassifier.Assessment assessment =
-                drainAiClassifier.assess(storageService.toReadUrl(photoKey));
+        // 5. 사진 1장으로 AI 판정 (더러움 단계 + 위험 여부) — 트랜잭션 밖 외부 호출
+        DrainAiClassifier.Assessment assessment = drainAiClassifier.assess(storageService.toReadUrl(photoKey));
         int dirtLevel = assessment.dirtLevel();
         // 올린 사람이 위험하다고 하면 AI 결과와 관계없이 위험으로 저장
         boolean isRisk = Boolean.TRUE.equals(request.isRisk()) || assessment.risk();
 
-        // 6. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 생성
+        // 6. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 사유 준비
         boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
         boolean lowConfidence =
                 assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();
         boolean riskRemind = mismatched || lowConfidence;
-        boolean needsReport = riskRemind || isRisk;
 
-        Drain drain = Drain.builder()
-                .registeredBy(user)
-                .latitude(request.latitude())
-                .longitude(request.longitude())
-                .photoUrl(photoKey)
-                .dirtLevel(dirtLevel)
-                .status(DrainStatus.ACTIVE)
-                .isRisk(isRisk)
-                .build();
-        Drain saved = drainRepository.save(drain);
-
-        Long riskReportId = null;
-        if (needsReport) {
-            String description = request.riskDescription();
-            if (description == null || description.isBlank()) {
+        String reportDescription = null;
+        if (riskRemind || isRisk) {
+            reportDescription = request.riskDescription();
+            if (reportDescription == null || reportDescription.isBlank()) {
                 if (isRisk) {
-                    description = "AI 판정 위험(3등급)으로 지자체 신고 대상";
+                    reportDescription = "AI 판정 위험(3등급)으로 지자체 신고 대상";
                 } else if (mismatched) {
-                    description = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험="
+                    reportDescription = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험="
                             + isRisk + ")이 달라 관리자 확인 필요";
                 } else {
-                    description = "AI 확신도(" + assessment.confidence() + ")가 기준 미만이라 관리자 확인 필요";
+                    reportDescription = "AI 확신도(" + assessment.confidence() + ")가 기준 미만이라 관리자 확인 필요";
                 }
             }
-            Report report = Report.builder()
-                    .user(user)
-                    .drain(saved)
-                    .type(ReportType.BLOCKAGE)
-                    .description(description)
-                    .photoUrl(photoKey)
-                    .build();
-            riskReportId = reportRepository.save(report).getId();
         }
 
+        // 7. 저장만 짧은 트랜잭션으로
+        DrainWriter.SavedDrain saved = drainWriter.save(
+                userId, request, photoKey, dirtLevel, isRisk, reportDescription);
+
         return new DrainCreateResponse(
-                saved.getId(),
-                saved.getStatus().name(),
-                saved.getAdoptionStatus().name(),
-                saved.getLatitude(),
-                saved.getLongitude(),
-                storageService.toReadUrl(saved.getPhotoUrl()),
-                saved.getDirtLevel(),
-                saved.isRisk(),
+                saved.drain().getId(),
+                saved.drain().getStatus().name(),
+                saved.drain().getAdoptionStatus().name(),
+                saved.drain().getLatitude(),
+                saved.drain().getLongitude(),
+                storageService.toReadUrl(saved.drain().getPhotoUrl()),
+                saved.drain().getDirtLevel(),
+                saved.drain().isRisk(),
                 assessment.confidence(),
                 riskRemind,
-                riskReportId
+                saved.riskReportId()
         );
     }
 }
