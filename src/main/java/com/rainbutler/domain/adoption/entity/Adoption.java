@@ -127,4 +127,14 @@ public class Adoption extends BaseEntity {
         this.releasedAt = now;
         this.drain.markAvailable();
     }
+
+    /** 마지막 점검일 설정 */
+    public void setLastManagedAt(LocalDateTime lastManagedAt) {
+        this.lastManagedAt = lastManagedAt;
+    }
+
+    /** 다음 관리 예정일 설정 */
+    public void setNextManagementAt(LocalDateTime nextManagementAt) {
+        this.nextManagementAt = nextManagementAt;
+    }
 }

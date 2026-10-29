@@ -91,4 +91,9 @@ public class Drain extends BaseEntity {
     public void markAvailable() {
         this.adoptionStatus = DrainAdoptionStatus.AVAILABLE;
     }
+
+    /** 입양 상태 설정 */
+    public void setAdoptionStatus(DrainAdoptionStatus adoptionStatus) {
+        this.adoptionStatus = adoptionStatus;
+    }
 }
