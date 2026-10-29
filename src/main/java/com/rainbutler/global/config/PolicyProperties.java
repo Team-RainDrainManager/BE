@@ -27,6 +27,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param sanctionSecondDays 허위 제보 2회째 제재 일수
  * @param sanctionPermanentCount 이 횟수째부터 영구 제재
  * @param pauseDays 점검 쉬기 기간 (일)
+ * @param volunteerMinutesPerCleaning 청소 1회당 인정하는 봉사 시간 (분)
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -47,5 +48,6 @@ public record PolicyProperties(
         int sanctionFirstDays,
         int sanctionSecondDays,
         int sanctionPermanentCount,
-        int pauseDays) {
+        int pauseDays,
+        int volunteerMinutesPerCleaning) {
 }

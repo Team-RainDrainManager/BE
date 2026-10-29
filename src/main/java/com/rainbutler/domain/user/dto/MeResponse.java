@@ -22,6 +22,8 @@ import java.time.LocalDateTime;
  * @param adoptionCount 입양 중인 빗물받이 수
  * @param sanction 제재 상태
  * @param pause 점검 쉬기 상태
+ * @param inspectionCount 인정된 점검 수 (정기 · 비 예보 · 대신 점검)
+ * @param volunteerMinutes 봉사 시간 (분, 청소 1회당 정책 값만큼)
  */
 public record MeResponse(
         Long id,
@@ -37,17 +39,21 @@ public record MeResponse(
         long participationScore,
         long adoptionCount,
         SanctionSummary sanction,
-        PauseSummary pause) {
+        PauseSummary pause,
+        long inspectionCount,
+        long volunteerMinutes) {
 
     /**
      * 사용자 엔티티와 상태 정보로 응답을 만듭니다.
      */
     public static MeResponse of(User user, long participationScore, long adoptionCount,
-            SanctionSummary sanction, PauseSummary pause) {
+            SanctionSummary sanction, PauseSummary pause, long inspectionCount,
+            long volunteerMinutes) {
         return new MeResponse(user.getId(), user.getNickname(), user.getEmail(),
                 user.getProfileImage(), user.getRole(), user.getProvider(), user.getPoint(),
                 user.getLevel(), user.isOnboardingCompleted(), user.isIdentityVerified(),
-                participationScore, adoptionCount, sanction, pause);
+                participationScore, adoptionCount, sanction, pause, inspectionCount,
+                volunteerMinutes);
     }
 
     /**
