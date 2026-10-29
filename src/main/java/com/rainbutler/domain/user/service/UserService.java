@@ -1,7 +1,9 @@
 package com.rainbutler.domain.user.service;
 
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
+import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.cleaning.entity.CleaningType;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
 import com.rainbutler.domain.sanction.service.SanctionService;
 import com.rainbutler.domain.user.dto.MeResponse;
@@ -9,9 +11,12 @@ import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
 import com.rainbutler.domain.user.dto.PauseStatusResponse;
 import com.rainbutler.domain.user.entity.User;
+import com.rainbutler.domain.user.repository.ActivityStatsRepository;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +36,8 @@ public class UserService {
     private final AdoptionRepository adoptionRepository;
     private final SanctionService sanctionService;
     private final PauseService pauseService;
+    private final ActivityStatsRepository activityStatsRepository;
+    private final PolicyProperties policyProperties;
 
     /**
      * 로그인 사용자의 정보를 조회합니다.
@@ -60,7 +67,20 @@ public class UserService {
         MeResponse.PauseSummary pause = new MeResponse.PauseSummary(
                 pauseStatus.activeUntil(), pauseStatus.nextAvailableAt());
 
-        return MeResponse.of(user, participationScore, adoptionCount, sanction, pause);
+        // 점검 수: 대신 점검(청소) + 입양 후 점검(살펴보기 · 청소 모두)
+        long inspectionCount = activityStatsRepository.countCompletedCleanings(
+                userId, List.of(CleaningType.SUBSTITUTE))
+                + activityStatsRepository.countVerifiedManagements(
+                        userId, List.of(ManagementActionType.values()));
+        // 봉사 시간: 청소한 횟수(입양 전 · 대신 점검 · 점검 중 청소) × 1회당 분
+        long cleaningCount = activityStatsRepository.countCompletedCleanings(
+                userId, List.of(CleaningType.values()))
+                + activityStatsRepository.countVerifiedManagements(
+                        userId, List.of(ManagementActionType.CLEANING));
+        long volunteerMinutes = cleaningCount * policyProperties.volunteerMinutesPerCleaning();
+
+        return MeResponse.of(user, participationScore, adoptionCount, sanction, pause,
+                inspectionCount, volunteerMinutes);
     }
 
     /**
