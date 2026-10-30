@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +24,8 @@ import org.springframework.stereotype.Component;
  * 기상청 예보 수집 배치입니다. (단기예보 발표 15분 뒤, 하루 8번)
  *
  * <p>오늘 · 내일 예보를 받아 날짜마다 {@link ForecastService#apply}로 확정 · 갱신 · 취소합니다. 기상청 호출이
- * 실패하면 이번 회차는 예보를 바꾸지 않고 다음 회차를 기다립니다. 그날 데이터가 응답에 없을 때도 바꾸지 않습니다
- * (데이터가 없다고 취소하지 않는다).
+ * 실패하면 이번 회차는 예보를 바꾸지 않고 다음 회차를 기다립니다. 그날 데이터가 응답에 없을 때도 바꾸지 않고
+ * (데이터가 없다고 취소하지 않는다) {@link ForecastDataMissingException}을 담은 ERROR 로그를 남깁니다.
  */
 @Slf4j
 @Component
@@ -66,12 +67,16 @@ public class ForecastCollectJob {
         }
 
         Map<LocalDate, DailyRain> byDate = dailyRains.stream()
-                .collect(Collectors.toMap(DailyRain::date, Function.identity()));
+                .collect(Collectors.toMap(DailyRain::date, Function.identity(),
+                        (first, second) -> first, TreeMap::new));
         LocalDate today = now.toLocalDate();
         for (LocalDate date : List.of(today, today.plusDays(1))) {
             DailyRain rain = byDate.get(date);
             if (rain == null) {
-                log.warn("[비 예보 수집] {} 예보가 응답에 없어 건너뜁니다.", date);
+                // 데이터가 없다고 취소하면 실제로 비가 오는데 요청이 취소될 수 있다 → 상태는 그대로 두고 ERROR로 알린다
+                log.error("[비 예보 수집 누락] {} 예보가 기상청 응답에 없어 이번 회차는 바꾸지 않습니다.", date,
+                        new ForecastDataMissingException("누락 날짜 " + date + ", 수집 시각 " + now
+                                + ", 받은 날짜 " + byDate.keySet()));
                 continue;
             }
             try {

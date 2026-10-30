@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
  * <ul>
  *   <li>{@code 강수없음} → 0</li>
  *   <li>{@code 1mm 미만} · {@code 1.0mm 미만} → 0.5</li>
- *   <li>{@code 2.0mm} → 2.0</li>
+ *   <li>{@code 2.0mm} → 2.0, 단위 없는 숫자 {@code 1} → 1 (실제 응답에 섞여 온다)</li>
  *   <li>{@code 30.0~50.0mm} → 30.0 (범위는 아래 값)</li>
  *   <li>{@code 50.0mm 이상} → 50.0</li>
  *   <li>모르는 형식 → 경고 로그 + 0</li>
@@ -26,7 +26,8 @@ public final class PcpParser {
     private static final String NO_RAIN = "강수없음";
     private static final BigDecimal UNDER_ONE_MM = new BigDecimal("0.5");
     private static final Pattern UNDER = Pattern.compile("^\\d+(\\.\\d+)?\\s*mm\\s*미만$");
-    private static final Pattern NUMBER = Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*mm(?:\\s*이상)?$");
+    private static final Pattern NUMBER =
+            Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*(?:mm(?:\\s*이상)?)?$");
     private static final Pattern RANGE =
             Pattern.compile("^(\\d+(?:\\.\\d+)?)\\s*~\\s*\\d+(?:\\.\\d+)?\\s*mm$");
 
@@ -41,7 +42,7 @@ public final class PcpParser {
             return BigDecimal.ZERO;
         }
         String text = value.strip();
-        if (text.isEmpty() || NO_RAIN.equals(text) || "0".equals(text)) {
+        if (text.isEmpty() || NO_RAIN.equals(text)) {
             return BigDecimal.ZERO;
         }
         if (UNDER.matcher(text).matches()) {

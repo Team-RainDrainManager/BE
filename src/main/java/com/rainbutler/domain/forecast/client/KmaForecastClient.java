@@ -25,7 +25,8 @@ import org.springframework.web.client.RestClientException;
 @Component
 public class KmaForecastClient {
 
-    private static final int NUM_OF_ROWS = 1000;
+    /** 한 번에 받을 행 수. 02 · 05시 발표는 사흘치 이상이라 1000행을 넘을 수 있어 넉넉히 둔다 */
+    private static final int NUM_OF_ROWS = 2000;
     private static final int MAX_RETRIES = 2;
     private static final long RETRY_WAIT_MILLIS = 2000;
     private static final String SUCCESS = "00";
