@@ -44,7 +44,9 @@
 - V6: 점검 쉬기 `users.pause_until`(종료 시각) · `last_pause_requested_at`(90일 쿨다운 판정)
 - V7: 회원 탈퇴. 탈퇴한 계정(`deleted_at` 있음)은 로그인 자격 CHECK에서 제외 (개인정보를 비우고 소프트 삭제),
   입양 해제 사유에 `WITHDRAWN`
-- `erd.png`는 V2 ~ V7 반영 전 그림이다 (`erd.dbml`이 기준)
+- V9: 비 예보 수집. `rain_forecast.fetched_at`, `pop` · `pcp_mm`은 하루 최댓값 · 합계로 의미 변경,
+  진행 중 예보 부분 유니크 `uq_rain_forecast_active`, 배치 잠금 인프라 테이블 `shedlock`
+- `erd.png`는 V2 ~ V9 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 

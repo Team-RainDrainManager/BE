@@ -39,11 +39,11 @@ public class RainForecast extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime rainStartAt;
 
-    /** 강수확률 (%) */
+    /** 강수확률 최댓값 (%) */
     @Column(nullable = false)
     private Integer pop;
 
-    /** 1시간 강수량 (mm) */
+    /** 강수량 합계 (mm) */
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal pcpMm;
 
@@ -54,6 +54,9 @@ public class RainForecast extends BaseEntity {
     /** 시연용 가상 예보 */
     @Column(nullable = false)
     private boolean isSimulated;
+
+    /** 마지막으로 기상청 값을 반영한 시각 */
+    private LocalDateTime fetchedAt;
 
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
