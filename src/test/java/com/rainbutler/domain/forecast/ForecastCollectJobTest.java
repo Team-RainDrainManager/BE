@@ -21,13 +21,17 @@ import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * 예보 수집 배치가 오늘 · 내일 예보만 반영하고, 실패 · 비활성 시 아무것도 바꾸지 않는지 검증합니다.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class ForecastCollectJobTest extends IntegrationTestSupport {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
@@ -72,7 +76,7 @@ class ForecastCollectJobTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 응답에_없는_날짜는_취소하지_않는다() {
+    void 응답에_없는_날짜는_취소하지_않고_ERROR_로그를_남긴다(CapturedOutput output) {
         given(kmaForecastClient.fetchDailyRain(NOW, 60))
                 .willReturn(List.of(rain(TOMORROW, 80, "10")));
         job.collect();
@@ -82,6 +86,11 @@ class ForecastCollectJobTest extends IntegrationTestSupport {
         job.collect();
 
         assertThat(rainForecastRepository.findActive(TOMORROW, false)).isPresent();
+        assertThat(output.getOut())
+                .contains("ERROR")
+                .contains("[비 예보 수집 누락] " + TOMORROW)
+                .contains("ForecastDataMissingException")
+                .contains("받은 날짜 [" + TODAY + "]");
     }
 
     @Test

@@ -57,8 +57,28 @@ class DailyRainAggregatorTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void 실제_기상청_응답으로_날짜별_요약을_만든다() throws IOException {
+        // 2026-10-30 14시 발표 역곡동(57, 125) 실제 응답. 단위 없는 강수량("0", "1")이 섞여 있다
+        List<DailyRain> result =
+                DailyRainAggregator.aggregate(items("/kma/vilage-fcst-real-20261030-1400.json"), 60);
+
+        assertThat(result).extracting(DailyRain::date).containsExactly(
+                LocalDate.of(2026, 10, 30), LocalDate.of(2026, 10, 31), LocalDate.of(2026, 11, 1),
+                LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 3));
+        DailyRain nov2 = result.get(3);
+        assertThat(nov2.maxPop()).isEqualTo(60);
+        assertThat(nov2.totalMm()).isEqualByComparingTo("2.0");
+        assertThat(nov2.firstRainAt()).isEqualTo(LocalDateTime.of(2026, 11, 2, 0, 0));
+        assertThat(result.get(0).firstRainAt()).isNull();
+    }
+
     private List<Item> sampleItems() throws IOException {
-        try (InputStream in = getClass().getResourceAsStream("/kma/vilage-fcst-sample.json")) {
+        return items("/kma/vilage-fcst-sample.json");
+    }
+
+    private List<Item> items(String resource) throws IOException {
+        try (InputStream in = getClass().getResourceAsStream(resource)) {
             KmaForecastResponse response =
                     JsonMapper.builder().build().readValue(in, KmaForecastResponse.class);
             return response.response().body().items().item();
