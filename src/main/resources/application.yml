@@ -21,6 +21,13 @@ spring:
       max-request-size: 20MB
   jackson:
     time-zone: Asia/Seoul
+  task:
+    scheduling:
+      pool:
+        size: 2                   # 배치 스레드 (수집 배치가 길어도 다른 배치가 밀리지 않게)
+      thread-name-prefix: batch-
+      shutdown:
+        await-termination: true
   web:
     locale: ko_KR                 # 검증 메시지 등을 요청 언어와 관계없이 한국어로
     locale-resolver: fixed
@@ -80,8 +87,16 @@ rain-butler:
     substitute-daily-limit: 3
     location-mismatch-meters: 50
     ai-confidence-threshold: 0.7
-    rain-notice-time: "06:00"
-    rain-reply-deadline-time: "20:00"
+    rain-notice-time: "06:00"            # 내일 비 예보 요청 일괄 발송 시각
+    rain-reply-deadline-time: "12:00"    # 응답 마감 (기존 20:00 → 12:00)
+    rain-complete-deadline-time: "20:00" # 완료 마감
+    rain-pop-threshold: 60               # 비 예보 기준: 강수확률 최댓값 (%) 이상
+    rain-mm-threshold: 5                 # 비 예보 기준: 강수량 합계 (mm) 이상 - 둘 다 만족해야 확정
+    same-day-min-lead-hours: 3           # 당일 예보: 비 시작까지 최소 남은 시간
+    same-day-reply-hours: 1              # 당일 예보: 응답 마감 = 발송 + 1시간
+    same-day-complete-before-rain-hours: 1  # 당일 예보: 완료 마감 = 비 시작 1시간 전
+    latest-complete-time: "21:00"        # 당일 예보 완료 마감 상한 (21:00~06:00에 걸리면 직전 21:00)
+    night-deferred-push-time: "09:00"    # 야간 푸시 미동의자에게 밤사이 알림을 푸시하는 시각
     rest-cooldown-days: 90
     night-push-start-time: "22:00"   # 야간 푸시 시간대 (22시~08시는 야간 동의자에게만 발송)
     night-push-end-time: "08:00"
@@ -90,3 +105,5 @@ rain-butler:
     sanction-permanent-count: 3
     pause-days: 14                   # 점검 쉬기 기간 (신청 간격은 rest-cooldown-days)
     volunteer-minutes-per-cleaning: 15   # 봉사 시간: 청소 1회(입양 전 · 대신 점검 · 점검 중 청소)당 15분
+  scheduling:
+    enabled: ${SCHEDULING_ENABLED:true}  # false면 배치가 실행되지 않는다 (테스트 프로필은 false)

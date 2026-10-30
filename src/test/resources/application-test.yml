@@ -19,3 +19,5 @@ rain-butler:
     key-prefix: test
     access-key: test-access-key
     secret-key: test-secret-key
+  scheduling:
+    enabled: false   # 테스트는 배치 메서드를 직접 호출한다
