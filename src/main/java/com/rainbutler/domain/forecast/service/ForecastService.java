@@ -7,6 +7,8 @@ import com.rainbutler.domain.forecast.event.ForecastRainStartAdvancedEvent;
 import com.rainbutler.domain.forecast.repository.RainForecastRepository;
 import com.rainbutler.domain.forecast.service.ForecastApplyResult.Applied;
 import com.rainbutler.global.config.PolicyProperties;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -101,6 +103,26 @@ public class ForecastService {
                     forecast.getId(), previousStart, rainStartAt));
         }
         return new ForecastApplyResult(Applied.UPDATED, forecast.getId());
+    }
+
+    /**
+     * 시연용 가상 예보를 적용합니다. 비 시작 날짜의 가상 예보로 {@link #apply}와 같은 기준을 씁니다.
+     *
+     * @param pop 강수확률 최댓값 (%)
+     * @param mm 강수량 합계 (mm)
+     * @param rainStartAt 비 시작 시각 (지금 + 당일 예보 최소 남은 시간 이후)
+     * @return 반영 결과
+     * @throws BusinessException 비 시작이 너무 가까움 (INVALID_INPUT)
+     */
+    @Transactional
+    public ForecastApplyResult simulate(int pop, BigDecimal mm, LocalDateTime rainStartAt) {
+        LocalDateTime earliest =
+                LocalDateTime.now(clock).plusHours(policy.sameDayMinLeadHours());
+        if (rainStartAt.isBefore(earliest)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "비 시작 시각은 지금부터 " + policy.sameDayMinLeadHours() + "시간 뒤 이후여야 해요.");
+        }
+        return apply(rainStartAt.toLocalDate(), pop, mm, rainStartAt, true);
     }
 
     private ForecastApplyResult cancel(RainForecast forecast) {
