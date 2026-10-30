@@ -1,0 +1,378 @@
+{
+ "response": {
+  "header": {
+   "resultCode": "00",
+   "resultMsg": "NORMAL_SERVICE"
+  },
+  "body": {
+   "dataType": "JSON",
+   "items": {
+    "item": [
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261030",
+      "fcstTime": "0600",
+      "fcstValue": "10",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261030",
+      "fcstTime": "0600",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "TMP",
+      "fcstDate": "20261030",
+      "fcstTime": "0600",
+      "fcstValue": "15",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261030",
+      "fcstTime": "0900",
+      "fcstValue": "20",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261030",
+      "fcstTime": "0900",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "TMP",
+      "fcstDate": "20261030",
+      "fcstTime": "0900",
+      "fcstValue": "15",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261030",
+      "fcstTime": "1200",
+      "fcstValue": "30",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261030",
+      "fcstTime": "1200",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "TMP",
+      "fcstDate": "20261030",
+      "fcstTime": "1200",
+      "fcstValue": "15",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261030",
+      "fcstTime": "1500",
+      "fcstValue": "20",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261030",
+      "fcstTime": "1500",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "TMP",
+      "fcstDate": "20261030",
+      "fcstTime": "1500",
+      "fcstValue": "15",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261030",
+      "fcstTime": "1800",
+      "fcstValue": "10",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261030",
+      "fcstTime": "1800",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "TMP",
+      "fcstDate": "20261030",
+      "fcstTime": "1800",
+      "fcstValue": "15",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "0900",
+      "fcstValue": "30",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "0900",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "0900",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "1200",
+      "fcstValue": "60",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "1200",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "1200",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "1300",
+      "fcstValue": "80",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "1300",
+      "fcstValue": "1mm 미만",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "1300",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "1400",
+      "fcstValue": "90",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "1400",
+      "fcstValue": "2.0mm",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "1400",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "1500",
+      "fcstValue": "90",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "1500",
+      "fcstValue": "3.0mm",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "1500",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "1600",
+      "fcstValue": "70",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "1600",
+      "fcstValue": "30.0~50.0mm",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "1600",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "POP",
+      "fcstDate": "20261031",
+      "fcstTime": "2000",
+      "fcstValue": "40",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "PCP",
+      "fcstDate": "20261031",
+      "fcstTime": "2000",
+      "fcstValue": "강수없음",
+      "nx": 57,
+      "ny": 125
+     },
+     {
+      "baseDate": "20261030",
+      "baseTime": "0500",
+      "category": "SKY",
+      "fcstDate": "20261031",
+      "fcstTime": "2000",
+      "fcstValue": "4",
+      "nx": 57,
+      "ny": 125
+     }
+    ]
+   },
+   "pageNo": 1,
+   "numOfRows": 1000,
+   "totalCount": 36
+  }
+ }
+}

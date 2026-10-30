@@ -79,10 +79,13 @@ class WithdrawalApiTest extends IntegrationTestSupport {
         refreshToken = JsonPath.read(body, "$.data.refreshToken");
         userId = jdbcTemplate.queryForObject(
                 "SELECT id FROM users WHERE email = ? AND deleted_at IS NULL", Long.class, email);
+        // 같은 날짜의 진행 중 예보는 하나뿐이라(uq_rain_forecast_active) 이미 있으면 그 예보를 쓴다
         forecastId = jdbcTemplate.queryForObject("INSERT INTO rain_forecast (rain_date, "
                 + "rain_start_at, pop, pcp_mm, status, is_simulated, created_at, updated_at) "
                 + "VALUES (current_date + 1, now() + interval '1 day', 80, 5.0, 'ACTIVE', false, "
-                + "now(), now()) RETURNING id", Long.class);
+                + "now(), now()) ON CONFLICT (rain_date, is_simulated) "
+                + "WHERE status = 'ACTIVE' AND deleted_at IS NULL "
+                + "DO UPDATE SET updated_at = now() RETURNING id", Long.class);
     }
 
     @Test
