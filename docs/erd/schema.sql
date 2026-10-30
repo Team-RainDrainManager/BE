@@ -244,9 +244,17 @@ CREATE TABLE "rain_forecast" (
   "pcp_mm" numeric(5,2) NOT NULL,
   "status" varchar NOT NULL,
   "is_simulated" boolean NOT NULL DEFAULT false,
+  "fetched_at" timestamp,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "deleted_at" timestamp
+);
+
+CREATE TABLE "shedlock" (
+  "name" varchar(64) PRIMARY KEY,
+  "lock_until" timestamp NOT NULL,
+  "locked_at" timestamp NOT NULL,
+  "locked_by" varchar(255) NOT NULL
 );
 
 CREATE TABLE "inspection_request" (
@@ -477,13 +485,17 @@ COMMENT ON COLUMN "tool_rental"."status" IS 'RENTED / RETURNED';
 
 COMMENT ON COLUMN "rain_forecast"."rain_date" IS '비 오는 날';
 
-COMMENT ON COLUMN "rain_forecast"."pop" IS '강수확률 %';
+COMMENT ON COLUMN "rain_forecast"."pop" IS '강수확률 최댓값 (%)';
 
-COMMENT ON COLUMN "rain_forecast"."pcp_mm" IS '1시간 강수량';
+COMMENT ON COLUMN "rain_forecast"."pcp_mm" IS '강수량 합계 (mm)';
 
 COMMENT ON COLUMN "rain_forecast"."status" IS 'ACTIVE / CANCELLED';
 
 COMMENT ON COLUMN "rain_forecast"."is_simulated" IS '시연용 가상 예보';
+
+COMMENT ON COLUMN "rain_forecast"."fetched_at" IS '마지막으로 기상청 값을 반영한 시각';
+
+COMMENT ON TABLE "shedlock" IS '배치 중복 실행 방지 잠금 (ShedLock이 직접 사용)';
 
 COMMENT ON COLUMN "inspection_request"."adoption_id" IS '입양자에게 간 요청. 미입양 위험 배수구면 null → 바로 대신 점검 공개';
 
@@ -580,6 +592,8 @@ CREATE UNIQUE INDEX uq_adoption_active_drain ON "adoption" ("drain_id") WHERE "s
 CREATE UNIQUE INDEX uq_users_local_email ON "users" (lower("email")) WHERE "provider" = 'LOCAL' AND "deleted_at" IS NULL;
 -- 자체 로그인은 이메일 · 비밀번호, 카카오는 회원번호 필수 (탈퇴한 계정은 제외)
 ALTER TABLE "users" ADD CONSTRAINT ck_users_provider_credentials CHECK ("deleted_at" IS NOT NULL OR ("provider" = 'LOCAL' AND "email" IS NOT NULL AND "password" IS NOT NULL) OR ("provider" = 'KAKAO' AND "provider_id" IS NOT NULL));
+-- 같은 날짜의 진행 중 예보는 실제 · 가상 각각 1개 (취소 후 재확정은 새 행)
+CREATE UNIQUE INDEX uq_rain_forecast_active ON "rain_forecast" ("rain_date", "is_simulated") WHERE "status" = 'ACTIVE' AND "deleted_at" IS NULL;
 -- 1인 1개 대여
 CREATE UNIQUE INDEX uq_tool_rental_active_user ON "tool_rental" ("user_id") WHERE "status" = 'RENTED' AND "deleted_at" IS NULL;
 -- 더러움 단계 1~3

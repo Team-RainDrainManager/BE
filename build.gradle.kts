@@ -50,6 +50,10 @@ dependencies {
 	// 위에서 뺀 모듈이 가져오던 JSON 처리기. Firebase 초기화에 필요하다 (google-http-client와 같은 버전)
 	implementation("com.google.http-client:google-http-client-jackson2:2.2.0")
 
+	// 스케줄러 중복 실행 방지 (배포 중 컨테이너가 둘 떠도 배치는 한 번만). Spring 7용 7.x
+	implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
+	implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1")
+
 	// DB
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-flyway")
