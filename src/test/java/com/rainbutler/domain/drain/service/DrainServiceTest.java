@@ -7,14 +7,18 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.rainbutler.domain.adoption.entity.Adoption;
+import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.drain.dto.Request.DrainAssessmentRequest;
 import com.rainbutler.domain.drain.dto.Request.DrainCreateRequest;
 import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
+import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.user.entity.User;
@@ -68,7 +72,7 @@ class DrainServiceTest {
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
                 LocalTime.of(9, 0), 3, 30);
         drainService = new DrainService(drainRepository, adoptionRepository, drainAiClassifier,
-                drainWriter, policy, storageService);
+                drainWriter, policy, storageService, new GrowthLevelPolicy());
     }
 
     @Test
@@ -178,6 +182,59 @@ class DrainServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PHOTO_FORBIDDEN);
         verify(drainAiClassifier, never()).assess(anyString());
+    }
+
+    @Test
+    void 성장은_ACTIVE_입양의_레벨과_점수로_다음_레벨_진행률을_계산한다() {
+        Adoption adoption = mock(Adoption.class);
+        given(drainRepository.existsById(1L)).willReturn(true);
+        given(adoptionRepository.findByDrain_IdAndStatus(1L, AdoptionStatus.ACTIVE))
+                .willReturn(Optional.of(adoption));
+        given(adoption.getLevel()).willReturn(2);
+        given(adoption.getScore()).willReturn(100);
+
+        GrowthResponse response = drainService.getGrowth(1L);
+
+        assertThat(response.level()).isEqualTo(2);
+        assertThat(response.score()).isEqualTo(100);
+        assertThat(response.nextLevelScore()).isEqualTo(150);
+        assertThat(response.progressPercent()).isEqualTo(50);
+    }
+
+    @Test
+    void 만렙이면_다음_레벨_점수는_현재_점수이고_진행률은_100이다() {
+        Adoption adoption = mock(Adoption.class);
+        given(drainRepository.existsById(1L)).willReturn(true);
+        given(adoptionRepository.findByDrain_IdAndStatus(1L, AdoptionStatus.ACTIVE))
+                .willReturn(Optional.of(adoption));
+        given(adoption.getLevel()).willReturn(GrowthLevelPolicy.MAX_LEVEL);
+        given(adoption.getScore()).willReturn(4000);
+
+        GrowthResponse response = drainService.getGrowth(1L);
+
+        assertThat(response.level()).isEqualTo(GrowthLevelPolicy.MAX_LEVEL);
+        assertThat(response.nextLevelScore()).isEqualTo(4000);
+        assertThat(response.progressPercent()).isEqualTo(100);
+    }
+
+    @Test
+    void 없는_빗물받이면_DRAIN_NOT_FOUND() {
+        given(drainRepository.existsById(999L)).willReturn(false);
+
+        assertThatThrownBy(() -> drainService.getGrowth(999L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.DRAIN_NOT_FOUND);
+    }
+
+    @Test
+    void ACTIVE_입양이_없으면_ADOPTION_NOT_FOUND() {
+        given(drainRepository.existsById(1L)).willReturn(true);
+        given(adoptionRepository.findByDrain_IdAndStatus(1L, AdoptionStatus.ACTIVE))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> drainService.getGrowth(1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ADOPTION_NOT_FOUND);
     }
 
     private void givenVerifiedPhoto() {
