@@ -195,4 +195,54 @@ public class PushService {
             }
         });
     }
+
+    /**
+     * 밤사이 알림함에만 쌓인 알림들을 한 번의 푸시로 보냅니다. (야간 푸시 미동의자 09:00 배치)
+     *
+     * <p>한 기기 이상에 보내지면 묶인 알림을 모두 발송 처리하고, 무효 토큰은 지웁니다. 예외는 밖으로 내보내지 않고
+     * 로그로 남깁니다.
+     *
+     * @param userId 받을 사용자 id
+     * @param notificationIds 묶어 보낼 알림 id
+     * @param title 푸시 제목
+     * @param body 푸시 내용
+     * @param data 앱으로 함께 보낼 데이터
+     * @return 한 기기 이상에 보냈으면 true
+     */
+    public boolean deliverDeferred(Long userId, List<Long> notificationIds, String title,
+            String body, Map<String, String> data) {
+        try {
+            if (!fcmSender.isEnabled()) {
+                return false;
+            }
+            // 그사이 알림을 껐으면 보내지 않는다 (09:00은 주간이라 야간 동의는 보지 않는다)
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null || !user.isNotificationEnabled()) {
+                return false;
+            }
+            List<String> tokens = fcmTokenRepository.findAllByUser_Id(userId).stream()
+                    .map(FcmToken::getToken)
+                    .toList();
+            if (tokens.isEmpty()) {
+                return false;
+            }
+            FcmSender.SendResult result = fcmSender.send(tokens, title, body, data);
+            log.info("[밤사이 알림 푸시] userId={} 알림 {}건 · 성공 {} · 실패 {} · 무효 토큰 {}", userId,
+                    notificationIds.size(), result.successCount(), result.failureCount(),
+                    result.invalidTokens().size());
+            newTransaction.executeWithoutResult(status -> {
+                if (!result.invalidTokens().isEmpty()) {
+                    fcmTokenRepository.deleteAllByTokenIn(result.invalidTokens());
+                }
+                if (result.successCount() > 0) {
+                    notificationRepository.findAllById(notificationIds)
+                            .forEach(Notification::markSent);
+                }
+            });
+            return result.successCount() > 0;
+        } catch (Exception e) {
+            log.error("[밤사이 알림 푸시 오류] userId={} {}", userId, e.getMessage(), e);
+            return false;
+        }
+    }
 }
