@@ -3,9 +3,11 @@ package com.rainbutler.domain.request.repository;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -84,4 +86,29 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
      * @return 요청 수
      */
     long countByForecast_IdAndStatus(Long forecastId, RequestStatus status);
+
+    /**
+     * 완료 마감이 지난 진행 중 요청 id를 마감이 이른 순으로 찾습니다. (마감 처리 배치)
+     *
+     * @param inProgress 진행 중 상태
+     * @param now 현재 시각
+     * @param pageable 한 번에 처리할 개수
+     * @return 요청 id
+     */
+    @Query("SELECT r.id FROM InspectionRequest r WHERE r.status IN :inProgress "
+            + "AND r.completeDeadlineAt <= :now ORDER BY r.completeDeadlineAt")
+    List<Long> findIdsCompleteOverdue(@Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("now") LocalDateTime now, Pageable pageable);
+
+    /**
+     * 응답 마감이 지난 SENT 요청 id를 마감이 이른 순으로 찾습니다. (마감 처리 배치)
+     *
+     * @param now 현재 시각
+     * @param pageable 한 번에 처리할 개수
+     * @return 요청 id
+     */
+    @Query("SELECT r.id FROM InspectionRequest r "
+            + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.SENT "
+            + "AND r.replyDeadlineAt <= :now ORDER BY r.replyDeadlineAt")
+    List<Long> findIdsReplyOverdue(@Param("now") LocalDateTime now, Pageable pageable);
 }
