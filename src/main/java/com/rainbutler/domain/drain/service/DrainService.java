@@ -9,6 +9,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
+import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.global.config.PolicyProperties;
@@ -38,6 +39,7 @@ public class DrainService {
     private final DrainWriter drainWriter;
     private final PolicyProperties policyProperties;
     private final StorageService storageService;
+    private final GrowthLevelPolicy growthLevelPolicy;
 
     /**
      * 지도 영역 내 빗물받이 목록 조회
@@ -236,6 +238,35 @@ public class DrainService {
                 assessment.confidence(),
                 riskRemind,
                 saved.riskReportId()
+        );
+    }
+
+    /**
+     * 빗물받이 성장 정보를 조회합니다.
+     *
+     * <p>성장은 입양에 귀속되므로 ACTIVE 입양이 없으면 조회할 수 없습니다. 집사가 바뀌면 새 입양이
+     * 1레벨 · 0점으로 시작해 성장 기록도 초기화됩니다.
+     *
+     * @param drainId 빗물받이 id
+     * @return 현재 레벨 · 점수 · 다음 레벨 점수 · 진행률
+     */
+    public GrowthResponse getGrowth(Long drainId) {
+        if (!drainRepository.existsById(drainId)) {
+            throw new BusinessException(ErrorCode.DRAIN_NOT_FOUND);
+        }
+
+        Adoption adoption = adoptionRepository
+                .findByDrain_IdAndStatus(drainId, AdoptionStatus.ACTIVE)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ADOPTION_NOT_FOUND));
+
+        int level = adoption.getLevel();
+        int score = adoption.getScore();
+
+        return new GrowthResponse(
+                level,
+                score,
+                growthLevelPolicy.nextLevelScore(level, score),
+                growthLevelPolicy.progressPercent(level, score)
         );
     }
 }
