@@ -49,4 +49,14 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
             + "AND d.longitude BETWEEN :minLng AND :maxLng")
     List<Adoption> findActiveInBox(@Param("minLat") double minLat, @Param("maxLat") double maxLat,
             @Param("minLng") double minLng, @Param("maxLng") double maxLng);
+
+    /**
+     * 운영 중 빗물받이의 ACTIVE 입양을 빗물받이 · 입양자와 함께 모두 찾습니다. (비 예보 요청 발송 대상)
+     *
+     * @return 입양 목록
+     */
+    @Query("SELECT a FROM Adoption a JOIN FETCH a.drain d JOIN FETCH a.user "
+            + "WHERE a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE "
+            + "AND d.status = com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE")
+    List<Adoption> findAllActiveOnActiveDrains();
 }

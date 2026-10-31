@@ -2,7 +2,7 @@ package com.rainbutler.domain.forecast.controller;
 
 import com.rainbutler.domain.forecast.dto.ForecastSimulateRequest;
 import com.rainbutler.domain.forecast.dto.ForecastSimulateResponse;
-import com.rainbutler.domain.forecast.service.ForecastService;
+import com.rainbutler.domain.request.service.ForecastSimulationService;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.swagger.ApiErrorCodes;
@@ -35,10 +35,12 @@ public class ForecastAdminController {
             - `applied`: `CONFIRMED`(새로 확정) · `UPDATED`(값 갱신) · `CANCELLED`(기준 미달로 취소) ·
               `IGNORED`(기준 미달, 진행 중 가상 예보 없음)
             - `rainStartAt`은 지금부터 3시간 뒤 이후여야 합니다.
-            - `createdCount` · `cancelledCount`는 점검 요청 생성 기능이 들어오기 전까지 0입니다.
+            - `createdCount`: 바로 보낸 점검 요청 수. 내일 비를 06:00 전에 넣었거나 모레 이후 비면 06:00 일괄 발송
+              대상이라 0입니다. (밤 21:00 ~ 06:00에 넣은 비도 06:00 배치가 보냅니다)
+            - `cancelledCount`: 예보 취소로 취소된 점검 요청 수
             """;
 
-    private final ForecastService forecastService;
+    private final ForecastSimulationService forecastSimulationService;
 
     /**
      * 가상 예보를 적용합니다.
@@ -50,7 +52,7 @@ public class ForecastAdminController {
     @PostMapping("/simulate")
     public ResponseEntity<ApiResponse<ForecastSimulateResponse>> simulate(
             @Valid @RequestBody ForecastSimulateRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(ForecastSimulateResponse.from(
-                forecastService.simulate(request.pop(), request.mm(), request.rainStartAt()))));
+        return ResponseEntity.ok(ApiResponse.ok(forecastSimulationService.simulate(
+                request.pop(), request.mm(), request.rainStartAt())));
     }
 }
