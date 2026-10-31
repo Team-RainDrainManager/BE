@@ -66,7 +66,7 @@ class DrainServiceTest {
                 new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 15,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0));
+                LocalTime.of(9, 0), 3, 30);
         drainService = new DrainService(drainRepository, adoptionRepository, drainAiClassifier,
                 drainWriter, policy, storageService);
     }

@@ -97,6 +97,8 @@ rain-butler:
     same-day-complete-before-rain-hours: 1  # 당일 예보: 완료 마감 = 비 시작 1시간 전
     latest-complete-time: "21:00"        # 당일 예보 완료 마감 상한 (21:00~06:00에 걸리면 직전 21:00)
     night-deferred-push-time: "09:00"    # 야간 푸시 미동의자에게 밤사이 알림을 푸시하는 시각
+    lonely-ignore-count: 3               # 연속 무응답 이 횟수 이상이면 "외로운 또랑이" 표시 (불이익 없음)
+    min-remaining-minutes-after-advance: 30  # 비가 앞당겨져 남은 시간이 이보다 적으면 요청 취소 (안전 우선)
     rest-cooldown-days: 90
     night-push-start-time: "22:00"   # 야간 푸시 시간대 (22시~08시는 야간 동의자에게만 발송)
     night-push-end-time: "08:00"

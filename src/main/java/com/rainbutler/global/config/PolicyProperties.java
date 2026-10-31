@@ -37,6 +37,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param sameDayCompleteBeforeRainHours 당일 예보 완료 마감: 비 시작 이 시간 전
  * @param latestCompleteTime 당일 예보 완료 마감 상한 (밤 이 시각 ~ 06:00에 걸리면 직전 이 시각으로 당김)
  * @param nightDeferredPushTime 야간 푸시 미동의자에게 밤사이 쌓인 알림을 푸시하는 시각
+ * @param lonelyIgnoreCount "외로운 또랑이" 표시 기준 연속 무응답 횟수 (표시만, 불이익 없음)
+ * @param minRemainingMinutesAfterAdvance 비가 앞당겨져 당긴 완료 마감까지 이보다 적게 남으면 요청 취소 (분)
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -66,5 +68,7 @@ public record PolicyProperties(
         int sameDayReplyHours,
         int sameDayCompleteBeforeRainHours,
         LocalTime latestCompleteTime,
-        LocalTime nightDeferredPushTime) {
+        LocalTime nightDeferredPushTime,
+        int lonelyIgnoreCount,
+        int minRemainingMinutesAfterAdvance) {
 }
