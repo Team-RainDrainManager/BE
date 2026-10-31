@@ -63,13 +63,17 @@ public class InspectionRequest extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private RequestReply reply;
 
-    /** 전날 06:00 일괄 발송 */
+    /** 발송 시각 (기본 06:00, 당일 예보는 즉시) */
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
-    /** 응답 마감 (전날 20:00) - 지나면 대신 점검으로 공개 */
+    /** 응답 마감 (기본 발송 당일 12:00, 당일 예보는 발송 + 1시간) - 지나면 대신 점검으로 공개 */
     @Column(nullable = false)
     private LocalDateTime replyDeadlineAt;
+
+    /** 완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전) - 지나면 MISSED */
+    @Column(nullable = false)
+    private LocalDateTime completeDeadlineAt;
 
     private LocalDateTime repliedAt;
 
@@ -79,6 +83,11 @@ public class InspectionRequest extends BaseEntity {
 
     private LocalDateTime completedAt;
 
+    private LocalDateTime cancelledAt;
+
+    /** 완료 마감까지 미완료로 시청 인계된 시각 */
+    private LocalDateTime missedAt;
+
     /** 필수 값으로 생성합니다. */
     @Builder
     private InspectionRequest(
@@ -87,13 +96,18 @@ public class InspectionRequest extends BaseEntity {
             Adoption adoption,
             RequestStatus status,
             LocalDateTime sentAt,
-            LocalDateTime replyDeadlineAt) {
+            LocalDateTime replyDeadlineAt,
+            LocalDateTime completeDeadlineAt) {
         this.forecast = forecast;
         this.drain = drain;
         this.adoption = adoption;
         this.status = status;
         this.sentAt = sentAt;
         this.replyDeadlineAt = replyDeadlineAt;
+        this.completeDeadlineAt = completeDeadlineAt;
+        if (status == RequestStatus.OPEN) {
+            this.openedAt = sentAt;
+        }
     }
 
     /**

@@ -109,10 +109,10 @@ class WithdrawalApiTest extends IntegrationTestSupport {
     void 맡았던_대신_점검_요청은_다시_공개되고_수락자가_비워진다() throws Exception {
         Long otherDrain = saveDrain(saveKakaoUser("다른집사").getId(), "AVAILABLE");
         Long requestId = jdbcTemplate.queryForObject("INSERT INTO inspection_request (forecast_id, "
-                + "drain_id, substitute_user_id, status, sent_at, reply_deadline_at, opened_at, "
-                + "claimed_at, created_at, updated_at) VALUES (?, ?, ?, 'CLAIMED', now(), now(), "
-                + "now(), now(), now(), now()) RETURNING id", Long.class, forecastId, otherDrain,
-                userId);
+                + "drain_id, substitute_user_id, status, sent_at, reply_deadline_at, "
+                + "complete_deadline_at, opened_at, claimed_at, created_at, updated_at) VALUES "
+                + "(?, ?, ?, 'CLAIMED', now(), now(), now() + interval '8 hour', now(), now(), "
+                + "now(), now()) RETURNING id", Long.class, forecastId, otherDrain, userId);
 
         withdraw().andExpect(status().isOk());
 
@@ -237,8 +237,9 @@ class WithdrawalApiTest extends IntegrationTestSupport {
                 + "created_at, updated_at) VALUES (?, ?, ?, '또랑이', 'ACTIVE', 1, 0, 0, now(), "
                 + "now(), now()) RETURNING id", Long.class, userId, drain, cleaning);
         jdbcTemplate.update("INSERT INTO inspection_request (forecast_id, drain_id, adoption_id, "
-                + "status, sent_at, reply_deadline_at, created_at, updated_at) VALUES (?, ?, ?, ?, "
-                + "now(), now() + interval '6 hour', now(), now())", forecastId, drain, adoption,
+                + "status, sent_at, reply_deadline_at, complete_deadline_at, created_at, "
+                + "updated_at) VALUES (?, ?, ?, ?, now(), now() + interval '6 hour', "
+                + "now() + interval '14 hour', now(), now())", forecastId, drain, adoption,
                 requestStatus);
         return drain;
     }
