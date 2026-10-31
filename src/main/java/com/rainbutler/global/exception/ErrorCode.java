@@ -78,6 +78,8 @@ public enum ErrorCode {
     REQUEST_NOT_OPEN(HttpStatus.CONFLICT, "지금은 대신 점검을 신청할 수 없는 요청이에요."),
     SUBSTITUTE_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "대신 점검 가능한 거리를 벗어났어요."),
     SUBSTITUTE_DAILY_LIMIT(HttpStatus.CONFLICT, "오늘 대신 점검 가능한 횟수를 모두 사용했어요."),
+    SUBSTITUTE_OWN_REQUEST(HttpStatus.FORBIDDEN,
+            "내 또랑이는 대신 점검으로 맡을 수 없어요. 요청에 응답해 주세요."),
 
     // ───────── 도구함 ─────────
     TOOL_BOX_NOT_FOUND(HttpStatus.NOT_FOUND, "도구함을 찾을 수 없어요."),

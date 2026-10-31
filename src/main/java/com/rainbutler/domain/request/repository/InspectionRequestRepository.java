@@ -3,12 +3,14 @@ package com.rainbutler.domain.request.repository;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
+import com.rainbutler.domain.user.entity.User;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -125,4 +127,33 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
     List<InspectionRequest> findInProgressDeadlineAfter(@Param("simulated") boolean simulated,
             @Param("inProgress") Collection<RequestStatus> inProgress,
             @Param("deadline") LocalDateTime deadline);
+
+    /**
+     * 사용자가 기간 안에 대신 점검을 수락한 횟수를 셉니다. 수락 뒤 취소 · 놓침이 된 것도 셉니다. (하루 제한)
+     *
+     * @param userId 수락자 id
+     * @param from 시작 (포함)
+     * @param to 끝 (제외)
+     * @return 수락 횟수
+     */
+    long countBySubstituteUser_IdAndClaimedAtGreaterThanEqualAndClaimedAtLessThan(
+            Long userId, LocalDateTime from, LocalDateTime to);
+
+    /**
+     * 공개된 요청을 선착순으로 맡습니다. 조건부 UPDATE 한 번이라 동시에 수락해도 한 명만 성공합니다.
+     *
+     * @param requestId 요청 id
+     * @param substitute 수락자
+     * @param now 수락 시각
+     * @return 바뀐 행 수 (0이면 이미 누가 맡았거나 마감 지남)
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE InspectionRequest r SET "
+            + "r.status = com.rainbutler.domain.request.entity.RequestStatus.CLAIMED, "
+            + "r.substituteUser = :substitute, r.claimedAt = :now, r.updatedAt = :now "
+            + "WHERE r.id = :requestId "
+            + "AND r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
+            + "AND r.completeDeadlineAt > :now AND r.deletedAt IS NULL")
+    int claimIfOpen(@Param("requestId") Long requestId, @Param("substitute") User substitute,
+            @Param("now") LocalDateTime now);
 }
