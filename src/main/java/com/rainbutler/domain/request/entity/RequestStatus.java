@@ -1,5 +1,7 @@
 package com.rainbutler.domain.request.entity;
 
+import java.util.Set;
+
 /**
  * 점검 요청 상태입니다.
  *
@@ -19,5 +21,8 @@ public enum RequestStatus {
     /** 마감까지 미점검 */
     MISSED,
     /** 비 예보 취소 */
-    CANCELLED
+    CANCELLED;
+
+    /** 진행 중인 상태 (마감 처리 · 취소 · 마감 당기기 대상) */
+    public static final Set<RequestStatus> IN_PROGRESS = Set.of(SENT, ACCEPTED, OPEN, CLAIMED);
 }

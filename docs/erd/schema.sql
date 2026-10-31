@@ -267,10 +267,13 @@ CREATE TABLE "inspection_request" (
   "reply" varchar,
   "sent_at" timestamp NOT NULL,
   "reply_deadline_at" timestamp NOT NULL,
+  "complete_deadline_at" timestamp NOT NULL,
   "replied_at" timestamp,
   "opened_at" timestamp,
   "claimed_at" timestamp,
   "completed_at" timestamp,
+  "cancelled_at" timestamp,
+  "missed_at" timestamp,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "deleted_at" timestamp
@@ -505,9 +508,15 @@ COMMENT ON COLUMN "inspection_request"."status" IS 'SENT / ACCEPTED / OPEN / CLA
 
 COMMENT ON COLUMN "inspection_request"."reply" IS 'ACCEPT / DECLINE / null(무응답)';
 
-COMMENT ON COLUMN "inspection_request"."sent_at" IS '전날 06:00 일괄 발송';
+COMMENT ON COLUMN "inspection_request"."sent_at" IS '발송 시각 (기본 06:00, 당일 예보는 즉시)';
 
-COMMENT ON COLUMN "inspection_request"."reply_deadline_at" IS '전날 20:00 - 지나면 대신 점검으로 공개 (점검 마감은 로직에서 처리)';
+COMMENT ON COLUMN "inspection_request"."reply_deadline_at" IS '응답 마감 (기본 발송 당일 12:00, 당일 예보는 발송 + 1시간). 지나면 대신 점검 공개';
+
+COMMENT ON COLUMN "inspection_request"."complete_deadline_at" IS '완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전). 지나면 MISSED';
+
+COMMENT ON COLUMN "inspection_request"."cancelled_at" IS '취소 시각 (예보 취소 · 비가 일찍 와서 취소)';
+
+COMMENT ON COLUMN "inspection_request"."missed_at" IS '완료 마감까지 미완료로 시청 인계된 시각';
 
 COMMENT ON COLUMN "report"."processed_by" IS '처리한 시청 관계자·관리자';
 
@@ -609,4 +618,5 @@ ALTER TABLE "ai_verification" ADD CONSTRAINT ck_ai_verification_target CHECK (nu
 CREATE INDEX idx_drain_location ON "drain" ("latitude", "longitude");
 CREATE INDEX idx_notification_user_read ON "notification" ("user_id", "read_at");
 CREATE INDEX idx_inspection_request_status ON "inspection_request" ("status");
+CREATE INDEX idx_inspection_request_status_deadline ON "inspection_request" ("status", "reply_deadline_at", "complete_deadline_at");
 CREATE INDEX idx_adoption_user_status ON "adoption" ("user_id", "status");

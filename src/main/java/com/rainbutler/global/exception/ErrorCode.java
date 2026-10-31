@@ -73,6 +73,7 @@ public enum ErrorCode {
 
     // ───────── 점검 요청 ─────────
     REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 요청을 찾을 수 없어요."),
+    REQUEST_REPLY_NOT_ALLOWED(HttpStatus.CONFLICT, "지금은 응답할 수 없는 요청이에요."),
     REQUEST_ALREADY_CLAIMED(HttpStatus.CONFLICT, "이미 다른 분이 대신 점검을 맡았어요."),
     REQUEST_NOT_OPEN(HttpStatus.CONFLICT, "지금은 대신 점검을 신청할 수 없는 요청이에요."),
     SUBSTITUTE_OUT_OF_RANGE(HttpStatus.BAD_REQUEST, "대신 점검 가능한 거리를 벗어났어요."),

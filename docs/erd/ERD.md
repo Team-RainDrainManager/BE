@@ -46,7 +46,9 @@
   입양 해제 사유에 `WITHDRAWN`
 - V9: 비 예보 수집. `rain_forecast.fetched_at`, `pop` · `pcp_mm`은 하루 최댓값 · 합계로 의미 변경,
   진행 중 예보 부분 유니크 `uq_rain_forecast_active`, 배치 잠금 인프라 테이블 `shedlock`
-- `erd.png`는 V2 ~ V9 반영 전 그림이다 (`erd.dbml`이 기준)
+- V10: 비 예보 요청 마감. `inspection_request.complete_deadline_at`(완료 마감) · `cancelled_at` · `missed_at`,
+  `reply_deadline_at`은 응답 마감(기본 발송 당일 12:00)으로 의미 변경, 마감 조회 인덱스
+- `erd.png`는 V2 ~ V10 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 

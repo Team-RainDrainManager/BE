@@ -315,17 +315,21 @@ Table inspection_request {
   substitute_user_id bigint [ref: > users.id, note: '대신 점검 수락자 (선착순 1명)']
   status varchar [not null, note: 'SENT / ACCEPTED / OPEN / CLAIMED / COMPLETED / MISSED / CANCELLED']
   reply varchar [note: 'ACCEPT / DECLINE / null(무응답)']
-  sent_at timestamp [not null, note: '전날 06:00 일괄 발송']
-  reply_deadline_at timestamp [not null, note: '전날 20:00 - 지나면 대신 점검으로 공개 (점검 마감은 로직에서 처리)']
+  sent_at timestamp [not null, note: '발송 시각 (기본 06:00, 당일 예보는 즉시)']
+  reply_deadline_at timestamp [not null, note: '응답 마감 (기본 발송 당일 12:00, 당일 예보는 발송 + 1시간). 지나면 대신 점검 공개']
+  complete_deadline_at timestamp [not null, note: '완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전). 지나면 MISSED']
   replied_at timestamp
   opened_at timestamp
   claimed_at timestamp
   completed_at timestamp
+  cancelled_at timestamp [note: '취소 시각 (예보 취소 · 비가 일찍 와서 취소)']
+  missed_at timestamp [note: '완료 마감까지 미완료로 시청 인계된 시각']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
 
   indexes {
+    (status, reply_deadline_at, complete_deadline_at) [name: 'idx_inspection_request_status_deadline']
     (forecast_id, drain_id) [unique]
   }
 }

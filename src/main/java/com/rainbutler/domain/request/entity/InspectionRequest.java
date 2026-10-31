@@ -63,13 +63,17 @@ public class InspectionRequest extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private RequestReply reply;
 
-    /** 전날 06:00 일괄 발송 */
+    /** 발송 시각 (기본 06:00, 당일 예보는 즉시) */
     @Column(nullable = false)
     private LocalDateTime sentAt;
 
-    /** 응답 마감 (전날 20:00) - 지나면 대신 점검으로 공개 */
+    /** 응답 마감 (기본 발송 당일 12:00, 당일 예보는 발송 + 1시간) - 지나면 대신 점검으로 공개 */
     @Column(nullable = false)
     private LocalDateTime replyDeadlineAt;
+
+    /** 완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전) - 지나면 MISSED */
+    @Column(nullable = false)
+    private LocalDateTime completeDeadlineAt;
 
     private LocalDateTime repliedAt;
 
@@ -79,6 +83,11 @@ public class InspectionRequest extends BaseEntity {
 
     private LocalDateTime completedAt;
 
+    private LocalDateTime cancelledAt;
+
+    /** 완료 마감까지 미완료로 시청 인계된 시각 */
+    private LocalDateTime missedAt;
+
     /** 필수 값으로 생성합니다. */
     @Builder
     private InspectionRequest(
@@ -87,13 +96,18 @@ public class InspectionRequest extends BaseEntity {
             Adoption adoption,
             RequestStatus status,
             LocalDateTime sentAt,
-            LocalDateTime replyDeadlineAt) {
+            LocalDateTime replyDeadlineAt,
+            LocalDateTime completeDeadlineAt) {
         this.forecast = forecast;
         this.drain = drain;
         this.adoption = adoption;
         this.status = status;
         this.sentAt = sentAt;
         this.replyDeadlineAt = replyDeadlineAt;
+        this.completeDeadlineAt = completeDeadlineAt;
+        if (status == RequestStatus.OPEN) {
+            this.openedAt = sentAt;
+        }
     }
 
     /**
@@ -108,5 +122,80 @@ public class InspectionRequest extends BaseEntity {
         this.openedAt = now;
         this.substituteUser = null;
         this.claimedAt = null;
+    }
+
+    /**
+     * 입양자가 "가능"으로 응답합니다.
+     *
+     * @param now 응답 시각
+     */
+    public void accept(LocalDateTime now) {
+        this.status = RequestStatus.ACCEPTED;
+        this.reply = RequestReply.ACCEPT;
+        this.repliedAt = now;
+    }
+
+    /**
+     * 입양자가 "불가"로 응답합니다. 요청은 대신 점검으로 공개됩니다.
+     *
+     * @param now 응답 시각
+     */
+    public void decline(LocalDateTime now) {
+        this.reply = RequestReply.DECLINE;
+        this.repliedAt = now;
+        open(now);
+    }
+
+    /**
+     * 대신 점검으로 공개합니다. (불가 응답 · 응답 마감 무응답)
+     *
+     * @param now 공개 시각
+     */
+    public void open(LocalDateTime now) {
+        this.status = RequestStatus.OPEN;
+        this.openedAt = now;
+    }
+
+    /**
+     * 완료 마감까지 끝나지 않아 시청에 인계합니다.
+     *
+     * @param now 처리 시각
+     */
+    public void miss(LocalDateTime now) {
+        this.status = RequestStatus.MISSED;
+        this.missedAt = now;
+    }
+
+    /**
+     * 요청을 취소합니다. (비 예보 취소 · 비가 일찍 와서 점검할 시간이 없음)
+     *
+     * @param now 취소 시각
+     */
+    public void cancel(LocalDateTime now) {
+        this.status = RequestStatus.CANCELLED;
+        this.cancelledAt = now;
+    }
+
+    /**
+     * 완료 마감을 당깁니다. 응답 마감이 새 완료 마감보다 늦으면 같이 당깁니다. 늦추지는 않습니다.
+     *
+     * @param completeDeadline 새 완료 마감
+     */
+    public void advanceDeadline(LocalDateTime completeDeadline) {
+        if (completeDeadline.isBefore(this.completeDeadlineAt)) {
+            this.completeDeadlineAt = completeDeadline;
+        }
+        if (this.replyDeadlineAt.isAfter(this.completeDeadlineAt)) {
+            this.replyDeadlineAt = this.completeDeadlineAt;
+        }
+    }
+
+    /**
+     * 진행 중(SENT · ACCEPTED · OPEN · CLAIMED)인지 확인합니다.
+     *
+     * @return 진행 중이면 true
+     */
+    public boolean isInProgress() {
+        return RequestStatus.IN_PROGRESS.contains(status);
     }
 }

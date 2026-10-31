@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.rainbutler.domain.request.RequestFixtures;
 import com.rainbutler.domain.user.entity.Role;
 import com.rainbutler.global.security.JwtTokenProvider;
 import com.rainbutler.support.IntegrationTestSupport;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -35,11 +37,16 @@ class ForecastAdminApiTest extends IntegrationTestSupport {
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockitoBean
     private Clock clock;
 
     @BeforeEach
     void setUp() {
+        // 다른 테스트가 남긴 입양 · 빗물받이가 있으면 요청이 만들어져 createdCount가 달라진다
+        new RequestFixtures(jdbcTemplate).neutralize();
         given(clock.getZone()).willReturn(SEOUL);
         given(clock.instant()).willReturn(NOW.atZone(SEOUL).toInstant());
     }

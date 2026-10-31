@@ -137,4 +137,28 @@ public class Adoption extends BaseEntity {
     public void setNextManagementAt(LocalDateTime nextManagementAt) {
         this.nextManagementAt = nextManagementAt;
     }
+
+    /**
+     * 비 예보 요청에 응답했으므로 연속 무응답 횟수를 초기화합니다.
+     */
+    public void resetIgnoreCount() {
+        this.ignoreCount = 0;
+    }
+
+    /**
+     * 비 예보 요청에 응답 마감까지 응답하지 않아 연속 무응답 횟수를 늘립니다.
+     */
+    public void increaseIgnoreCount() {
+        this.ignoreCount = this.ignoreCount + 1;
+    }
+
+    /**
+     * "외로운 또랑이"(연속 무응답이 기준 이상)인지 확인합니다. 표시용이고 불이익은 없습니다.
+     *
+     * @param threshold 기준 횟수 ({@code rain-butler.policy.lonely-ignore-count})
+     * @return 기준 이상이면 true
+     */
+    public boolean isLonely(int threshold) {
+        return this.ignoreCount >= threshold;
+    }
 }
