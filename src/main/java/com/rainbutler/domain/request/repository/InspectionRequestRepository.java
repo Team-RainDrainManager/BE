@@ -156,4 +156,47 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "AND r.completeDeadlineAt > :now AND r.deletedAt IS NULL")
     int claimIfOpen(@Param("requestId") Long requestId, @Param("substitute") User substitute,
             @Param("now") LocalDateTime now);
+
+    /**
+     * 내 ACTIVE 입양의 요청 중 진행 중이거나 기준 시각 뒤에 끝난 것을 찾습니다. 취소된 요청은 뺍니다. (내 요청 목록)
+     *
+     * @param userId 입양자 id
+     * @param inProgress 진행 중 상태
+     * @param since 이 시각 이후에 완료 · 놓침 처리된 것까지 포함
+     * @return 요청 목록 (빗물받이 · 예보 · 입양 함께)
+     */
+    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain JOIN FETCH r.forecast "
+            + "JOIN FETCH r.adoption a WHERE a.user.id = :userId "
+            + "AND a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE "
+            + "AND (r.status IN :inProgress OR r.completedAt >= :since OR r.missedAt >= :since)")
+    List<InspectionRequest> findMineAsOwner(@Param("userId") Long userId,
+            @Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("since") LocalDateTime since);
+
+    /**
+     * 내가 대신 점검으로 맡은 요청 중 진행 중이거나 기준 시각 뒤에 끝난 것을 찾습니다. (내 요청 목록)
+     *
+     * @param userId 수락자 id
+     * @param inProgress 진행 중 상태
+     * @param since 이 시각 이후에 완료 · 놓침 처리된 것까지 포함
+     * @return 요청 목록 (빗물받이 · 예보 · 입양 함께)
+     */
+    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain JOIN FETCH r.forecast "
+            + "LEFT JOIN FETCH r.adoption WHERE r.substituteUser.id = :userId "
+            + "AND (r.status IN :inProgress OR r.completedAt >= :since OR r.missedAt >= :since)")
+    List<InspectionRequest> findMineAsClaimant(@Param("userId") Long userId,
+            @Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("since") LocalDateTime since);
+
+    /**
+     * 완료 마감 전의 공개(OPEN) 요청을 모두 찾습니다. 근처인지는 호출하는 쪽에서 거릅니다. (내 요청 목록)
+     *
+     * @param now 현재 시각
+     * @return 요청 목록 (빗물받이 · 예보 · 입양 함께)
+     */
+    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain JOIN FETCH r.forecast "
+            + "LEFT JOIN FETCH r.adoption "
+            + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
+            + "AND r.completeDeadlineAt > :now")
+    List<InspectionRequest> findOpenBefore(@Param("now") LocalDateTime now);
 }
