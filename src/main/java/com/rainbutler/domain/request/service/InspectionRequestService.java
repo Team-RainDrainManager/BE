@@ -10,6 +10,8 @@ import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.util.KoreanJosa;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -112,6 +114,60 @@ public class InspectionRequestService {
         }
         log.info("[비 예보 요청] 예보 id={} 취소로 요청 {}건 취소", forecastId, requests.size());
         return requests.size();
+    }
+
+    /**
+     * 이 사용자가 지금 이 요청을 완료할 수 있는지 확인합니다. (점검 가능 여부 화면 · 점검 제출 전 검사)
+     *
+     * <ul>
+     *   <li>입양자: SENT · ACCEPTED (응답하지 않고 바로 점검해도 인정)</li>
+     *   <li>대신 점검 수락자: CLAIMED이고 본인이 맡은 요청</li>
+     *   <li>어느 쪽이든 완료 마감 전</li>
+     * </ul>
+     *
+     * @param requestId 요청 id
+     * @param userId 점검한 사용자
+     * @param now 현재 시각
+     * @return 완료할 수 있으면 true (없는 요청이면 false)
+     */
+    @Transactional(readOnly = true)
+    public boolean canComplete(Long requestId, Long userId, LocalDateTime now) {
+        return inspectionRequestRepository.findById(requestId)
+                .map(request -> isCompletable(request, userId, now))
+                .orElse(false);
+    }
+
+    /**
+     * 점검 제출에 맞춰 요청을 완료합니다. 점검 기록을 저장하는 트랜잭션 안에서 부르세요.
+     *
+     * @param requestId 요청 id
+     * @param userId 점검한 사용자
+     * @param now 완료 시각
+     * @throws BusinessException 완료할 수 없음 (409 REQUEST_NOT_COMPLETABLE), 없는 요청 (404)
+     */
+    @Transactional
+    public void complete(Long requestId, Long userId, LocalDateTime now) {
+        InspectionRequest request = inspectionRequestRepository.findById(requestId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REQUEST_NOT_FOUND));
+        if (!isCompletable(request, userId, now)) {
+            throw new BusinessException(ErrorCode.REQUEST_NOT_COMPLETABLE);
+        }
+        request.complete(now);
+        log.info("[비 예보 요청] 완료 requestId={} userId={}", requestId, userId);
+    }
+
+    private boolean isCompletable(InspectionRequest request, Long userId, LocalDateTime now) {
+        if (!now.isBefore(request.getCompleteDeadlineAt())) {
+            return false;
+        }
+        RequestStatus status = request.getStatus();
+        boolean owner = request.getAdoption() != null
+                && request.getAdoption().getUser().getId().equals(userId);
+        if (owner && (status == RequestStatus.SENT || status == RequestStatus.ACCEPTED)) {
+            return true;
+        }
+        return status == RequestStatus.CLAIMED && request.getSubstituteUser() != null
+                && request.getSubstituteUser().getId().equals(userId);
     }
 
     private InspectionRequest newRequest(RainForecast forecast, Drain drain, Adoption adoption,

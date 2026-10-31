@@ -157,6 +157,16 @@ public class InspectionRequest extends BaseEntity {
     }
 
     /**
+     * 점검을 마쳐 요청을 완료합니다. (점검 제출에서 호출)
+     *
+     * @param now 완료 시각
+     */
+    public void complete(LocalDateTime now) {
+        this.status = RequestStatus.COMPLETED;
+        this.completedAt = now;
+    }
+
+    /**
      * 완료 마감까지 끝나지 않아 시청에 인계합니다.
      *
      * @param now 처리 시각
