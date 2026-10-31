@@ -111,4 +111,18 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.SENT "
             + "AND r.replyDeadlineAt <= :now ORDER BY r.replyDeadlineAt")
     List<Long> findIdsReplyOverdue(@Param("now") LocalDateTime now, Pageable pageable);
+
+    /**
+     * 완료 마감이 주어진 시각보다 늦은 진행 중 요청을 찾습니다. (비가 앞당겨져 마감을 당길 대상)
+     *
+     * @param simulated 가상 예보의 요청이면 true
+     * @param inProgress 진행 중 상태
+     * @param deadline 새 완료 마감
+     * @return 요청 목록
+     */
+    @Query("SELECT r FROM InspectionRequest r WHERE r.forecast.isSimulated = :simulated "
+            + "AND r.status IN :inProgress AND r.completeDeadlineAt > :deadline")
+    List<InspectionRequest> findInProgressDeadlineAfter(@Param("simulated") boolean simulated,
+            @Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("deadline") LocalDateTime deadline);
 }

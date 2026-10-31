@@ -43,6 +43,7 @@ public class InspectionRequestService {
     private final AdoptionRepository adoptionRepository;
     private final SubstituteNotifier substituteNotifier;
     private final PushService pushService;
+    private final RequestNotifier requestNotifier;
     private final Clock clock;
 
     /**
@@ -106,33 +107,11 @@ public class InspectionRequestService {
                 .findAllByForecast_IdAndStatusIn(forecastId, RequestStatus.IN_PROGRESS);
         for (InspectionRequest request : requests) {
             request.cancel(now);
-            notifyRelated(request, NotificationType.REQUEST_CANCELLED,
+            requestNotifier.notifyRelated(request, NotificationType.REQUEST_CANCELLED,
                     "비 예보가 취소됐어요", "이번 비 예보 점검은 하지 않아도 돼요.");
         }
         log.info("[비 예보 요청] 예보 id={} 취소로 요청 {}건 취소", forecastId, requests.size());
         return requests.size();
-    }
-
-    /**
-     * 요청의 입양자와 대신 점검 수락자에게 같은 알림을 보냅니다.
-     *
-     * @param request 요청
-     * @param type 알림 종류
-     * @param title 제목
-     * @param body 내용
-     */
-    void notifyRelated(InspectionRequest request, NotificationType type, String title,
-            String body) {
-        Map<String, String> data = Map.of("requestId", String.valueOf(request.getId()));
-        Adoption adoption = request.getAdoption();
-        if (adoption != null) {
-            pushService.notify(adoption.getUser().getId(), type, title, body, request.getId(),
-                    adoption.getId(), data);
-        }
-        if (request.getSubstituteUser() != null) {
-            pushService.notify(request.getSubstituteUser().getId(), type, title, body,
-                    request.getId(), null, data);
-        }
     }
 
     private InspectionRequest newRequest(RainForecast forecast, Drain drain, Adoption adoption,
