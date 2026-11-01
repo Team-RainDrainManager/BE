@@ -96,4 +96,15 @@ public class Drain extends BaseEntity {
     public void setAdoptionStatus(DrainAdoptionStatus adoptionStatus) {
         this.adoptionStatus = adoptionStatus;
     }
+
+    /**
+     * 관리(점검 · 청소)로 확인한 최신 현장 사진과 더러움 단계를 반영합니다.
+     *
+     * @param photoUrl 최신 사진 key (청소했으면 청소 후 사진)
+     * @param dirtLevel 최신 더러움 단계 (1~3)
+     */
+    public void updateLatestPhoto(String photoUrl, Integer dirtLevel) {
+        this.photoUrl = photoUrl;
+        this.dirtLevel = dirtLevel;
+    }
 }
