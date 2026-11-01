@@ -81,6 +81,12 @@ public class Adoption extends BaseEntity {
     /** 다음 관리 예정일 */
     private LocalDateTime nextManagementAt;
 
+    /** 같은 관리 주기에서 미관리 경고를 보낸 시각 */
+    private LocalDateTime warnedAt;
+
+    /** 이번 관리 주기에서 관리 예정일 하루 전 알림을 보낸 시각 */
+    private LocalDateTime managementNotifiedAt;
+
     private LocalDateTime releasedAt;
 
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
@@ -105,18 +111,21 @@ public class Adoption extends BaseEntity {
     /**
      * 다음 관리 예정일을 미룹니다. 이미 더 늦으면 그대로 둡니다. (점검 쉬기)
      *
+     * <p>예정일이 실제로 밀리면 이전 예정일에 보낸 사전 알림은 지난 주기의 것이 되므로 다시 알릴 수 있게 합니다.
+     *
      * @param until 이 시각 이후로 미룬다
      */
     public void postponeNextManagement(LocalDateTime until) {
         if (this.nextManagementAt == null || this.nextManagementAt.isBefore(until)) {
             this.nextManagementAt = until;
+            this.managementNotifiedAt = null;
         }
     }
 
     /**
      * 입양을 해제합니다. 빗물받이는 다시 입양할 수 있게 됩니다. (직접 해제 · 자동 해제 · 회원 탈퇴 공통)
      *
-     * <p>이 입양에 걸린 점검 요청 재공개는 호출하는 쪽에서 {@code InspectionRequest.reopen}으로 처리합니다.
+     * <p>이 입양에 걸린 점검 요청 재공개는 호출하는 쪽에서 {@code InspectionRequest.reopenAfterRelease}로 처리합니다.
      *
      * @param reason 해제 사유
      * @param now 해제 시각
@@ -128,14 +137,58 @@ public class Adoption extends BaseEntity {
         this.drain.markAvailable();
     }
 
-    /** 마지막 점검일 설정 */
-    public void setLastManagedAt(LocalDateTime lastManagedAt) {
-        this.lastManagedAt = lastManagedAt;
+    /**
+     * 관리(점검 · 청소)를 마친 것으로 기록하고 다음 관리 예정일을 다시 잡습니다.
+     *
+     * <p>입양 시점과 관리 기록 저장 시점이 같이 씁니다. 관리가 새로 생기면 미관리 경고 · 관리 예정일 알림도
+     * 새 주기로 다시 보낼 수 있습니다.
+     *
+     * @param managedAt 관리한 시각
+     * @param nextManagementAt 다음 관리 예정일
+     */
+    public void recordManagement(LocalDateTime managedAt, LocalDateTime nextManagementAt) {
+        this.lastManagedAt = managedAt;
+        this.nextManagementAt = nextManagementAt;
+        this.managementNotifiedAt = null;
     }
 
-    /** 다음 관리 예정일 설정 */
-    public void setNextManagementAt(LocalDateTime nextManagementAt) {
-        this.nextManagementAt = nextManagementAt;
+    /**
+     * 이번 관리 주기의 관리 예정일 하루 전 알림을 보냈음을 기록합니다.
+     *
+     * @param now 알림 발송 시각
+     */
+    public void markManagementNotified(LocalDateTime now) {
+        this.managementNotifiedAt = now;
+    }
+
+    /**
+     * 이번 관리 주기의 관리 예정일 하루 전 알림을 이미 보냈는지 확인합니다.
+     *
+     * @return 이미 보냈으면 true
+     */
+    public boolean isManagementNotified() {
+        return this.managementNotifiedAt != null;
+    }
+
+    /**
+     * 미관리 경고를 보냈음을 기록합니다.
+     *
+     * @param now 경고 발송 시각
+     */
+    public void markWarned(LocalDateTime now) {
+        this.warnedAt = now;
+    }
+
+    /**
+     * 이 관리 주기에서 미관리 경고를 이미 보냈는지 확인합니다.
+     *
+     * <p>관리(점검) 기록이 생겨 기준 시각이 뒤로 밀리면 이전 경고는 지난 주기의 것이 되어 다시 경고할 수 있습니다.
+     *
+     * @param baseline 관리 기준 시각 (입양일 · 마지막 관리일 · 지난 쉬기 종료일 중 가장 늦은 시각)
+     * @return 이미 경고했으면 true
+     */
+    public boolean isWarningSentSince(LocalDateTime baseline) {
+        return this.warnedAt != null && !this.warnedAt.isBefore(baseline);
     }
 
     /**

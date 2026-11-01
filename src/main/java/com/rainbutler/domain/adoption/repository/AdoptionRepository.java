@@ -37,6 +37,15 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
     long countByUser_IdAndStatus(Long userId, AdoptionStatus status);
 
     /**
+     * 해당 상태인 입양 id를 모두 찾습니다. (미관리 경고 · 자동 해제 · 관리 예정 알림 배치)
+     *
+     * @param status 입양 상태
+     * @return 입양 id 목록
+     */
+    @Query("SELECT a.id FROM Adoption a WHERE a.status = :status")
+    List<Long> findIdsByStatus(@Param("status") AdoptionStatus status);
+
+    /**
      * 위경도 사각형 안에 있는 빗물받이의 ACTIVE 입양을 빗물받이 · 입양자와 함께 찾습니다. (대신 점검 근처 입양자)
      *
      * <p>사각형으로 넓게 거른 결과라 정확한 반경은 호출하는 쪽에서 다시 거릅니다.

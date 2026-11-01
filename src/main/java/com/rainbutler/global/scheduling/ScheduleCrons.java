@@ -35,6 +35,15 @@ public class ScheduleCrons {
         return daily(policy.nightDeferredPushTime());
     }
 
+    /**
+     * 관리 배치 (관리 예정 알림 · 미관리 경고 · 자동 파양, 기본 매일 09:00)
+     *
+     * @return cron
+     */
+    public String adoptionCare() {
+        return daily(policy.adoptionCareTime());
+    }
+
     private static String daily(LocalTime time) {
         return "0 " + time.getMinute() + " " + time.getHour() + " * * *";
     }

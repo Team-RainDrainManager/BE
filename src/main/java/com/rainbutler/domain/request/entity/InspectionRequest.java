@@ -125,6 +125,21 @@ public class InspectionRequest extends BaseEntity {
     }
 
     /**
+     * 입양 해제로 요청을 대신 점검으로 다시 공개합니다.
+     *
+     * <p>기존 입양자와의 연결을 끊고, 입양자가 남긴 응답도 비웁니다. 요청은 빗물받이 · 예보와의
+     * 연결을 유지한 채 {@code OPEN}이 되어 근처 입양자가 맡을 수 있습니다.
+     *
+     * @param now 공개 시각
+     */
+    public void reopenAfterRelease(LocalDateTime now) {
+        reopen(now);
+        this.adoption = null;
+        this.reply = null;
+        this.repliedAt = null;
+    }
+
+    /**
      * 입양자가 "가능"으로 응답합니다.
      *
      * @param now 응답 시각

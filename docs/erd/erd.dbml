@@ -187,7 +187,9 @@ Table adoption {
   ignore_count int [not null, default: 0, note: '비 예보 요청 연속 무응답']
   adopted_at timestamp [not null]
   last_managed_at timestamp [note: '마지막 점검일 - 35일 미점검 자동 파양 판정']
-  next_management_at timestamp [note: '다음 관리 예정일 (14일)']
+  next_management_at timestamp [note: '다음 관리 예정일 (14일, 12월~2월은 28일)']
+  warned_at timestamp [note: '같은 관리 주기에서 미관리 경고(28일)를 보낸 시각']
+  management_notified_at timestamp [note: '이번 관리 주기에서 관리 예정일 하루 전 알림을 보낸 시각']
   released_at timestamp
   created_at timestamp [not null]
   updated_at timestamp [not null]

@@ -1,9 +1,12 @@
 package com.rainbutler.domain.adoption.service;
 
 import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
+import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionRegisterResponse;
+import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
+import com.rainbutler.domain.adoption.entity.ReleaseReason;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.cleaning.entity.Cleaning;
 import com.rainbutler.domain.cleaning.entity.CleaningStatus;
@@ -11,6 +14,9 @@ import com.rainbutler.domain.cleaning.repository.CleaningRepository;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainAdoptionStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.request.entity.InspectionRequest;
+import com.rainbutler.domain.request.entity.RequestStatus;
+import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
@@ -19,7 +25,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -27,12 +35,14 @@ import java.time.LocalDateTime;
 public class AdoptionService {
 
     private static final int MAX_ADOPTION_COUNT = 3;
-    private static final int MANAGEMENT_INTERVAL_DAYS = 14;
 
     private final AdoptionRepository adoptionRepository;
     private final DrainRepository drainRepository;
     private final CleaningRepository cleaningRepository;
     private final UserRepository userRepository;
+    private final InspectionRequestRepository inspectionRequestRepository;
+    private final ManagementCyclePolicy managementCyclePolicy;
+    private final Clock clock;
 
     /**
      * 빗물받이를 입양합니다.
@@ -85,8 +95,8 @@ public class AdoptionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         // 10. 입양 생성 (level=1, score=0 시작)
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime nextManagementAt = now.plusDays(MANAGEMENT_INTERVAL_DAYS);
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime nextManagementAt = managementCyclePolicy.nextManagementAt(now);
 
         Adoption adoption = Adoption.builder()
                 .user(user)
@@ -96,9 +106,8 @@ public class AdoptionService {
                 .adoptedAt(now)
                 .build();
 
-        // builder에 없는 필드 설정
-        adoption.setLastManagedAt(now);
-        adoption.setNextManagementAt(nextManagementAt);
+        // 입양 시점을 첫 관리로 본다 (다음 관리 예정일은 계절 주기를 따른다)
+        adoption.recordManagement(now, nextManagementAt);
 
         Adoption saved = adoptionRepository.save(adoption);
 
@@ -113,5 +122,62 @@ public class AdoptionService {
                 saved.getAdoptedAt(),
                 saved.getNextManagementAt()
         );
+    }
+
+    /**
+     * 입양을 해제합니다. (파양)
+     *
+     * <p>본인 입양만 해제할 수 있습니다. 해제된 입양은 삭제하지 않고 {@code RELEASED}로 남겨 기록 · 성장을
+     * 보관하며, 빗물받이는 다시 입양할 수 있게 됩니다. 새 집사가 입양하면 새 입양이 Lv.1 · 0점으로 시작합니다.
+     *
+     * <p>이 입양에 걸린 {@code SENT} · {@code ACCEPTED} 점검 요청은 소유자 · 응답을 비우고 {@code OPEN}으로
+     * 다시 공개해 근처 입양자가 대신 점검을 맡을 수 있게 합니다. ({@code CLAIMED} 요청은 그대로 둡니다.)
+     *
+     * @param userId 로그인 사용자 id
+     * @param adoptionId 해제할 입양 id
+     * @param request 파양 사유
+     * @return 해제한 입양 id · 해제 시각
+     * @throws BusinessException 입양이 없거나(404) 본인 입양이 아니거나(403) 이미 해제된 경우(409)
+     */
+    @Transactional
+    public AdoptionReleaseResponse releaseAdoption(
+            Long userId, Long adoptionId, AdoptionReleaseRequest request) {
+        Adoption adoption = adoptionRepository.findById(adoptionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ADOPTION_NOT_FOUND));
+
+        // 본인 입양만 해제할 수 있다
+        if (!adoption.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 이미 해제된 입양은 다시 해제할 수 없다
+        if (adoption.getStatus() == AdoptionStatus.RELEASED) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE);
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        release(adoption, request.reason().toReleaseReason(), now);
+
+        return new AdoptionReleaseResponse(adoption.getId(), adoption.getReleasedAt());
+    }
+
+    /**
+     * 입양을 해제하고, 이 입양에 걸린 {@code SENT} · {@code ACCEPTED} 요청을 다시 공개합니다.
+     *
+     * <p>직접 해제와 자동 해제가 같은 순서를 쓰도록 한 곳에 둡니다. 소유자를 비우기 전에 요청을 먼저 찾습니다.
+     *
+     * @param adoption 해제할 입양
+     * @param reason 해제 사유
+     * @param now 해제 시각
+     */
+    @Transactional
+    public void release(Adoption adoption, ReleaseReason reason, LocalDateTime now) {
+        List<InspectionRequest> requests = inspectionRequestRepository
+                .findAllByAdoption_IdInAndStatusIn(
+                        List.of(adoption.getId()), List.of(RequestStatus.SENT, RequestStatus.ACCEPTED));
+
+        adoption.release(reason, now);
+        requests.forEach(inspectionRequest -> inspectionRequest.reopenAfterRelease(now));
     }
 }

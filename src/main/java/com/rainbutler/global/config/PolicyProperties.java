@@ -11,7 +11,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param maxAdoptionsPerUser 사용자당 최대 입양 수
  * @param managementCycleDays 정기 점검 주기 (일)
- * @param winterManagementCycleDays 겨울 주기 선택 시 정기 점검 주기 (일)
+ * @param winterManagementCycleDays 겨울철(12월~2월) 정기 점검 주기 (일)
  * @param adoptionWarningDays 미관리 경고 알림 기준 (일)
  * @param adoptionReleaseDays 미관리 자동 파양 기준 (일)
  * @param substituteRadiusMeters 대신 점검 대상 반경 (m)
@@ -39,6 +39,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param nightDeferredPushTime 야간 푸시 미동의자에게 밤사이 쌓인 알림을 푸시하는 시각
  * @param lonelyIgnoreCount "외로운 또랑이" 표시 기준 연속 무응답 횟수 (표시만, 불이익 없음)
  * @param minRemainingMinutesAfterAdvance 비가 앞당겨져 당긴 완료 마감까지 이보다 적게 남으면 요청 취소 (분)
+ * @param adoptionCareTime 관리 배치(관리 예정 알림 · 미관리 경고 · 자동 파양) 시각
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -70,5 +71,6 @@ public record PolicyProperties(
         LocalTime latestCompleteTime,
         LocalTime nightDeferredPushTime,
         int lonelyIgnoreCount,
-        int minRemainingMinutesAfterAdvance) {
+        int minRemainingMinutesAfterAdvance,
+        LocalTime adoptionCareTime) {
 }
