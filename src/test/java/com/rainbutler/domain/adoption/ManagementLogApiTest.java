@@ -65,6 +65,8 @@ class ManagementLogApiTest extends IntegrationTestSupport {
     private Long userId;
     private String token;
     private Long forecastId;
+    private String beforePhotoKey;
+    private String afterPhotoKey;
 
     @BeforeEach
     void setUp() {
@@ -72,6 +74,11 @@ class ManagementLogApiTest extends IntegrationTestSupport {
                 UUID.randomUUID() + "@test.com", "{noop}x", "관리집사"));
         userId = user.getId();
         token = jwtTokenProvider.createAccessToken(userId, user.getRole());
+
+        // 관리 기록은 같은 사진 재사용을 막으므로 테스트마다 고유한 사진 key를 쓴다.
+        String photoId = UUID.randomUUID().toString();
+        beforePhotoKey = "test/before/" + photoId + "/before.jpg";
+        afterPhotoKey = "test/after/" + photoId + "/after.jpg";
 
         forecastId = jdbcTemplate.queryForObject("INSERT INTO rain_forecast (rain_date, "
                 + "rain_start_at, pop, pcp_mm, status, is_simulated, created_at, updated_at) "
@@ -120,7 +127,7 @@ class ManagementLogApiTest extends IntegrationTestSupport {
         Map<String, Object> log = jdbcTemplate.queryForMap(
                 "SELECT before_photo_url, after_photo_url, status, review_status, managed_at "
                         + "FROM management_log WHERE adoption_id = ?", adoptionId);
-        assertThat(log.get("before_photo_url")).isEqualTo("test/before/3/before.jpg");
+        assertThat(log.get("before_photo_url")).isEqualTo(beforePhotoKey);
         assertThat(log.get("after_photo_url")).isNull();
         assertThat(log.get("status")).isEqualTo("VERIFIED");
         assertThat(log.get("review_status")).isEqualTo("NOT_REQUIRED");
@@ -137,7 +144,7 @@ class ManagementLogApiTest extends IntegrationTestSupport {
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
-        assertThat(drain.get("photo_url")).isEqualTo("test/before/3/before.jpg");
+        assertThat(drain.get("photo_url")).isEqualTo(beforePhotoKey);
         assertThat(drain.get("dirt_level")).isEqualTo(2);
     }
 
@@ -145,9 +152,9 @@ class ManagementLogApiTest extends IntegrationTestSupport {
     void 청소까지_하면_청소_후_사진과_등급으로_빗물받이를_갱신한다() throws Exception {
         Long drainId = drain("ADOPTED");
         Long adoptionId = adoption(drainId, null, null);
-        given(drainAiClassifier.assess("http://test/before/3/before.jpg"))
+        given(drainAiClassifier.assess("http://" + beforePhotoKey))
                 .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 1, false));
-        given(drainAiClassifier.assess("http://test/after/3/after.jpg"))
+        given(drainAiClassifier.assess("http://" + afterPhotoKey))
                 .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "판정", 0, false));
 
         record(adoptionId, cleaningBody(null))
@@ -158,7 +165,7 @@ class ManagementLogApiTest extends IntegrationTestSupport {
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
-        assertThat(drain.get("photo_url")).isEqualTo("test/after/3/after.jpg");
+        assertThat(drain.get("photo_url")).isEqualTo(afterPhotoKey);
         assertThat(drain.get("dirt_level")).isEqualTo(1);
     }
 
@@ -288,22 +295,22 @@ class ManagementLogApiTest extends IntegrationTestSupport {
     private String regularBody(Long requestId, double latitude, double longitude,
             boolean safetyAgreed) {
         return "{\"type\":\"REGULAR\",\"actionType\":\"INSPECTION\","
-                + "\"beforePhotoKey\":\"test/before/3/before.jpg\",\"memo\":\"깨끗해요\","
+                + "\"beforePhotoKey\":\"" + beforePhotoKey + "\",\"memo\":\"깨끗해요\","
                 + "\"latitude\":" + latitude + ",\"longitude\":" + longitude + ","
                 + "\"safetyAgreed\":" + safetyAgreed + "}";
     }
 
     private String cleaningBody(Long requestId) {
         return "{\"type\":\"REGULAR\",\"actionType\":\"CLEANING\","
-                + "\"beforePhotoKey\":\"test/before/3/before.jpg\","
-                + "\"afterPhotoKey\":\"test/after/3/after.jpg\",\"memo\":\"청소했어요\","
+                + "\"beforePhotoKey\":\"" + beforePhotoKey + "\","
+                + "\"afterPhotoKey\":\"" + afterPhotoKey + "\",\"memo\":\"청소했어요\","
                 + "\"latitude\":" + LAT + ",\"longitude\":" + LNG + ",\"safetyAgreed\":true}";
     }
 
     private String rainBody(Long requestId) {
         return "{\"type\":\"RAIN\",\"requestId\":" + requestId + ","
                 + "\"actionType\":\"INSPECTION\","
-                + "\"beforePhotoKey\":\"test/before/3/before.jpg\",\"memo\":\"비 예보 점검\","
+                + "\"beforePhotoKey\":\"" + beforePhotoKey + "\",\"memo\":\"비 예보 점검\","
                 + "\"latitude\":" + LAT + ",\"longitude\":" + LNG + ",\"safetyAgreed\":true}";
     }
 
