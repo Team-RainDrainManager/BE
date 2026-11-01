@@ -106,4 +106,55 @@ public class ManagementLog extends BaseEntity {
         this.status = ManagementStatus.SUBMITTED;
         this.reviewStatus = ReviewStatus.NOT_REQUIRED;
     }
+
+    /**
+     * 제출한 사진 · 촬영 위치 · AI 판정 결과를 기록합니다.
+     *
+     * @param beforePhotoUrl 점검 전 사진 key
+     * @param afterPhotoUrl 청소 후 사진 key (살펴보기만 했으면 null)
+     * @param dirtLevel 점검 전 사진 AI 더러움 단계 (1~3)
+     * @param aiConfidence 점검 전 사진 AI 확신도
+     * @param memo 남긴 메모
+     * @param latitude 촬영 위도
+     * @param longitude 촬영 경도
+     * @param locationMismatch 촬영 위치가 빗물받이와 기준 거리 이상 떨어졌는지
+     */
+    public void recordPhotos(
+            String beforePhotoUrl,
+            String afterPhotoUrl,
+            Integer dirtLevel,
+            BigDecimal aiConfidence,
+            String memo,
+            Double latitude,
+            Double longitude,
+            boolean locationMismatch) {
+        this.beforePhotoUrl = beforePhotoUrl;
+        this.afterPhotoUrl = afterPhotoUrl;
+        this.dirtLevel = dirtLevel;
+        this.aiConfidence = aiConfidence;
+        this.memo = memo;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.locationMismatch = locationMismatch;
+    }
+
+    /**
+     * 관리 인증에 성공했습니다. 관리 시각을 남깁니다.
+     *
+     * @param managedAt 관리한 시각
+     */
+    public void markVerified(LocalDateTime managedAt) {
+        this.status = ManagementStatus.VERIFIED;
+        this.managedAt = managedAt;
+    }
+
+    /** 관리 인증에 실패했습니다. (관리 주기는 갱신하지 않는다) */
+    public void markFailed() {
+        this.status = ManagementStatus.FAILED;
+    }
+
+    /** 위치 불일치 · 낮은 AI 확신도라 관리자 검토가 필요합니다. */
+    public void requireReview() {
+        this.reviewStatus = ReviewStatus.PENDING;
+    }
 }
