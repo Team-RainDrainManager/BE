@@ -143,6 +143,8 @@ CREATE TABLE "adoption" (
   "adopted_at" timestamp NOT NULL,
   "last_managed_at" timestamp,
   "next_management_at" timestamp,
+  "warned_at" timestamp,
+  "management_notified_at" timestamp,
   "released_at" timestamp,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,

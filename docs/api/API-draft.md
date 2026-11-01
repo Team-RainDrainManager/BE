@@ -28,7 +28,7 @@
 | | GET | `/users/me` | 16 | 닉네임, 참여 점수, 입양 수, 점검 수, 봉사 시간 |
 | | PATCH | `/users/me` | 16 | 닉네임 수정 |
 | ★ | PUT | `/users/me/location` | 13 | 활동 위치 갱신 (대신 점검 300m 판정용) |
-| | GET · PATCH | `/users/me/settings` | 19 | 앱 알림, 야간 수신(06시 발송) 동의, 겨울 28일 주기 ⚠️ |
+| | GET · PATCH | `/users/me/settings` | 19 | 앱 알림, 야간 수신(06시 발송) 동의. 관리 주기는 14일, 겨울(12~2월)은 서버가 28일 자동 적용 |
 | | POST | `/users/me/rest` | 05, 19 | 점검 쉬기 신청 (90일에 한 번) ⚠️ |
 | | POST | `/users/me/identity` | 16 | 실명 인증 (봉사 확인서용) |
 
@@ -55,7 +55,7 @@
 | | POST | `/drains/{id}/adoptions` | 04 | `{ nickname, safetyAgreed }` → 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED` ⚠️ |
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
 | | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보 |
-| | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason }` 입양 그만두기 |
+| | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason: MOVED \| NO_TIME \| OTHER }` 입양 그만두기(파양). 본인만 · 기록·성장 보관 · SENT·ACCEPTED 요청은 소유자 비우고 OPEN 재공개 |
 | | POST | `/adoptions/{id}/management-logs` | 07, 08, 09 | 정기·비 예보 점검 기록. `{ type, requestId?, beforePhotoKey, beforeDirtLevel, cleaned, afterPhotoKey?, afterDirtLevel?, memo, latitude, longitude, safetyAgreed }` → AI 판정, 위치 불일치, 얻은 XP |
 | | POST | `/cleanings` | 13 | 대신 점검 청소 시작 `{ drainId, requestId, beforePhotoKey, latitude, longitude }` → AI 더러움 단계 |
 | | POST | `/cleanings/{id}/verifications` | 13 | 청소 후 사진 인증 `{ afterPhotoKey }` → PASS/FAIL (실패 시 재시도) |
@@ -115,5 +115,5 @@
 4. **예보 시간 규칙**: 피그마는 "요청 24시간 전 · 무응답 6시간 후 공개 · 마감 비 3시간 전"으로, 옛 기획안 기준이다. 확정 규칙은 전날 06시 알림 · 20시 공개다.
 5. **더러움 단계**: 피그마는 "0단계"(청소 후 깨끗)를 쓴다. ERD는 1~3단계다.
 6. **XP 규칙**: 피그마는 정기 점검 +5 XP(빗물받이별 하루 1회), 제보 승인 +5 XP다. 개인 참여 점수와 빗물받이 XP가 따로 있다.
-7. **ERD에 없는 기능**: 점검 쉬기(90일 1회), 겨울 28일 주기 선택, 야간 수신 동의, 허위 제보 제재, 막힘 표시 해제 상태.
+7. **ERD에 없는 기능**: 점검 쉬기(90일 1회), 야간 수신 동의, 허위 제보 제재, 막힘 표시 해제 상태. 겨울(12~2월) 28일 주기는 서버가 자동 적용한다.
 8. **도구함**: ERD에는 있지만 피그마에 화면이 없다.
