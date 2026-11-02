@@ -224,7 +224,7 @@ class AdoptionReleaseApiTest extends IntegrationTestSupport {
         assertThat(newAdoption.get("level")).isEqualTo(1);
         assertThat(newAdoption.get("score")).isEqualTo(0);
 
-        mockMvc.perform(get("/api/v1/drains/{drainId}/growth", drainId)
+        mockMvc.perform(get("/api/v1/drain/{drainId}/growth", drainId)
                         .header("Authorization", "Bearer " + newToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.level").value(1))

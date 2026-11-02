@@ -83,6 +83,7 @@
 - 위치 50m 초과 · AI 확신도 0.7 미만이면 `PENDING`(관리자 검토)
 - `COMPLETED`면 관리 주기 · 빗물받이 최신 사진 · XP(개인 점수 + 입양 성장) 갱신, `PENDING`이면 요청만 완료하고 지급은 보류
 - XP는 완료 점검 1회 5점, 같은 사용자 · 같은 빗물받이 하루 1회만 지급
+- 상세(`GET /inspections/{id}`) · 입양별 이력(`GET /adoptions/{id}/inspections`)은 저장된 `status`로 검토 상태를 보여주고, 촬영일부터 `photo-retention-days`(365일)가 지나면 사진 URL 대신 `photoDeleted=true`를 내려준다 (삭제 배치는 별도)
 - 기존 `management_log` API는 병행 유지
 
 **비 예보**: 비 오기 전날 06:00 입양자 전원에게 일괄 알림 → 20:00까지 응답 → 불가·무응답이면 대신 점검으로 공개

@@ -19,7 +19,9 @@ public class CleaningVerifyController {
 
     private final CleaningService cleaningService;
 
-    @Operation(summary = "청소 완료 인증", description = "청소 완료 후 AI 인증을 진행합니다. afterGrade < beforeGrade이면 통과하며, 통과해야 입양 가능합니다.")
+    @Operation(summary = "입양 청소 완료 인증", description = "입양 전 첫 청소(B-5) 흐름의 청소 완료 인증입니다. "
+            + "청소 완료 후 AI로 인증을 진행합니다. afterGrade < beforeGrade이면 통과하며, "
+            + "통과해야 입양 등록(B-7)이 가능합니다. 실패 시 재시도할 수 있습니다.")
     @PostMapping("/{cleaningId}/verify")
     public ApiResponse<CleaningVerifyResponse> verifyCleaning(
             @LoginUserId Long userId,

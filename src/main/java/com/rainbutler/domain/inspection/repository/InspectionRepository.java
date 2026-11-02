@@ -2,6 +2,8 @@ package com.rainbutler.domain.inspection.repository;
 
 import com.rainbutler.domain.inspection.entity.Inspection;
 import java.time.LocalDateTime;
+import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,6 +36,24 @@ public interface InspectionRepository extends JpaRepository<Inspection, Long> {
      * @return 이미 있으면 true
      */
     boolean existsByAfterPhotoKey(String photoKey);
+
+    /**
+     * 입양별 점검 기록을 최신순(id 내림차순)으로 커서 이후부터 찾습니다.
+     *
+     * <p>목록 응답에 빗물받이 · 입양 별명이 필요해 함께 가져옵니다.
+     *
+     * @param adoptionId 입양 id
+     * @param cursor 이 id보다 작은 기록만 (첫 페이지는 Long.MAX_VALUE)
+     * @param pageable 가져올 개수
+     * @return 점검 기록 목록
+     */
+    @Query("SELECT i FROM Inspection i JOIN FETCH i.drain "
+            + "LEFT JOIN FETCH i.adoption a LEFT JOIN FETCH a.user "
+            + "WHERE i.adoption.id = :adoptionId AND i.id < :cursor ORDER BY i.id DESC")
+    List<Inspection> findPageByAdoptionId(
+            @Param("adoptionId") Long adoptionId,
+            @Param("cursor") Long cursor,
+            Pageable pageable);
 
     /**
      * 같은 사용자가 같은 빗물받이에서 기간 안에 경험치를 받은 점검 수를 셉니다. (빗물받이별 하루 1회)

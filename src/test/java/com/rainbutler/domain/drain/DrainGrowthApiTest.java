@@ -50,7 +50,7 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
     void 로그인하지_않으면_401() throws Exception {
         Long drainId = drain();
 
-        mockMvc.perform(get("/api/v1/drains/{drainId}/growth", drainId))
+        mockMvc.perform(get("/api/v1/drain/{drainId}/growth", drainId))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
@@ -97,7 +97,7 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
     }
 
     private ResultActions growth(Long drainId) throws Exception {
-        return mockMvc.perform(get("/api/v1/drains/{drainId}/growth", drainId)
+        return mockMvc.perform(get("/api/v1/drain/{drainId}/growth", drainId)
                 .header("Authorization", "Bearer " + token));
     }
 
