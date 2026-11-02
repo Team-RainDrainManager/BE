@@ -619,6 +619,7 @@ ALTER TABLE "ai_verification" ADD CONSTRAINT ck_ai_verification_target CHECK (nu
 -- ───────── 조회용 인덱스 ─────────
 CREATE INDEX idx_drain_location ON "drain" ("latitude", "longitude");
 CREATE INDEX idx_notification_user_read ON "notification" ("user_id", "read_at");
+CREATE INDEX idx_notification_user_id_desc ON "notification" ("user_id", "id" DESC);
 CREATE INDEX idx_inspection_request_status ON "inspection_request" ("status");
 CREATE INDEX idx_inspection_request_status_deadline ON "inspection_request" ("status", "reply_deadline_at", "complete_deadline_at");
 CREATE INDEX idx_adoption_user_status ON "adoption" ("user_id", "status");

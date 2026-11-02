@@ -369,6 +369,11 @@ Table notification {
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
+
+  indexes {
+    (user_id, read_at) [name: 'idx_notification_user_read']
+    (user_id, id) [name: 'idx_notification_user_id_desc', note: 'id DESC, 알림 목록 커서 조회']
+  }
 }
 
 // ───────── 인프라 테이블 ─────────

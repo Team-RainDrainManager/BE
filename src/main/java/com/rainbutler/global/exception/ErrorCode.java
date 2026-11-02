@@ -82,6 +82,9 @@ public enum ErrorCode {
     SUBSTITUTE_OWN_REQUEST(HttpStatus.FORBIDDEN,
             "내 또랑이는 대신 점검으로 맡을 수 없어요. 요청에 응답해 주세요."),
 
+    // ───────── 알림 ─────────
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없어요."),
+
     // ───────── 도구함 ─────────
     TOOL_BOX_NOT_FOUND(HttpStatus.NOT_FOUND, "도구함을 찾을 수 없어요."),
     TOOL_BOX_EMPTY(HttpStatus.CONFLICT, "도구함에 남은 도구가 없어요."),
