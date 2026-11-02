@@ -161,6 +161,15 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 참여 점수를 더합니다. ({@code point_history} 적립과 같은 트랜잭션에서 호출)
+     *
+     * @param amount 더할 점수
+     */
+    public void addPoint(int amount) {
+        this.point = (this.point == null ? 0 : this.point) + amount;
+    }
+
+    /**
      * 활동 위치를 갱신합니다. 대신 점검 대상 판정에 사용합니다.
      *
      * @param latitude 위도

@@ -40,6 +40,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param lonelyIgnoreCount "외로운 또랑이" 표시 기준 연속 무응답 횟수 (표시만, 불이익 없음)
  * @param minRemainingMinutesAfterAdvance 비가 앞당겨져 당긴 완료 마감까지 이보다 적게 남으면 요청 취소 (분)
  * @param adoptionCareTime 관리 배치(관리 예정 알림 · 미관리 경고 · 자동 파양) 시각
+ * @param inspectionXp 점검 1회를 인정했을 때 지급하는 경험치 (개인 참여 점수 · 빗물받이 성장)
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -72,5 +73,6 @@ public record PolicyProperties(
         LocalTime nightDeferredPushTime,
         int lonelyIgnoreCount,
         int minRemainingMinutesAfterAdvance,
-        LocalTime adoptionCareTime) {
+        LocalTime adoptionCareTime,
+        int inspectionXp) {
 }

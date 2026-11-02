@@ -153,6 +153,17 @@ public class Adoption extends BaseEntity {
     }
 
     /**
+     * 빗물받이 성장 점수를 더하고 레벨을 다시 계산합니다.
+     *
+     * @param xp 더할 경험치
+     * @param level 경험치 반영 후 레벨 ({@code GrowthLevelPolicy}로 계산한 값)
+     */
+    public void addGrowth(int xp, int level) {
+        this.score = this.score + xp;
+        this.level = level;
+    }
+
+    /**
      * 이번 관리 주기의 관리 예정일 하루 전 알림을 보냈음을 기록합니다.
      *
      * @param now 알림 발송 시각
