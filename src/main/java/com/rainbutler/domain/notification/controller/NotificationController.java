@@ -1,6 +1,7 @@
 package com.rainbutler.domain.notification.controller;
 
 import com.rainbutler.domain.notification.dto.NotificationListResponse;
+import com.rainbutler.domain.notification.dto.ReadAllResponse;
 import com.rainbutler.domain.notification.service.NotificationService;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
@@ -11,6 +12,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,5 +66,30 @@ public class NotificationController {
             @RequestParam(required = false) Integer size) {
         return ResponseEntity.ok(ApiResponse.ok(
                 notificationService.findMine(userId, unread, cursor, size)));
+    }
+
+    /**
+     * 알림 한 건을 읽음으로 표시합니다.
+     */
+    @Operation(summary = "알림 읽음", description = "내 알림 한 건을 읽음으로 표시합니다. 이미 읽은 알림도 "
+            + "200입니다. 남의 알림이나 없는 알림은 404 `NOTIFICATION_NOT_FOUND`입니다.")
+    @ApiErrorCodes({ErrorCode.NOTIFICATION_NOT_FOUND, ErrorCode.UNAUTHORIZED,
+            ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN})
+    @PatchMapping("/{notificationId}/read")
+    public ResponseEntity<ApiResponse<Void>> markRead(@LoginUserId Long userId,
+            @PathVariable Long notificationId) {
+        notificationService.markRead(userId, notificationId);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    /**
+     * 안 읽은 알림을 모두 읽음으로 표시합니다.
+     */
+    @Operation(summary = "알림 모두 읽음",
+            description = "내 안 읽은 알림을 모두 읽음으로 표시하고 바뀐 개수를 돌려줍니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN})
+    @PatchMapping("/read-all")
+    public ResponseEntity<ApiResponse<ReadAllResponse>> markAllRead(@LoginUserId Long userId) {
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.markAllRead(userId)));
     }
 }

@@ -87,4 +87,15 @@ public class Notification extends BaseEntity {
             this.sentAt = LocalDateTime.now();
         }
     }
+
+    /**
+     * 알림을 읽음으로 표시합니다. 이미 읽었으면 처음 읽은 시각을 유지합니다.
+     *
+     * @param now 읽은 시각
+     */
+    public void markRead(LocalDateTime now) {
+        if (this.readAt == null) {
+            this.readAt = now;
+        }
+    }
 }

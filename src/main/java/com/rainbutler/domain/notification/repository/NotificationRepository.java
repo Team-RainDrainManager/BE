@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -60,4 +61,16 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * @return 알림
      */
     Optional<Notification> findByIdAndUser_Id(Long id, Long userId);
+
+    /**
+     * 내 안 읽은 알림을 모두 읽음으로 바꿉니다. (벌크 UPDATE)
+     *
+     * @param userId 사용자 id
+     * @param now 읽은 시각
+     * @return 바뀐 알림 수
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE Notification n SET n.readAt = :now, n.updatedAt = :now "
+            + "WHERE n.user.id = :userId AND n.readAt IS NULL AND n.deletedAt IS NULL")
+    int markAllRead(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 }

@@ -2,10 +2,13 @@ package com.rainbutler.domain.notification.service;
 
 import com.rainbutler.domain.notification.dto.NotificationListResponse;
 import com.rainbutler.domain.notification.dto.NotificationResponse;
+import com.rainbutler.domain.notification.dto.ReadAllResponse;
 import com.rainbutler.domain.notification.entity.Notification;
 import com.rainbutler.domain.notification.repository.NotificationRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +29,7 @@ public class NotificationService {
     public static final int MAX_SIZE = 50;
 
     private final NotificationRepository notificationRepository;
+    private final Clock clock;
 
     /**
      * 내 알림을 최신순으로 한 페이지 조회합니다.
@@ -57,5 +61,32 @@ public class NotificationService {
         Long nextCursor = hasNext ? page.get(page.size() - 1).notificationId() : null;
         return new NotificationListResponse(
                 notificationRepository.countByUser_IdAndReadAtIsNull(userId), nextCursor, page);
+    }
+
+    /**
+     * 내 알림 한 건을 읽음으로 표시합니다. 이미 읽은 알림이어도 성공합니다 (멱등).
+     *
+     * @param userId 로그인 사용자
+     * @param notificationId 알림 id
+     * @throws BusinessException 없는 알림이거나 남의 알림 (404 NOTIFICATION_NOT_FOUND, 존재 여부를 숨긴다)
+     */
+    @Transactional
+    public void markRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository
+                .findByIdAndUser_Id(notificationId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
+        notification.markRead(LocalDateTime.now(clock));
+    }
+
+    /**
+     * 내 안 읽은 알림을 모두 읽음으로 표시합니다.
+     *
+     * @param userId 로그인 사용자
+     * @return 바뀐 알림 수
+     */
+    @Transactional
+    public ReadAllResponse markAllRead(Long userId) {
+        return new ReadAllResponse(
+                notificationRepository.markAllRead(userId, LocalDateTime.now(clock)));
     }
 }
