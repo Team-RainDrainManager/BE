@@ -89,7 +89,7 @@ public class Inspection extends BaseEntity {
     private BigDecimal afterConfidence;
 
     /** 촬영 위치와 빗물받이 사이 거리 (m) */
-    @Column(nullable = false)
+    @Column(name = "distance_m", nullable = false)
     private Integer distanceM;
 
     /** 사진 촬영 시각 */
