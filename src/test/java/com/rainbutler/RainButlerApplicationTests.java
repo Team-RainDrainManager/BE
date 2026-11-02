@@ -20,11 +20,11 @@ class RainButlerApplicationTests extends IntegrationTestSupport {
 
     @Test
     void contextLoads() {
-        // Flyway 이력 테이블을 뺀 테이블 20개 (업무 19 + 배치 잠금 shedlock 1)
+        // Flyway 이력 테이블을 뺀 테이블 21개 (업무 20 + 배치 잠금 shedlock 1)
         Integer tableCount = jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM information_schema.tables "
                         + "WHERE table_schema = 'public' AND table_name <> 'flyway_schema_history'",
                 Integer.class);
-        assertThat(tableCount).isEqualTo(20);
+        assertThat(tableCount).isEqualTo(21);
     }
 }
