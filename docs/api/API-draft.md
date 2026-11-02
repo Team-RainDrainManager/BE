@@ -60,6 +60,8 @@
 | ★ | GET | `/drains/{id}/inspection-eligibility?requestId=` | 07, 08, 09 | 점검 화면 진입 전 가능 여부. 정기·비 예보·대신 점검의 권한, 요청 상태, 마감, 제재 여부를 판정 |
 | ★ | POST | `/inspections` | 07, 08, 09 | 점검·청소 기록 공통 제출(점검 전 사진). `{ drainId, kind, requestId?, beforeKey, latitude, longitude, capturedAt, note?, safetyConfirmed }` → AI 판정, 깨끗하면 바로 `COMPLETED`, 더러우면 `NEEDS_CLEANING`, 위치 불일치·낮은 확신도면 `PENDING`. 사진 재사용·요청 중복 제출 차단 |
 | | POST | `/inspections/{id}/complete` | 08, 09 | 청소 후 사진 인증. `{ afterKey, safetyConfirmed }` → 청소 후 등급이 좋아지면 `COMPLETED`(관리 주기·빗물받이 사진·XP 갱신), 아니면 재청소 `NEEDS_CLEANING`, 위치·확신도 문제면 `PENDING` |
+| ★ | GET | `/inspections/{id}` | 07, 08, 09 | 점검 기록 상세. `{ inspectionId, drain: { drainId, name }, kind, createdAt, review, reviewReason?, beforePhotoUrl?, afterPhotoUrl?, beforeGrade, afterGrade?, cleaned, distanceM, xp, note?, photoDeleted }`. 점검한 본인·해당 입양의 입양자·관리자만 조회. 촬영일부터 365일이 지나면 `photoDeleted=true`이고 사진 URL은 null |
+| ★ | GET | `/adoptions/{id}/inspections?cursor=&size=` | 03, 06 | 입양별 점검 기록을 최신순 커서 페이지로 조회. `size` 기본 20·최대 50, 응답 `{ nextCursor, inspections: [...] }`. 입양자·관리자만 조회 |
 | | POST | `/cleanings` | 13 | 대신 점검 청소 시작 `{ drainId, requestId, beforePhotoKey, latitude, longitude }` → AI 더러움 단계 |
 | | POST | `/cleanings/{id}/verifications` | 13 | 청소 후 사진 인증 `{ afterPhotoKey }` → PASS/FAIL (실패 시 재시도) |
 

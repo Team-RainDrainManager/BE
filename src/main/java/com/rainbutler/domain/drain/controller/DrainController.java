@@ -6,6 +6,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainAssessmentResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
+import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.service.DrainService;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.security.LoginUserId;
@@ -71,6 +72,16 @@ public class DrainController {
             @Valid @RequestBody DrainAssessmentRequest request
     ) {
         DrainAssessmentResponse response = drainService.assessPhoto(userId, request);
+
+        return ApiResponse.ok(response);
+    }
+
+    @Operation(summary = "성장 조회", description = "빗물받이 입양 귀속의 레벨·점수·다음 레벨 진행률을 조회합니다. 로그인이 필요합니다.")
+    @GetMapping("/{drainId}/growth")
+    public ApiResponse<GrowthResponse> getGrowth(
+            @PathVariable Long drainId
+    ) {
+        GrowthResponse response = drainService.getGrowth(drainId);
 
         return ApiResponse.ok(response);
     }

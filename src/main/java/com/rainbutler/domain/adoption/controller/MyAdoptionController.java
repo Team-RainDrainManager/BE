@@ -2,6 +2,8 @@ package com.rainbutler.domain.adoption.controller;
 
 import com.rainbutler.domain.adoption.dto.Response.MyAdoptionListResponse;
 import com.rainbutler.domain.adoption.service.MyAdoptionQueryService;
+import com.rainbutler.domain.inspection.dto.InspectionListResponse;
+import com.rainbutler.domain.inspection.service.InspectionQueryService;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.security.LoginUserId;
@@ -11,7 +13,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 내 입양 목록 API입니다. */
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MyAdoptionController {
 
     private final MyAdoptionQueryService myAdoptionQueryService;
+    private final InspectionQueryService inspectionQueryService;
 
     /** 현재 입양 중인 빗물받이 목록을 조회합니다. */
     @Operation(summary = "내 입양 목록 조회",
@@ -34,5 +39,22 @@ public class MyAdoptionController {
     public ResponseEntity<ApiResponse<MyAdoptionListResponse>> findMine(
             @LoginUserId Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(myAdoptionQueryService.findMine(userId)));
+    }
+
+    @Operation(summary = "입양별 점검 이력 조회", description = "입양의 점검 기록을 최신순으로 커서 페이지로 조회합니다. "
+            + "입양자 · 관리자(ADMIN · CITY_OFFICIAL)만 볼 수 있습니다. 사진은 조회 URL로 내려주며, "
+            + "촬영일로부터 보존 기간(365일)이 지나면 photoDeleted=true이고 사진 URL은 null입니다. "
+            + "로그인이 필요합니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.USER_NOT_FOUND, ErrorCode.ADOPTION_NOT_FOUND, ErrorCode.FORBIDDEN,
+            ErrorCode.INVALID_INPUT})
+    @GetMapping("/{adoptionId}/inspections")
+    public ResponseEntity<ApiResponse<InspectionListResponse>> findInspections(
+            @LoginUserId Long userId,
+            @PathVariable Long adoptionId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Integer size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                inspectionQueryService.findByAdoption(userId, adoptionId, cursor, size)));
     }
 }
