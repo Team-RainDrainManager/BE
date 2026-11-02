@@ -222,6 +222,37 @@ Table management_log {
   deleted_at timestamp
 }
 
+// ───────── 점검 기록 ─────────
+
+Table inspection {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  drain_id bigint [not null, ref: > drain.id]
+  adoption_id bigint [ref: > adoption.id]
+  request_id bigint [unique, ref: - inspection_request.id, note: '비 예보·대신 점검 요청 (정기 점검이면 null)']
+  kind varchar [not null, note: 'ROUTINE / FORECAST / SUBSTITUTE']
+  status varchar [not null, note: 'NEEDS_CLEANING / COMPLETED / PENDING / REJECTED']
+  before_photo_key varchar [not null, note: 'S3 key']
+  after_photo_key varchar [note: 'S3 key']
+  before_grade int [note: 'AI 등급 0~3']
+  after_grade int [note: 'AI 등급 0~3']
+  ai_confidence "numeric(3,2)"
+  after_confidence "numeric(3,2)"
+  distance_m int [not null, note: '촬영 위치와 빗물받이 거리']
+  captured_at timestamp [not null]
+  note varchar
+  xp_awarded int [not null, default: 0]
+  rewarded boolean [not null, default: false, note: '경험치 지급 처리 완료 (중복 지급 방지)']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+
+  indexes {
+    (user_id, created_at) [name: 'ix_inspection_user_created', note: 'created_at DESC']
+    (adoption_id, created_at) [name: 'ix_inspection_adoption_created', note: 'created_at DESC']
+  }
+}
+
 // ───────── 청소 · AI ─────────
 
 Table cleaning {

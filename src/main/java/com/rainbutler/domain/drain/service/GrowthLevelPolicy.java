@@ -37,6 +37,23 @@ public class GrowthLevelPolicy {
     };
 
     /**
+     * 누적 점수에 해당하는 레벨을 구합니다.
+     *
+     * @param score 누적 점수
+     * @return 레벨 (1 ~ 만렙)
+     */
+    public int levelFor(int score) {
+        int level = 1;
+        for (int candidate = 2; candidate <= MAX_LEVEL; candidate++) {
+            if (score < MIN_SCORES[candidate]) {
+                break;
+            }
+            level = candidate;
+        }
+        return level;
+    }
+
+    /**
      * 다음 레벨이 되는 누적 점수를 구합니다. 만렙이면 현재 점수를 그대로 돌려줍니다.
      *
      * @param level 현재 레벨

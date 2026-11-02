@@ -10,6 +10,8 @@ public enum PointSourceType {
     CLEANING,
     /** 관리(점검) */
     MANAGEMENT,
+    /** 점검 (정기 · 비 예보 · 대신 점검 통합) */
+    INSPECTION,
     /** 제보 */
     REPORT
 }

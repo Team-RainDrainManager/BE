@@ -56,7 +56,10 @@
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
 | | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보 |
 | | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason: MOVED \| NO_TIME \| OTHER }` 입양 그만두기(파양). 본인만 · 기록·성장 보관 · SENT·ACCEPTED 요청은 소유자 비우고 OPEN 재공개 |
-| | POST | `/adoptions/{id}/management-logs` | 07, 08, 09 | 정기·비 예보 점검 기록. `{ type, requestId?, actionType, beforePhotoKey, afterPhotoKey?, memo, latitude, longitude, safetyAgreed }` → AI 판정, 위치 불일치·낮은 확신도면 검토 대기. 인증 성공 시 관리 주기·빗물받이 최신 사진 갱신 (포인트·성장 지급은 별도) |
+| | POST | `/adoptions/{id}/management-logs` | 07, 08, 09 | 정기·비 예보 점검 기록(기존 API). `{ type, requestId?, actionType, beforePhotoKey, afterPhotoKey?, memo, latitude, longitude, safetyAgreed }` → AI 판정, 위치 불일치·낮은 확신도면 검토 대기. 인증 성공 시 관리 주기·빗물받이 최신 사진 갱신 (포인트·성장 지급은 별도) |
+| ★ | GET | `/drains/{id}/inspection-eligibility?requestId=` | 07, 08, 09 | 점검 화면 진입 전 가능 여부. 정기·비 예보·대신 점검의 권한, 요청 상태, 마감, 제재 여부를 판정 |
+| ★ | POST | `/inspections` | 07, 08, 09 | 점검·청소 기록 공통 제출(점검 전 사진). `{ drainId, kind, requestId?, beforeKey, latitude, longitude, capturedAt, note?, safetyConfirmed }` → AI 판정, 깨끗하면 바로 `COMPLETED`, 더러우면 `NEEDS_CLEANING`, 위치 불일치·낮은 확신도면 `PENDING`. 사진 재사용·요청 중복 제출 차단 |
+| | POST | `/inspections/{id}/complete` | 08, 09 | 청소 후 사진 인증. `{ afterKey, safetyConfirmed }` → 청소 후 등급이 좋아지면 `COMPLETED`(관리 주기·빗물받이 사진·XP 갱신), 아니면 재청소 `NEEDS_CLEANING`, 위치·확신도 문제면 `PENDING` |
 | | POST | `/cleanings` | 13 | 대신 점검 청소 시작 `{ drainId, requestId, beforePhotoKey, latitude, longitude }` → AI 더러움 단계 |
 | | POST | `/cleanings/{id}/verifications` | 13 | 청소 후 사진 인증 `{ afterPhotoKey }` → PASS/FAIL (실패 시 재시도) |
 

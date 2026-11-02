@@ -49,7 +49,10 @@
 - V10: 비 예보 요청 마감. `inspection_request.complete_deadline_at`(완료 마감) · `cancelled_at` · `missed_at`,
   `reply_deadline_at`은 응답 마감(기본 발송 당일 12:00)으로 의미 변경, 마감 조회 인덱스
 - V13: 알림 목록 커서 조회 인덱스 `idx_notification_user_id_desc (user_id, id DESC)`
-- `erd.png`는 V2 ~ V13 반영 전 그림이다 (`erd.dbml`이 기준)
+- V14: 점검·청소 기록 통합 `inspection`. 정기·비 예보·대신 점검을 한 테이블에 모으고, 점검 전·후 사진,
+  AI 등급·확신도, 거리, 상태(`NEEDS_CLEANING` · `COMPLETED` · `PENDING` · `REJECTED`), 지급 XP를 남긴다.
+  `request_id`는 요청당 1건만 연결(유니크)
+- `erd.png`는 V2 ~ V14 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 
@@ -68,14 +71,22 @@
 - 사용자당 ACTIVE 입양 최대 3개 → 서비스 로직
 - 배수구당 ACTIVE 입양 1개 → `UNIQUE (drain_id) WHERE status='ACTIVE'`
 
-**정기 점검**: 입양자가 `management_log`(type=REGULAR)에 기록 → `adoption.last_managed_at` = 점검일, `next_management_at` = 점검일 + 14일 (12월~2월은 28일)
+**정기 점검**: 입양자가 `inspection`(kind=ROUTINE)에 제출 → `adoption.last_managed_at` = 점검일, `next_management_at` = 점검일 + 14일 (12월~2월은 28일)
 - 관리 예정일 하루 전: `next_management_at`이 내일인 입양에 `MANAGEMENT_DUE` 알림 (`management_notified_at`으로 한 주기 1회)
 - 매일 배치: 관리 기준 시각(입양일 · 마지막 관리일 · 지난 쉬기 종료일 중 가장 늦은 시각)이 28일 지나면 `ADOPTION_WARNING` 한 번(`warned_at`), 35일 지나면 `status=RELEASED`, `release_reason=AUTO`
 - 점검 쉬기 중인 사용자는 관리 예정 알림 · 미관리 경고 · 자동 파양을 모두 건너뛴다
 - 주기(14일 · 겨울 28일)와 경고 · 해제 기준(28일 · 35일)은 DB가 아니라 설정 값
 
+**점검 · 청소 공통 제출**: `inspection` 한 테이블에 정기 · 비 예보 · 대신 점검을 모은다
+- 점검 전 사진(`POST /inspections`) → AI 등급 0이면 청소 없이 `COMPLETED`, 더러우면 `NEEDS_CLEANING`
+- 청소 후 사진(`POST /inspections/{id}/complete`) → 등급이 좋아지면 `COMPLETED`, 아니면 다시 `NEEDS_CLEANING`
+- 위치 50m 초과 · AI 확신도 0.7 미만이면 `PENDING`(관리자 검토)
+- `COMPLETED`면 관리 주기 · 빗물받이 최신 사진 · XP(개인 점수 + 입양 성장) 갱신, `PENDING`이면 요청만 완료하고 지급은 보류
+- XP는 완료 점검 1회 5점, 같은 사용자 · 같은 빗물받이 하루 1회만 지급
+- 기존 `management_log` API는 병행 유지
+
 **비 예보**: 비 오기 전날 06:00 입양자 전원에게 일괄 알림 → 20:00까지 응답 → 불가·무응답이면 대신 점검으로 공개
-- 입양자가 하면 `management_log.request_id`(type=RAIN), 대신 점검이면 `cleaning.request_id`(type=SUBSTITUTE)로 완료 연결
+- 입양자가 하면 `inspection.request_id`(kind=FORECAST), 대신 점검이면 `inspection.request_id`(kind=SUBSTITUTE)로 완료 연결
 
 ```
 SENT ─(가능)→ ACCEPTED ─(점검)→ COMPLETED

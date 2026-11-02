@@ -59,6 +59,10 @@ public enum ErrorCode {
     ADOPTION_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "빗물받이는 최대 3개까지 입양할 수 있어요."),
     DRAIN_ALREADY_ADOPTED(HttpStatus.CONFLICT, "이미 다른 집사가 입양한 빗물받이예요."),
 
+    // ───────── 점검 ─────────
+    INSPECTION_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 기록을 찾을 수 없어요."),
+    INSPECTION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 점검이에요."),
+
     // ───────── 사진 ─────────
     DUPLICATE_PHOTO(HttpStatus.CONFLICT, "이미 등록된 사진이에요. 새로 촬영한 사진을 올려 주세요."),
     AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 판정에 실패했어요. 잠시 후 다시 시도해 주세요."),
