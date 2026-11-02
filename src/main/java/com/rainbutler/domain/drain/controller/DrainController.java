@@ -79,6 +79,7 @@ public class DrainController {
     @Operation(summary = "성장 조회", description = "빗물받이 입양 귀속의 레벨·점수·다음 레벨 진행률을 조회합니다. 로그인이 필요합니다.")
     @GetMapping("/{drainId}/growth")
     public ApiResponse<GrowthResponse> getGrowth(
+            @LoginUserId Long userId,
             @PathVariable Long drainId
     ) {
         GrowthResponse response = drainService.getGrowth(drainId);
