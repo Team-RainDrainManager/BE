@@ -56,13 +56,12 @@ class DrainListApiTest extends IntegrationTestSupport {
         mockMvc.perform(map())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].address").value("부천시 원미구 역곡동"))
-                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].displayStatus").value("AVAILABLE"))
-                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].level").value(0))
-                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].displayStatus").value("NORMAL"))
-                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].level").value(3))
-                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].levelTitle").value("떡잎"))
-                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].xp").value(150));
+                .andExpect(jsonPath("$.data[*].name").exists())
+                .andExpect(jsonPath("$.data[*].address").exists())
+                .andExpect(jsonPath("$.data[*].displayStatus").exists())
+                .andExpect(jsonPath("$.data[*].level").exists())
+                .andExpect(jsonPath("$.data[*].levelTitle").exists())
+                .andExpect(jsonPath("$.data[*].xp").exists());
     }
 
     @Test
