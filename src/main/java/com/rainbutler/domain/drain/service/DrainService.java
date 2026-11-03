@@ -19,6 +19,7 @@ import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -171,6 +172,7 @@ public class DrainService {
      *   <li>AI 확신도가 기준({@code policy.ai-confidence-threshold}) 미만</li>
      * </ul>
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public DrainCreateResponse createDrain(Long userId, DrainCreateRequest request) {
         // 1. 위도 범위 검증: -90 ~ 90 (Bean Validation과 같은 기준, 에러 코드는 LOCATION_INVALID_INPUT)
         if (request.latitude() < -90 || request.latitude() > 90) {
