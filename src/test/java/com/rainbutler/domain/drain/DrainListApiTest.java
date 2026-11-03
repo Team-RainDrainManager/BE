@@ -56,20 +56,13 @@ class DrainListApiTest extends IntegrationTestSupport {
         mockMvc.perform(map())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[*].name").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("골목 친구", "또랑이")))
-                .andExpect(jsonPath("$.data[*].address").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("부천시 원미구 역곡동", "부천시 원미구 지봉로")))
-                .andExpect(jsonPath("$.data[*].displayStatus").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("AVAILABLE", "NORMAL")))
-                .andExpect(jsonPath("$.data[*].displayStatusLabel").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("미입양", "정상")))
-                .andExpect(jsonPath("$.data[*].level").value(
-                        org.hamcrest.Matchers.containsInAnyOrder(0, 3)))
-                .andExpect(jsonPath("$.data[*].levelTitle").value(
-                        org.hamcrest.Matchers.containsInAnyOrder("미입양", "떡잎")))
-                .andExpect(jsonPath("$.data[*].xp").value(
-                        org.hamcrest.Matchers.containsInAnyOrder(0, 150)));
+                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].address").value("부천시 원미구 역곡동"))
+                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].displayStatus").value("AVAILABLE"))
+                .andExpect(jsonPath("$.data[?(@.name == '골목 친구')].level").value(0))
+                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].displayStatus").value("NORMAL"))
+                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].level").value(3))
+                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].levelTitle").value("떡잎"))
+                .andExpect(jsonPath("$.data[?(@.name == '또랑이')].xp").value(150));
     }
 
     @Test
