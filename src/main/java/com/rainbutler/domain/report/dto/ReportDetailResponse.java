@@ -48,7 +48,7 @@ public record ReportDetailResponse(
     public static ReportDetailResponse from(Report report, String photoUrl) {
         return new ReportDetailResponse(
                 report.getId(),
-                report.getDrain().getId(),
+                report.getDrain() == null ? null : report.getDrain().getId(),
                 report.getType(),
                 report.getDescription(),
                 photoUrl,

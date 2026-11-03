@@ -1,7 +1,9 @@
 package com.rainbutler.domain.notification.repository;
 
 import com.rainbutler.domain.notification.entity.Notification;
+import com.rainbutler.domain.notification.entity.NotificationType;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +54,16 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * @return 안 읽은 알림 수
      */
     long countByUser_IdAndReadAtIsNull(Long userId);
+
+    /**
+     * 알림 종류별 안 읽은 알림 수를 셉니다. (알림함 탭 배지)
+     *
+     * @param userId 사용자 id
+     * @param types 알림 종류 목록
+     * @return 안 읽은 알림 수
+     */
+    long countByUser_IdAndReadAtIsNullAndTypeIn(
+            Long userId, Collection<NotificationType> types);
 
     /**
      * 내 알림 한 건을 찾습니다. 남의 알림은 찾지 않습니다.

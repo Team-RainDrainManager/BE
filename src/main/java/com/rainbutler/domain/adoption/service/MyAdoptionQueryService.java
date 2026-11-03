@@ -5,6 +5,13 @@ import com.rainbutler.domain.adoption.dto.Response.MyAdoptionResponse;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
+import com.rainbutler.domain.drain.service.DrainDisplayStatusPolicy;
+import com.rainbutler.domain.drain.service.GrowthLevelPolicy;
+import com.rainbutler.domain.report.entity.ReportStatus;
+import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
@@ -25,7 +32,10 @@ public class MyAdoptionQueryService {
 
     private final AdoptionRepository adoptionRepository;
     private final UserRepository userRepository;
+    private final ReportRepository reportRepository;
     private final PolicyProperties policyProperties;
+    private final GrowthLevelPolicy growthLevelPolicy;
+    private final DrainDisplayStatusPolicy drainDisplayStatusPolicy;
     private final Clock clock;
 
     /**
@@ -56,18 +66,32 @@ public class MyAdoptionQueryService {
         boolean releaseWarning = !now.isBefore(
                 lastManagedAt.plusDays(policyProperties.adoptionWarningDays()));
         int missedForecastCount = adoption.getIgnoreCount() == null ? 0 : adoption.getIgnoreCount();
+        Drain drain = adoption.getDrain();
+        boolean hasPendingBlockage = reportRepository.existsByDrain_IdAndTypeAndStatus(
+                drain.getId(), ReportType.BLOCKAGE, ReportStatus.PENDING);
+        DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
+                adoption, hasPendingBlockage, now);
+        int level = adoption.getLevel();
+        int score = adoption.getScore();
 
         return new MyAdoptionResponse(
                 adoption.getId(),
                 adoption.getNickname(),
-                adoption.getDrain().getId(),
-                adoption.getLevel(),
-                adoption.getScore(),
+                drain.getId(),
+                level,
+                score,
                 lastManagedAt,
                 adoption.getNextManagementAt(),
                 releaseWarning,
                 missedForecastCount,
-                missedForecastCount >= policyProperties.lonelyIgnoreCount());
+                missedForecastCount >= policyProperties.lonelyIgnoreCount(),
+                drain.getAddress(),
+                displayStatus,
+                displayStatus.getLabel(),
+                growthLevelPolicy.titleFor(level),
+                growthLevelPolicy.nextLevelScore(level, score),
+                growthLevelPolicy.progressPercent(level, score)
+        );
     }
 
     private LocalDateTime lastManagedAt(Adoption adoption) {

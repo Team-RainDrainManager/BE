@@ -160,6 +160,8 @@ public class DrainAiClassifier {
                                         "data", base64))))),
                 "generationConfig", Map.of(
                         "responseMimeType", "application/json",
+                        // 같은 사진은 같은 판정이 나오도록 온도를 0으로 고정한다
+                        "temperature", 0,
                         "responseSchema", responseSchema()));
 
         for (int attempt = 0; ; attempt++) {

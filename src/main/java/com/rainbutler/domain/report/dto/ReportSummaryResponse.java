@@ -31,7 +31,7 @@ public record ReportSummaryResponse(
     public static ReportSummaryResponse from(Report report) {
         return new ReportSummaryResponse(
                 report.getId(),
-                report.getDrain().getId(),
+                report.getDrain() == null ? null : report.getDrain().getId(),
                 report.getType(),
                 report.getStatus(),
                 report.getCreatedAt());

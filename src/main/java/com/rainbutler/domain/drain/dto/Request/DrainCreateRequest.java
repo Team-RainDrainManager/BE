@@ -28,6 +28,14 @@ public record DrainCreateRequest(
         @NotBlank(message = "현장 사진을 등록해 주세요.")
         String photoKey,
 
+        /** 빗물받이 이름 (선택). 없으면 서버가 {@code 빗물받이 #id}로 표시합니다. */
+        @Size(max = 50, message = "빗물받이 이름은 50자 이내로 입력해 주세요.")
+        String name,
+
+        /** 주소 (선택). 없으면 서버가 좌표로 역지오코딩합니다. 실패하면 null로 저장합니다. */
+        @Size(max = 200, message = "주소는 200자 이내로 입력해 주세요.")
+        String address,
+
         /**
          * 사용자가 직접 체크한 위험 여부입니다. null이면 체크하지 않은 것입니다.
          * 실제 저장값은 AI 판정을 따릅니다.

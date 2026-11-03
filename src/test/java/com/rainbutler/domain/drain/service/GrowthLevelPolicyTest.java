@@ -58,4 +58,13 @@ class GrowthLevelPolicyTest {
         assertThat(policy.progressPercent(0, 25)).isEqualTo(50);
         assertThat(policy.progressPercent(11, 0)).isEqualTo(100);
     }
+
+    @Test
+    void 레벨별_칭호를_돌려주고_입양_전은_미입양이다() {
+        assertThat(policy.titleFor(0)).isEqualTo("미입양");
+        assertThat(policy.titleFor(1)).isEqualTo("씨앗");
+        assertThat(policy.titleFor(3)).isEqualTo("떡잎");
+        assertThat(policy.titleFor(GrowthLevelPolicy.MAX_LEVEL)).isEqualTo("전설");
+        assertThat(policy.titleFor(11)).isEqualTo("전설");
+    }
 }

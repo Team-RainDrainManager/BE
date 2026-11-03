@@ -28,6 +28,10 @@ public class LoginUserIdArgumentResolver implements HandlerMethodArgumentResolve
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         // 인증이 필요 없는 경로에 붙였거나 토큰이 없으면 로그인이 필요하다고 응답한다
         if (!(authentication instanceof JwtAuthenticationToken token)) {
+            LoginUserId annotation = parameter.getParameterAnnotation(LoginUserId.class);
+            if (annotation != null && !annotation.required()) {
+                return null;
+            }
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         try {

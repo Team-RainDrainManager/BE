@@ -280,6 +280,56 @@ class ReportApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 신규_등록_제보는_빗물받이_없이_접수한다() throws Exception {
+        String response = mockMvc.perform(post("/api/v1/reports")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "NEW_DRAIN",
+                                  "photoKey": "%s",
+                                  "latitude": %s,
+                                  "longitude": %s
+                                }
+                                """.formatted(photoKey, LAT, LNG)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long reportId = ((Number) JsonPath.read(response, "$.data.reportId")).longValue();
+
+        mockMvc.perform(get("/api/v1/reports/{reportId}", reportId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.type").value("NEW_DRAIN"))
+                .andExpect(jsonPath("$.data.drainId").doesNotExist())
+                .andExpect(jsonPath("$.data.latitude").value(LAT));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT drain_id FROM report WHERE id = ?", Long.class, reportId)).isNull();
+    }
+
+    @Test
+    void 신규_등록_제보에_빗물받이_id를_보내거나_위치가_없으면_400() throws Exception {
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"drainId": %s, "type": "NEW_DRAIN", "photoKey": "%s",
+                                 "latitude": %s, "longitude": %s}
+                                """.formatted(drainId, photoKey, LAT, LNG)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type": "NEW_DRAIN", "photoKey": "%s"}
+                                """.formatted(photoKey)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+    }
+
+    @Test
     void 로그인하지_않으면_401() throws Exception {
         mockMvc.perform(post("/api/v1/reports")
                         .contentType(MediaType.APPLICATION_JSON)

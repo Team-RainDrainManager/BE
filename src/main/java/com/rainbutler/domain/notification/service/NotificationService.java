@@ -2,8 +2,10 @@ package com.rainbutler.domain.notification.service;
 
 import com.rainbutler.domain.notification.dto.NotificationListResponse;
 import com.rainbutler.domain.notification.dto.NotificationResponse;
+import com.rainbutler.domain.notification.dto.NotificationSummaryResponse;
 import com.rainbutler.domain.notification.dto.ReadAllResponse;
 import com.rainbutler.domain.notification.entity.Notification;
+import com.rainbutler.domain.notification.entity.NotificationCategory;
 import com.rainbutler.domain.notification.repository.NotificationRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
@@ -61,6 +63,21 @@ public class NotificationService {
         Long nextCursor = hasNext ? page.get(page.size() - 1).notificationId() : null;
         return new NotificationListResponse(
                 notificationRepository.countByUser_IdAndReadAtIsNull(userId), nextCursor, page);
+    }
+
+    /**
+     * 알림함 탭별 안 읽은 알림 수를 조회합니다.
+     *
+     * @param userId 로그인 사용자
+     * @return 전체 · 점검 요청 · 활동 알림의 안 읽은 수
+     */
+    public NotificationSummaryResponse summary(Long userId) {
+        long total = notificationRepository.countByUser_IdAndReadAtIsNull(userId);
+        long request = notificationRepository.countByUser_IdAndReadAtIsNullAndTypeIn(
+                userId, NotificationCategory.REQUEST.types());
+        long activity = notificationRepository.countByUser_IdAndReadAtIsNullAndTypeIn(
+                userId, NotificationCategory.ACTIVITY.types());
+        return new NotificationSummaryResponse(total, request, activity);
     }
 
     /**

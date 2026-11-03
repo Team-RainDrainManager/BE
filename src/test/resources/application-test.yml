@@ -14,6 +14,8 @@ rain-butler:
     client-id: test-kakao-client-id
     client-secret: test-kakao-client-secret
     allowed-redirect-uris: http://localhost:5173/oauth/kakao
+  address:
+    reverse-geocoding-enabled: false   # 테스트에서 외부 카카오 API를 호출하지 않는다
   s3:
     bucket: test-bucket
     key-prefix: test
