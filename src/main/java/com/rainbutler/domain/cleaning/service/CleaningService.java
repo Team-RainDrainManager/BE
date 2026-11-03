@@ -103,6 +103,8 @@ public class CleaningService {
                     .type(ReportType.BLOCKAGE)
                     .description("AI 판정: 덮개 안쪽 막힘(3등급)으로 지자체 신고 대상")
                     .photoUrl(photoKey)
+                    .latitude(request.latitude())
+                    .longitude(request.longitude())
                     .build();
             reportRepository.save(report);
 

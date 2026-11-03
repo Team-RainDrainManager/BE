@@ -80,12 +80,27 @@
 
 | | Method | Path | 화면 | 설명 |
 | --- | --- | --- | --- | --- |
-| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey, description, newLatitude?, newLongitude? }` → 접수. 승인 후 +5 XP |
-| | GET | `/reports/me` | 16 | 내 제보 내역 |
+| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). 승인 후 +5 XP |
+| | GET | `/reports/me` | 16 | 내 제보 내역 (최신순) |
+| | GET | `/reports/{id}` | C-5 | 제보 상세. 제보자 본인 · `ADMIN` · `CITY_OFFICIAL`만 조회 |
 | | GET | `/users/me/activities` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 |
 | | GET | `/users/me/activities.csv` | 17 | 활동 기록 CSV |
 | | GET | `/users/me/volunteer-certificate` | 16 | 활동 확인서 (실명 인증 필요) |
 | | GET | `/leaderboard?type=WEEKLY\|TOTAL\|ZONE\|ORG` | 18 | 주간 · 누적 · 구역별 · 단체별 ⚠️ |
+
+### 제보 규칙
+
+- 제보 종류: `BLOCKAGE`(막힘) · `NEW_DRAIN`(신규) · `LOCATION_FIX`(위치 수정) · `REMOVAL`(철거) · `ODOR`(악취)
+- 종류별 필수 값
+  - `BLOCKAGE` · `NEW_DRAIN`: `photoKey`
+  - `REMOVAL`: `photoKey` + `description`(철거 사유)
+  - `LOCATION_FIX`: `photoKey` + `newLatitude` · `newLongitude`(새 위치, 둘 다)
+  - `ODOR`: `photoKey` 또는 `description` 중 하나
+- `latitude` · `longitude`는 제보 촬영 위치다. 보내지 않으면 빗물받이 위치로 채운다. 둘 중 하나만 보내면 400.
+- `photoKey`는 `StorageService.verifyUploaded(..., REPORT)`로 검증한다. (`PHOTO_FORBIDDEN` · `PHOTO_NOT_UPLOADED` 등)
+- 상태: `PENDING` → `APPROVED` | `REJECTED`. 이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
+- 승인 시 `processedBy` · `resolvedAt` · `adminComment`를 남기고 제보자에게 `report-xp`(기본 5)를 지급한다.
+  반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다.
 
 ## 6. 도구함 (파트 C) ⚠️ 피그마에 화면 없음
 
@@ -103,8 +118,8 @@
 | ★ | GET | `/admin/requests?forecastId=` | 비 예보 점검 현황, 위험 미점검 목록 |
 | | GET | `/admin/reviews` | 사진 검토 대기 (AI 저확신 · 위치 불일치) |
 | | PATCH | `/admin/reviews/{type}/{id}` | `{ decision: APPROVE \| REJECT }` (type = cleaning / management-log) |
-| | GET | `/admin/reports?status=PENDING` | 제보 승인 대기 |
-| | PATCH | `/admin/reports/{id}` | 승인 · 반려 |
+| | GET | `/admin/reports?status=PENDING` | 제보 승인 대기 (status 생략 시 전체, 최신순). `ADMIN` · `CITY_OFFICIAL` |
+| | PATCH | `/admin/reports/{id}` | `{ approved: true\|false, adminComment? }` 승인 · 반려. 반려 시 사유 필수. `ADMIN` · `CITY_OFFICIAL` |
 | | PATCH | `/admin/drains/{id}/clear-blockage` | 막힘 표시 해제 (청소 후 사진이 없을 때) |
 | | GET | `/admin/export.csv` | 미점검 · 활동 CSV |
 | | GET | `/admin/rewards.csv?period=` | 리워드 대상 명단 |

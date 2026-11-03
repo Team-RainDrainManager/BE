@@ -42,6 +42,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param adoptionCareTime 관리 배치(관리 예정 알림 · 미관리 경고 · 자동 파양) 시각
  * @param inspectionXp 점검 1회를 인정했을 때 지급하는 경험치 (개인 참여 점수 · 빗물받이 성장)
  * @param photoRetentionDays 점검 사진 보존 기간 (일). 촬영일부터 이 기간이 지나면 사진 URL을 내려주지 않는다
+ * @param reportXp 제보를 승인했을 때 지급하는 경험치
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -76,5 +77,6 @@ public record PolicyProperties(
         int minRemainingMinutesAfterAdvance,
         LocalTime adoptionCareTime,
         int inspectionXp,
-        int photoRetentionDays) {
+        int photoRetentionDays,
+        int reportXp) {
 }

@@ -97,6 +97,7 @@ public enum ErrorCode {
 
     // ───────── 제보 ─────────
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "제보를 찾을 수 없어요."),
+    REPORT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "이미 처리된 제보예요."),
 
     //───────── 위치 ─────────
     LOCATION_INVALID_INPUT(HttpStatus.BAD_REQUEST, "위치 정보가 올바르지 않아요");

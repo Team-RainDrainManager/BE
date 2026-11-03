@@ -32,6 +32,7 @@
 - `management_log.action_type` (살펴보기 / 청소까지)
 - `ai_verification.management_log_id` (관리 기록도 AI 재시도) - `cleaning_id`와 둘 중 하나만
 - `report.new_latitude/new_longitude` (위치 수정 제보)
+- `report.latitude/longitude` (제보 촬영 위치, V15)
 - 시각 `timestamptz` → `timestamp`, `dirt_level` `smallint` → `integer` (JPA 스키마 검증과 타입 맞춤)
 
 ## 이후 변경 (Flyway)
@@ -52,6 +53,8 @@
 - V14: 점검·청소 기록 통합 `inspection`. 정기·비 예보·대신 점검을 한 테이블에 모으고, 점검 전·후 사진,
   AI 등급·확신도, 거리, 상태(`NEEDS_CLEANING` · `COMPLETED` · `PENDING` · `REJECTED`), 지급 XP를 남긴다.
   `request_id`는 요청당 1건만 연결(유니크)
+- V15: 제보 촬영 위치 `report.latitude/longitude` (없는 기존 행은 빗물받이 위치로 백필),
+  제보 종류에 `ODOR` 추가(`type`은 varchar), 내 제보 · 관리자 상태별 목록 조회 인덱스
 - `erd.png`는 V2 ~ V14 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)

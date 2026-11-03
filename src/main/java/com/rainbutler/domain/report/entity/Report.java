@@ -56,6 +56,11 @@ public class Report extends BaseEntity {
 
     private String photoUrl;
 
+    /** 촬영 위치 */
+    private Double latitude;
+
+    private Double longitude;
+
     /** LOCATION_FIX 제보의 새 위치 */
     private Double newLatitude;
 
@@ -77,6 +82,8 @@ public class Report extends BaseEntity {
             ReportType type,
             String description,
             String photoUrl,
+            Double latitude,
+            Double longitude,
             Double newLatitude,
             Double newLongitude) {
         this.user = user;
@@ -84,8 +91,43 @@ public class Report extends BaseEntity {
         this.type = type;
         this.description = description;
         this.photoUrl = photoUrl;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.newLatitude = newLatitude;
         this.newLongitude = newLongitude;
         this.status = ReportStatus.PENDING;
+    }
+
+    /** 아직 관리자가 처리하지 않은 제보인지 확인합니다. */
+    public boolean isPending() {
+        return this.status == ReportStatus.PENDING;
+    }
+
+    /**
+     * 관리자 검토에서 승인합니다.
+     *
+     * @param admin 처리한 관리자 · 시청 관계자
+     * @param comment 관리자 코멘트 (없으면 null)
+     * @param now 처리 시각
+     */
+    public void approve(User admin, String comment, LocalDateTime now) {
+        this.status = ReportStatus.APPROVED;
+        this.processedBy = admin;
+        this.adminComment = comment;
+        this.resolvedAt = now;
+    }
+
+    /**
+     * 관리자 검토에서 반려합니다.
+     *
+     * @param admin 처리한 관리자 · 시청 관계자
+     * @param comment 반려 사유
+     * @param now 처리 시각
+     */
+    public void reject(User admin, String comment, LocalDateTime now) {
+        this.status = ReportStatus.REJECTED;
+        this.processedBy = admin;
+        this.adminComment = comment;
+        this.resolvedAt = now;
     }
 }
