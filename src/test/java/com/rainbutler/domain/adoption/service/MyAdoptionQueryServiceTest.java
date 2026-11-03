@@ -11,6 +11,9 @@ import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.drain.service.DrainDisplayStatusPolicy;
+import com.rainbutler.domain.drain.service.GrowthLevelPolicy;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
@@ -39,6 +42,8 @@ class MyAdoptionQueryServiceTest {
     private AdoptionRepository adoptionRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ReportRepository reportRepository;
 
     private MyAdoptionQueryService myAdoptionQueryService;
 
@@ -48,7 +53,8 @@ class MyAdoptionQueryServiceTest {
                 ZoneId.of("Asia/Seoul"));
         PolicyProperties policies = TestPolicies.defaults();
         myAdoptionQueryService = new MyAdoptionQueryService(
-                adoptionRepository, userRepository, policies, clock);
+                adoptionRepository, userRepository, reportRepository, policies,
+                new GrowthLevelPolicy(), new DrainDisplayStatusPolicy(), clock);
     }
 
     @Test

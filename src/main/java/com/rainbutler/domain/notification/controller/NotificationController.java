@@ -1,6 +1,7 @@
 package com.rainbutler.domain.notification.controller;
 
 import com.rainbutler.domain.notification.dto.NotificationListResponse;
+import com.rainbutler.domain.notification.dto.NotificationSummaryResponse;
 import com.rainbutler.domain.notification.dto.ReadAllResponse;
 import com.rainbutler.domain.notification.service.NotificationService;
 import com.rainbutler.global.exception.ErrorCode;
@@ -48,9 +49,25 @@ public class NotificationController {
             | `MANAGEMENT_DUE` | 정기 관리 예정 | 내 빗물받이 (`adoptionId`) |
             | `ADOPTION_WARNING` · `ADOPTION_RELEASED` | 미관리 경고 · 자동 해제 | 내 빗물받이 (`adoptionId`) |
             | `REPORT_RESULT` | 제보 처리 결과 | 내 제보 |
+            | `WELCOME` | 가입 환영 | 홈 |
+            | `ADOPTION_REGISTERED` | 빗물받이 입양 완료 | 내 빗물받이 (`adoptionId`) |
+            | `LEVEL_UP` | 빗물받이 레벨 상승 | 내 빗물받이 (`adoptionId`) |
+            | `INSPECTION_APPROVED` | 점검 인증 · 검토 승인 | 내 점검 기록 |
             """;
 
     private final NotificationService notificationService;
+
+    /**
+     * 알림함 탭별 안 읽은 알림 수를 조회합니다.
+     */
+    @Operation(summary = "알림 탭별 안 읽은 수",
+            description = "알림함의 점검 요청 · 활동 알림 탭 배지에 쓸 안 읽은 알림 수를 조회합니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN})
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<NotificationSummaryResponse>> summary(
+            @LoginUserId Long userId) {
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.summary(userId)));
+    }
 
     /**
      * 내 알림 목록을 조회합니다.

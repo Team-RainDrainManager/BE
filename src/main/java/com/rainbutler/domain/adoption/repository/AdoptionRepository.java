@@ -19,6 +19,16 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
     );
 
     /**
+     * 여러 빗물받이의 ACTIVE 입양을 한 번에 찾습니다. (지도 · 목록의 레벨 표시)
+     *
+     * @param drainIds 빗물받이 id 목록
+     * @return ACTIVE 입양 목록
+     */
+    @Query("SELECT a FROM Adoption a WHERE a.drain.id IN :drainIds "
+            + "AND a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE")
+    List<Adoption> findActiveByDrainIds(@Param("drainIds") List<Long> drainIds);
+
+    /**
      * 사용자의 입양 중 해당 상태인 것을 찾습니다. (점검 쉬기: ACTIVE 입양)
      *
      * @param userId 사용자 id

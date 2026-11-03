@@ -1,11 +1,17 @@
 package com.rainbutler.domain.drain.dto.Response;
 
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
+
 /**
  * 빗물받이 생성 응답입니다.
  *
  * @param id 생성된 빗물받이 id
+ * @param name 표시 이름 (요청 이름이 없으면 빗물받이 #id)
+ * @param address 주소 (요청에 없고 역지오코딩도 실패하면 null)
  * @param status 운영 상태 (생성 시 ACTIVE)
  * @param adoptionStatus 입양 상태 (생성 시 AVAILABLE)
+ * @param displayStatus 화면 표시 상태 (검토용 제보를 만들었으면 막힘 제보)
+ * @param displayStatusLabel 화면 표시 상태의 한국어 라벨
  * @param latitude 위도
  * @param longitude 경도
  * @param photoUrl 현장 사진 URL
@@ -17,8 +23,12 @@ package com.rainbutler.domain.drain.dto.Response;
  */
 public record DrainCreateResponse(
         Long id,
+        String name,
+        String address,
         String status,
         String adoptionStatus,
+        DrainDisplayStatus displayStatus,
+        String displayStatusLabel,
         Double latitude,
         Double longitude,
         String photoUrl,

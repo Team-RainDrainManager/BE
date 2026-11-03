@@ -27,5 +27,13 @@ public enum NotificationType {
     /** 자동 파양 (35일) */
     ADOPTION_RELEASED,
     /** 제보 처리 결과 */
-    REPORT_RESULT
+    REPORT_RESULT,
+    /** 온보딩 완료 환영 */
+    WELCOME,
+    /** 빗물받이 입양 완료 */
+    ADOPTION_REGISTERED,
+    /** 빗물받이 레벨 상승 */
+    LEVEL_UP,
+    /** 점검 인증 · 관리자 검토 승인 */
+    INSPECTION_APPROVED
 }

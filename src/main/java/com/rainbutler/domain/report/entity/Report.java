@@ -40,7 +40,7 @@ public class Report extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "drain_id", nullable = false)
+    @JoinColumn(name = "drain_id")
     private Drain drain;
 
     /** 처리한 시청 관계자·관리자 */

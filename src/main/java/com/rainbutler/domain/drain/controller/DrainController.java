@@ -7,16 +7,20 @@ import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.drain.service.DrainService;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
+import com.rainbutler.global.response.PageResponse;
 import com.rainbutler.global.security.LoginUserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Drain", description = "빗물받이")
 @RestController
@@ -26,30 +30,52 @@ public class DrainController {
 
     private final DrainService drainService;
 
-    @Operation(summary = "지도 위 빗물받이 목록 조회", description = "경도/위도 범위 내 빗물받이 목록을 조회합니다.")
+    @Operation(summary = "지도 위 빗물받이 목록 조회",
+            description = "경도/위도 범위 내 빗물받이 목록을 조회합니다. 표시 상태 · 검색어로 거를 수 있습니다.")
     @GetMapping
     public ApiResponse<List<DrainResponse>> getDrainList(
             @RequestParam Double minLatitude,
             @RequestParam Double maxLatitude,
             @RequestParam Double minLongitude,
-            @RequestParam Double maxLongitude
+            @RequestParam Double maxLongitude,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q
     ) {
         List<DrainResponse> drains = drainService.getDrainList(
                 minLatitude,
                 maxLatitude,
                 minLongitude,
-                maxLongitude
+                maxLongitude,
+                parseStatus(status),
+                q
         );
 
         return ApiResponse.ok(drains);
     }
 
-    @Operation(summary = "빗물받이 상세 조회", description = "빗물받이 ID로 기본 정보와 현재 입양 정보를 조회합니다")
+    @Operation(summary = "빗물받이 목록 조회 (페이지)",
+            description = "이름 · 주소 · 입양 별명으로 검색하고 표시 상태로 거른 목록을 페이지로 조회합니다.")
+    @GetMapping("/list")
+    public ApiResponse<PageResponse<DrainResponse>> getDrainPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q
+    ) {
+        PageResponse<DrainResponse> response =
+                drainService.getDrainPage(page, size, parseStatus(status), q);
+
+        return ApiResponse.ok(response);
+    }
+
+    @Operation(summary = "빗물받이 상세 조회",
+            description = "빗물받이 ID로 기본 정보와 현재 입양 정보를 조회합니다. 로그인하면 내 빗물받이인지도 알려줍니다.")
     @GetMapping("/{drainId}")
     public ApiResponse<DrainDetailResponse> getDrainDetail(
+            @LoginUserId(required = false) Long userId,
             @PathVariable Long drainId
     ) {
-        DrainDetailResponse response = drainService.getDrainDetail(drainId);
+        DrainDetailResponse response = drainService.getDrainDetail(userId, drainId);
 
         return ApiResponse.ok(response);
     }
@@ -87,4 +113,22 @@ public class DrainController {
         return ApiResponse.ok(response);
     }
 
+    /**
+     * 표시 상태 파라미터를 enum으로 바꿉니다. 영문 이름과 화면 라벨(한글)을 모두 받습니다.
+     */
+    private DrainDisplayStatus parseStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return null;
+        }
+        String value = status.trim();
+        for (DrainDisplayStatus candidate : DrainDisplayStatus.values()) {
+            if (candidate.name().equalsIgnoreCase(value)
+                    || candidate.getLabel().equals(value)) {
+                return candidate;
+            }
+        }
+        throw new BusinessException(
+                ErrorCode.INVALID_INPUT,
+                "표시 상태는 AVAILABLE · NORMAL · MANAGEMENT_DELAYED · BLOCKAGE_REPORTED 중 하나여야 합니다.");
+    }
 }

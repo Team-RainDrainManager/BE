@@ -11,19 +11,35 @@ import com.rainbutler.domain.drain.dto.Response.DrainDetailResponse;
 import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.drain.repository.DrainSpecifications;
+import com.rainbutler.domain.report.entity.ReportStatus;
+import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.response.PageResponse;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Set;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -34,73 +50,98 @@ public class DrainService {
     private static final Set<UploadPurpose> ASSESSABLE_PURPOSES =
             Set.of(UploadPurpose.DRAIN, UploadPurpose.BEFORE, UploadPurpose.AFTER);
 
+    /** 지도 한 번에 내려주는 최대 개수 */
+    private static final int MAP_MAX_RESULTS = 500;
+
+    /** 목록 페이지 크기 상한 */
+    private static final int PAGE_MAX_SIZE = 100;
+
     private final DrainRepository drainRepository;
     private final AdoptionRepository adoptionRepository;
+    private final ReportRepository reportRepository;
     private final DrainAiClassifier drainAiClassifier;
     private final DrainWriter drainWriter;
     private final PolicyProperties policyProperties;
     private final StorageService storageService;
     private final GrowthLevelPolicy growthLevelPolicy;
+    private final DrainDisplayStatusPolicy drainDisplayStatusPolicy;
+    private final DrainAddressResolver drainAddressResolver;
+    private final Clock clock;
 
     /**
      * 지도 영역 내 빗물받이 목록 조회
+     *
+     * @param status 화면 표시 상태 필터 (없으면 전체)
+     * @param keyword 이름 · 주소 · 입양 별명 검색어 (없으면 전체)
      */
     public List<DrainResponse> getDrainList(
             Double minLatitude,
             Double maxLatitude,
             Double minLongitude,
-            Double maxLongitude
+            Double maxLongitude,
+            DrainDisplayStatus status,
+            String keyword
     ) {
-        // 1. 위도 범위 검증: -90 ~ 90
-        if (minLatitude < -90 || minLatitude > 90
-                || maxLatitude < -90 || maxLatitude > 90) {
-            throw new BusinessException(
-                    ErrorCode.LOCATION_INVALID_INPUT,
-                    "위도는 -90 이상 90 이하여야 합니다."
-            );
-        }
-        // 2. 경도 범위 검증: -180 ~ 180
-        if (minLongitude < -180 || minLongitude > 180
-                || maxLongitude < -180 || maxLongitude > 180) {
-            throw new BusinessException(
-                    ErrorCode.LOCATION_INVALID_INPUT,
-                    "경도는 -180 이상 180 이하여야 합니다."
-            );
-        }
+        validateBounds(minLatitude, maxLatitude, minLongitude, maxLongitude);
 
-        // 3. 최소값이 최댓값보다 큰 경우 검증
-        if (minLatitude > maxLatitude) {
-            throw new BusinessException(
-                    ErrorCode.LOCATION_INVALID_INPUT,
-                    "최소 위도는 최대 위도보다 클 수 없습니다."
-            );
-        }
-        if (minLongitude > maxLongitude) {
-            throw new BusinessException(
-                    ErrorCode.LOCATION_INVALID_INPUT,
-                    "최소 경도는 최대 경도보다 클 수 없습니다."
-            );
-        }
-        List<Drain> drains =
-                drainRepository.findByLatitudeBetweenAndLongitudeBetween(
-                        minLatitude,
-                        maxLatitude,
-                        minLongitude,
-                        maxLongitude
-                );
+        Specification<Drain> spec = specification(
+                minLatitude, maxLatitude, minLongitude, maxLongitude, status, keyword);
+        Page<Drain> page = drainRepository.findAll(
+                spec,
+                PageRequest.of(0, MAP_MAX_RESULTS, Sort.by(Sort.Direction.ASC, "id")));
 
-        return drains.stream()
-                .map(drain -> DrainResponse.builder()
-                        .id(drain.getId())
-                        .latitude(drain.getLatitude())
-                        .longitude(drain.getLongitude())
-                        .adoptionStatus(drain.getAdoptionStatus())
-                        .isRisk(drain.isRisk())
-                        .build())
-                .toList();
+        return toResponses(page.getContent());
     }
 
-    public DrainDetailResponse getDrainDetail(Long drainId) {
+    /**
+     * 빗물받이 목록을 페이지 단위로 조회합니다. (지도 목록 패널 · 검색 화면)
+     *
+     * @param page 페이지 번호 (0부터)
+     * @param size 페이지 크기 (1~100)
+     * @param status 화면 표시 상태 필터 (없으면 전체)
+     * @param keyword 이름 · 주소 · 입양 별명 검색어 (없으면 전체)
+     * @return 페이지 응답
+     */
+    public PageResponse<DrainResponse> getDrainPage(
+            int page, int size, DrainDisplayStatus status, String keyword) {
+        if (page < 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "페이지 번호는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > PAGE_MAX_SIZE) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "페이지 크기는 1 이상 " + PAGE_MAX_SIZE + " 이하여야 합니다.");
+        }
+
+        Specification<Drain> spec = (root, query, cb) -> cb.conjunction();
+        Specification<Drain> search = DrainSpecifications.search(keyword);
+        if (search != null) {
+            spec = spec.and(search);
+        }
+        Specification<Drain> statusSpec =
+                DrainSpecifications.displayStatus(status, LocalDateTime.now(clock));
+        if (statusSpec != null) {
+            spec = spec.and(statusSpec);
+        }
+
+        Page<Drain> result = drainRepository.findAll(
+                spec, PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id")));
+
+        return PageResponse.of(
+                toResponses(result.getContent()),
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages());
+    }
+
+    /**
+     * 빗물받이 상세 조회
+     *
+     * @param userId 로그인 사용자 id (비로그인이면 null)
+     * @param drainId 빗물받이 id
+     */
+    public DrainDetailResponse getDrainDetail(Long userId, Long drainId) {
         Drain drain = drainRepository.findById(drainId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.DRAIN_NOT_FOUND)
@@ -111,6 +152,22 @@ public class DrainService {
                         AdoptionStatus.ACTIVE
                 )
                 .orElse(null);
+        boolean hasPendingBlockage = reportRepository.existsByDrain_IdAndTypeAndStatus(
+                drainId, ReportType.BLOCKAGE, ReportStatus.PENDING);
+        DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
+                adoption, hasPendingBlockage, LocalDateTime.now(clock));
+
+        int level = adoption == null ? 0 : adoption.getLevel();
+        int xp = adoption == null ? 0 : adoption.getScore();
+        int nextLevelScore = adoption == null
+                ? 0
+                : growthLevelPolicy.nextLevelScore(level, xp);
+        int progressPercent = adoption == null
+                ? 0
+                : growthLevelPolicy.progressPercent(level, xp);
+        boolean isMine = userId != null
+                && adoption != null
+                && adoption.getUser().getId().equals(userId);
 
         DrainDetailResponse.AdoptionResponse adoptionResponse = null;
         if (adoption != null) {
@@ -127,15 +184,24 @@ public class DrainService {
 
         return new DrainDetailResponse(
                 drain.getId(),
+                displayName(drain, adoption),
+                drain.getAddress(),
                 drain.getStatus().name(),
                 drain.getAdoptionStatus().name(),
+                displayStatus,
+                displayStatus.getLabel(),
                 drain.getLatitude(),
                 drain.getLongitude(),
                 storageService.toReadUrl(drain.getPhotoUrl()),
                 drain.getDirtLevel(),
+                isMine,
+                level,
+                growthLevelPolicy.titleFor(level),
+                xp,
+                nextLevelScore,
+                progressPercent,
                 adoptionResponse
         );
-
     }
 
     /**
@@ -203,7 +269,14 @@ public class DrainService {
         // 올린 사람이 위험하다고 하면 AI 결과와 관계없이 위험으로 저장
         boolean isRisk = Boolean.TRUE.equals(request.isRisk()) || assessment.risk();
 
-        // 6. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 사유 준비
+        // 6. 이름 · 주소 (주소가 없으면 좌표로 역지오코딩, 실패해도 등록은 계속)
+        String name = trimToNull(request.name());
+        String address = trimToNull(request.address());
+        if (address == null) {
+            address = drainAddressResolver.resolve(request.latitude(), request.longitude());
+        }
+
+        // 7. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 사유 준비
         boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
         boolean lowConfidence =
                 assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();
@@ -224,14 +297,22 @@ public class DrainService {
             }
         }
 
-        // 7. 저장만 짧은 트랜잭션으로
+        // 8. 저장만 짧은 트랜잭션으로
         DrainWriter.SavedDrain saved = drainWriter.save(
-                userId, request, photoKey, dirtLevel, isRisk, reportDescription);
+                userId, request, photoKey, dirtLevel, isRisk, reportDescription, name, address);
+
+        DrainDisplayStatus displayStatus = saved.riskReportId() == null
+                ? DrainDisplayStatus.AVAILABLE
+                : DrainDisplayStatus.BLOCKAGE_REPORTED;
 
         return new DrainCreateResponse(
                 saved.drain().getId(),
+                displayName(saved.drain(), null),
+                saved.drain().getAddress(),
                 saved.drain().getStatus().name(),
                 saved.drain().getAdoptionStatus().name(),
+                displayStatus,
+                displayStatus.getLabel(),
                 saved.drain().getLatitude(),
                 saved.drain().getLongitude(),
                 storageService.toReadUrl(saved.drain().getPhotoUrl()),
@@ -270,5 +351,125 @@ public class DrainService {
                 growthLevelPolicy.nextLevelScore(level, score),
                 growthLevelPolicy.progressPercent(level, score)
         );
+    }
+
+    private Specification<Drain> specification(
+            double minLatitude,
+            double maxLatitude,
+            double minLongitude,
+            double maxLongitude,
+            DrainDisplayStatus status,
+            String keyword) {
+        Specification<Drain> spec = DrainSpecifications.inBox(
+                minLatitude, maxLatitude, minLongitude, maxLongitude);
+        Specification<Drain> search = DrainSpecifications.search(keyword);
+        if (search != null) {
+            spec = spec.and(search);
+        }
+        Specification<Drain> statusSpec =
+                DrainSpecifications.displayStatus(status, LocalDateTime.now(clock));
+        if (statusSpec != null) {
+            spec = spec.and(statusSpec);
+        }
+        return spec;
+    }
+
+    private List<DrainResponse> toResponses(List<Drain> drains) {
+        if (drains.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> drainIds = drains.stream().map(Drain::getId).toList();
+        Map<Long, Adoption> activeAdoptions = adoptionRepository.findActiveByDrainIds(drainIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        adoption -> adoption.getDrain().getId(),
+                        Function.identity(),
+                        (first, second) -> first));
+        Set<Long> blockageDrainIds =
+                new HashSet<>(reportRepository.findPendingBlockageDrainIds(drainIds));
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        return drains.stream()
+                .map(drain -> toResponse(
+                        drain,
+                        activeAdoptions.get(drain.getId()),
+                        blockageDrainIds.contains(drain.getId()),
+                        now))
+                .toList();
+    }
+
+    private DrainResponse toResponse(
+            Drain drain,
+            Adoption adoption,
+            boolean hasPendingBlockage,
+            LocalDateTime now) {
+        int level = adoption == null ? 0 : adoption.getLevel();
+        int xp = adoption == null ? 0 : adoption.getScore();
+        DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
+                adoption, hasPendingBlockage, now);
+
+        return DrainResponse.builder()
+                .id(drain.getId())
+                .name(displayName(drain, adoption))
+                .address(drain.getAddress())
+                .latitude(drain.getLatitude())
+                .longitude(drain.getLongitude())
+                .adoptionStatus(drain.getAdoptionStatus())
+                .displayStatus(displayStatus)
+                .displayStatusLabel(displayStatus.getLabel())
+                .isRisk(drain.isRisk())
+                .dirtLevel(drain.getDirtLevel())
+                .level(level)
+                .levelTitle(growthLevelPolicy.titleFor(level))
+                .xp(xp)
+                .build();
+    }
+
+    /** 입양 별명 → 등록 이름 → 빗물받이 #id 순으로 표시 이름을 정합니다. */
+    private String displayName(Drain drain, Adoption adoption) {
+        if (adoption != null && StringUtils.hasText(adoption.getNickname())) {
+            return adoption.getNickname();
+        }
+        if (StringUtils.hasText(drain.getName())) {
+            return drain.getName();
+        }
+        return "빗물받이 #" + drain.getId();
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private void validateBounds(
+            double minLatitude, double maxLatitude, double minLongitude, double maxLongitude) {
+        // 1. 위도 범위 검증: -90 ~ 90
+        if (minLatitude < -90 || minLatitude > 90 || maxLatitude < -90 || maxLatitude > 90) {
+            throw new BusinessException(
+                    ErrorCode.LOCATION_INVALID_INPUT,
+                    "위도는 -90 이상 90 이하여야 합니다."
+            );
+        }
+        // 2. 경도 범위 검증: -180 ~ 180
+        if (minLongitude < -180 || minLongitude > 180
+                || maxLongitude < -180 || maxLongitude > 180) {
+            throw new BusinessException(
+                    ErrorCode.LOCATION_INVALID_INPUT,
+                    "경도는 -180 이상 180 이하여야 합니다."
+            );
+        }
+        // 3. 최소값이 최댓값보다 큰 경우 검증
+        if (minLatitude > maxLatitude) {
+            throw new BusinessException(
+                    ErrorCode.LOCATION_INVALID_INPUT,
+                    "최소 위도는 최대 위도보다 클 수 없습니다."
+            );
+        }
+        if (minLongitude > maxLongitude) {
+            throw new BusinessException(
+                    ErrorCode.LOCATION_INVALID_INPUT,
+                    "최소 경도는 최대 경도보다 클 수 없습니다."
+            );
+        }
     }
 }

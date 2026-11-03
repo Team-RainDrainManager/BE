@@ -1,5 +1,6 @@
 package com.rainbutler.domain.adoption.dto.Response;
 
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import java.time.LocalDateTime;
 
 /**
@@ -15,6 +16,12 @@ import java.time.LocalDateTime;
  * @param releaseWarning 28일 이상 돌봄 기록이 없어 자동 해제 전 경고가 필요한지
  * @param missedForecastCount 연속 비 예보 요청 무응답 횟수
  * @param lonely 외로운 또랑이 표시 대상인지
+ * @param address 빗물받이 주소 (없으면 null)
+ * @param displayStatus 화면 표시 상태
+ * @param displayStatusLabel 화면 표시 상태의 한국어 라벨
+ * @param levelTitle 레벨 칭호
+ * @param nextLevelScore 다음 레벨이 되는 누적 점수 (만렙이면 현재 점수)
+ * @param progressPercent 현재 레벨 구간 진행률 (0~100)
  */
 public record MyAdoptionResponse(
         Long adoptionId,
@@ -26,6 +33,12 @@ public record MyAdoptionResponse(
         LocalDateTime nextManagementAt,
         boolean releaseWarning,
         Integer missedForecastCount,
-        boolean lonely
+        boolean lonely,
+        String address,
+        DrainDisplayStatus displayStatus,
+        String displayStatusLabel,
+        String levelTitle,
+        Integer nextLevelScore,
+        Integer progressPercent
 ) {
 }

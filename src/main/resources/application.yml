@@ -63,6 +63,8 @@ rain-butler:
     client-id: ${KAKAO_CLIENT_ID:}          # 카카오 REST API 키
     client-secret: ${KAKAO_CLIENT_SECRET:}
     allowed-redirect-uris: ${KAKAO_ALLOWED_REDIRECT_URIS:http://localhost:5173/oauth/kakao,http://localhost:8080/api/v1/auth/kakao/callback}
+  address:
+    reverse-geocoding-enabled: ${ADDRESS_REVERSE_GEOCODING_ENABLED:true}  # 좌표 → 주소 (카카오 로컬)
   ai:
     gemini-api-key: ${GEMINI_API_KEY:}       # 비어 있으면 AI 판정 없이 기본값으로 저장
     model: ${GEMINI_MODEL:gemini-3.5-flash-lite}

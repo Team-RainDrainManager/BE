@@ -11,6 +11,7 @@ import com.rainbutler.domain.report.dto.ReportCreateResponse;
 import com.rainbutler.domain.report.dto.ReportDetailResponse;
 import com.rainbutler.domain.report.dto.ReportReviewRequest;
 import com.rainbutler.domain.report.entity.Report;
+import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
@@ -62,14 +63,20 @@ public class ReportService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        Drain drain = drainRepository.findById(request.drainId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.DRAIN_NOT_FOUND));
+        Drain drain = request.drainId() == null
+                ? null
+                : drainRepository.findById(request.drainId())
+                        .orElseThrow(() -> new BusinessException(ErrorCode.DRAIN_NOT_FOUND));
 
         String photoKey = isBlank(request.photoKey())
                 ? null
                 : storageService.verifyUploaded(userId, request.photoKey(), UploadPurpose.REPORT);
-        double latitude = request.latitude() == null ? drain.getLatitude() : request.latitude();
-        double longitude = request.longitude() == null ? drain.getLongitude() : request.longitude();
+        Double latitude = request.latitude();
+        Double longitude = request.longitude();
+        if (latitude == null && drain != null) {
+            latitude = drain.getLatitude();
+            longitude = drain.getLongitude();
+        }
 
         Report report = Report.builder()
                 .user(user)
@@ -150,6 +157,18 @@ public class ReportService {
     private void validate(ReportCreateRequest request) {
         boolean hasPhoto = !isBlank(request.photoKey());
         boolean hasDescription = !isBlank(request.description());
+
+        // NEW_DRAIN은 아직 빗물받이가 없고, 나머지는 대상 빗물받이가 필수다.
+        if (request.type() == ReportType.NEW_DRAIN) {
+            if (request.drainId() != null) {
+                throw invalid("신규 등록 제보에는 빗물받이 id를 보내지 마세요.");
+            }
+            if (request.latitude() == null || request.longitude() == null) {
+                throw invalid("신규 등록 제보는 촬영 위치가 필요해요.");
+            }
+        } else if (request.drainId() == null) {
+            throw invalid("빗물받이 id를 보내 주세요.");
+        }
 
         switch (request.type()) {
             case ODOR -> {

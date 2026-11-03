@@ -6,6 +6,8 @@ import com.rainbutler.domain.terms.entity.TermsType;
 import com.rainbutler.domain.terms.entity.UserTermsAgreement;
 import com.rainbutler.domain.terms.repository.TermsRepository;
 import com.rainbutler.domain.terms.repository.UserTermsAgreementRepository;
+import com.rainbutler.domain.notification.entity.NotificationType;
+import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.user.dto.OnboardingRequest;
 import com.rainbutler.domain.user.dto.OnboardingStatusResponse;
 import com.rainbutler.domain.user.entity.User;

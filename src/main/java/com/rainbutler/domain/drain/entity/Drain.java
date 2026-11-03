@@ -44,6 +44,14 @@ public class Drain extends BaseEntity {
     @Column(nullable = false)
     private Double longitude;
 
+    /** 등록할 때 붙인 이름. 입양 후에는 입양 별명이 표시 이름으로 우선한다. */
+    @Column(length = 50)
+    private String name;
+
+    /** 역지오코딩 또는 사용자 입력 주소 */
+    @Column(length = 200)
+    private String address;
+
     /** 최신 현장 사진 (청소·관리 때마다 갱신) */
     @Column(nullable = false)
     private String photoUrl;
@@ -71,6 +79,8 @@ public class Drain extends BaseEntity {
             User registeredBy,
             Double latitude,
             Double longitude,
+            String name,
+            String address,
             String photoUrl,
             Integer dirtLevel,
             DrainStatus status,
@@ -78,6 +88,8 @@ public class Drain extends BaseEntity {
         this.registeredBy = registeredBy;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.name = name;
+        this.address = address;
         this.photoUrl = photoUrl;
         this.dirtLevel = dirtLevel;
         this.status = status;
@@ -90,6 +102,15 @@ public class Drain extends BaseEntity {
      */
     public void markAvailable() {
         this.adoptionStatus = DrainAdoptionStatus.AVAILABLE;
+    }
+
+    /**
+     * 표시 이름을 바꿉니다.
+     *
+     * @param name 새 이름
+     */
+    public void rename(String name) {
+        this.name = name;
     }
 
     /** 입양 상태 설정 */

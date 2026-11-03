@@ -36,6 +36,34 @@ public class GrowthLevelPolicy {
             3300  // Lv.10 전설 (만렙)
     };
 
+    /** 레벨별 칭호. 0번 인덱스는 미입양 표시에 쓴다. */
+    private static final String[] TITLES = {
+            "미입양",  // Lv.0 (입양 전)
+            "씨앗",    // Lv.1
+            "새싹",    // Lv.2
+            "떡잎",    // Lv.3
+            "쏙쏙",    // Lv.4
+            "꽃봉오리", // Lv.5
+            "꽃핀",    // Lv.6
+            "단골",    // Lv.7
+            "현장반장", // Lv.8
+            "수호자",  // Lv.9
+            "전설"     // Lv.10
+    };
+
+    /**
+     * 레벨에 해당하는 칭호를 구합니다. 입양 전(0 이하)은 미입양입니다.
+     *
+     * @param level 레벨
+     * @return 칭호
+     */
+    public String titleFor(int level) {
+        if (level <= 0) {
+            return TITLES[0];
+        }
+        return TITLES[normalizeLevel(level)];
+    }
+
     /**
      * 누적 점수에 해당하는 레벨을 구합니다.
      *

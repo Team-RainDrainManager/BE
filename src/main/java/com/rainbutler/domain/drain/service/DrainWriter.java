@@ -47,6 +47,8 @@ public class DrainWriter {
      * @param dirtLevel AI 판정 더러움 단계
      * @param isRisk 저장할 위험 여부
      * @param reportDescription 제보 사유 (null이면 제보 없음)
+     * @param name 표시 이름 (null이면 저장 후 {@code 빗물받이 #id}로 채운다)
+     * @param address 주소 (없으면 null)
      * @return 저장 결과
      */
     @Transactional
@@ -56,7 +58,9 @@ public class DrainWriter {
             String photoKey,
             int dirtLevel,
             boolean isRisk,
-            String reportDescription) {
+            String reportDescription,
+            String name,
+            String address) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() ->
                         new BusinessException(ErrorCode.USER_NOT_FOUND)
@@ -66,11 +70,18 @@ public class DrainWriter {
                 .registeredBy(user)
                 .latitude(request.latitude())
                 .longitude(request.longitude())
+                .name(name)
+                .address(address)
                 .photoUrl(photoKey)
                 .dirtLevel(dirtLevel)
                 .status(DrainStatus.ACTIVE)
                 .isRisk(isRisk)
                 .build());
+
+        // 이름을 보내지 않았으면 id가 생긴 뒤 기본 이름을 붙인다. (검색 · 표시에 쓴다)
+        if (saved.getName() == null || saved.getName().isBlank()) {
+            saved.rename("빗물받이 #" + saved.getId());
+        }
 
         Long riskReportId = null;
         if (reportDescription != null) {

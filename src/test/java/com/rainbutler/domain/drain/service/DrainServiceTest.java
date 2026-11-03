@@ -21,6 +21,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainCreateResponse;
 import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
@@ -28,6 +29,8 @@ import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 import java.util.Set;
@@ -56,11 +59,15 @@ class DrainServiceTest {
     @Mock
     private AdoptionRepository adoptionRepository;
     @Mock
+    private ReportRepository reportRepository;
+    @Mock
     private DrainAiClassifier drainAiClassifier;
     @Mock
     private DrainWriter drainWriter;
     @Mock
     private StorageService storageService;
+    @Mock
+    private DrainAddressResolver drainAddressResolver;
 
     private DrainService drainService;
 
@@ -71,8 +78,13 @@ class DrainServiceTest {
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 15,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
                 LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 5, 365, 5);
-        drainService = new DrainService(drainRepository, adoptionRepository, drainAiClassifier,
-                drainWriter, policy, storageService, new GrowthLevelPolicy());
+        Clock clock = Clock.fixed(
+                LocalDateTime.of(2026, 11, 3, 9, 0)
+                        .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
+                java.time.ZoneId.of("Asia/Seoul"));
+        drainService = new DrainService(drainRepository, adoptionRepository, reportRepository,
+                drainAiClassifier, drainWriter, policy, storageService, new GrowthLevelPolicy(),
+                new DrainDisplayStatusPolicy(), drainAddressResolver, clock);
     }
 
     @Test
@@ -89,7 +101,7 @@ class DrainServiceTest {
                 .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
                 .isRisk(false)
                 .build();
-        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any()))
+        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any()))
                 .willReturn(new DrainWriter.SavedDrain(savedDrain, null));
 
         DrainCreateResponse response = drainService.createDrain(USER_ID, request(null));
@@ -112,7 +124,7 @@ class DrainServiceTest {
                 .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
                 .isRisk(true)
                 .build();
-        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any()))
+        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any()))
                 .willReturn(new DrainWriter.SavedDrain(savedDrain, 99L));
 
         DrainCreateResponse response = drainService.createDrain(USER_ID, request(true));
@@ -142,7 +154,7 @@ class DrainServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PHOTO_FORBIDDEN);
         verify(drainAiClassifier, never()).assess(anyString());
-        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any());
+        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -153,7 +165,7 @@ class DrainServiceTest {
         assertThatThrownBy(() -> drainService.createDrain(USER_ID, request(null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.STORAGE_NOT_CONFIGURED);
-        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any());
+        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -244,6 +256,6 @@ class DrainServiceTest {
     }
 
     private static DrainCreateRequest request(Boolean isRisk) {
-        return new DrainCreateRequest(37.5, 127.0, PHOTO_KEY, isRisk, null);
+        return new DrainCreateRequest(37.5, 127.0, PHOTO_KEY, null, null, isRisk, null);
     }
 }

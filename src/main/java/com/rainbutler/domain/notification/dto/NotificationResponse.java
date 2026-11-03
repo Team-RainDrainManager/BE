@@ -1,6 +1,7 @@
 package com.rainbutler.domain.notification.dto;
 
 import com.rainbutler.domain.notification.entity.Notification;
+import com.rainbutler.domain.notification.entity.NotificationCategory;
 import com.rainbutler.domain.notification.entity.NotificationType;
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
  *
  * @param notificationId 알림 id
  * @param type 알림 종류 (프론트가 이동할 화면을 정한다)
+ * @param category 알림함 탭 구분 (점검 요청 · 활동 알림)
  * @param title 제목
  * @param body 내용
  * @param createdAt 만든 시각
@@ -19,6 +21,7 @@ import java.time.LocalDateTime;
 public record NotificationResponse(
         Long notificationId,
         NotificationType type,
+        NotificationCategory category,
         String title,
         String body,
         LocalDateTime createdAt,
@@ -33,6 +36,7 @@ public record NotificationResponse(
         return new NotificationResponse(
                 notification.getId(),
                 notification.getType(),
+                NotificationCategory.of(notification.getType()),
                 notification.getTitle(),
                 notification.getBody(),
                 notification.getCreatedAt(),

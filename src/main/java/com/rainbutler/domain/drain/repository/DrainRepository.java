@@ -1,16 +1,16 @@
 package com.rainbutler.domain.drain.repository;
 
-import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.drain.entity.Drain;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Drain 엔티티 저장소입니다. 쿼리 메서드는 도메인 담당자가 추가합니다.
  */
-public interface DrainRepository extends JpaRepository<Drain, Long> {
+public interface DrainRepository
+        extends JpaRepository<Drain, Long>, JpaSpecificationExecutor<Drain> {
     List<Drain> findByLatitudeBetweenAndLongitudeBetween(
             Double minLatitude,
             Double maxLatitude,

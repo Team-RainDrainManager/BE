@@ -103,9 +103,9 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
 
     private Long drain() {
         return jdbcTemplate.queryForObject("INSERT INTO drain (registered_by, latitude, "
-                + "longitude, photo_url, dirt_level, adoption_status, status, is_risk, "
-                + "created_at, updated_at) VALUES (?, 37.5, 127.0, 'http://x', 1, 'ADOPTED', "
-                + "'ACTIVE', false, now(), now()) RETURNING id", Long.class, userId);
+                + "longitude, name, address, photo_url, dirt_level, adoption_status, status, is_risk, "
+                + "created_at, updated_at) VALUES (?, 37.5, 127.0, '테스트 빗물받이', '부천시', "
+                + "'http://x', 1, 'ADOPTED', 'ACTIVE', false, now(), now()) RETURNING id", Long.class, userId);
     }
 
     private Long adoption(Long drainId, int level, int score) {

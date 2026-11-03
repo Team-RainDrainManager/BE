@@ -12,9 +12,15 @@ import java.lang.annotation.Target;
  * <pre>
  * public ResponseEntity&lt;ApiResponse&lt;MeResponse&gt;&gt; me(@LoginUserId Long userId)
  * </pre>
+ *
+ * <p>로그인 전에도 열리는 조회에서 "내 것인지"만 선택적으로 확인하려면 {@code @LoginUserId(required =
+ * false)}를 씁니다. 이때 비로그인이면 null이 들어갑니다.
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface LoginUserId {
+
+    /** 로그인 필수 여부. false면 비로그인 시 null을 넣는다. */
+    boolean required() default true;
 }
