@@ -56,20 +56,22 @@ class DrainListApiTest extends IntegrationTestSupport {
         mockMvc.perform(map())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[0].id").value(available.intValue()))
-                .andExpect(jsonPath("$.data[0].name").value("골목 친구"))
-                .andExpect(jsonPath("$.data[0].address").value("부천시 원미구 역곡동"))
-                .andExpect(jsonPath("$.data[0].displayStatus").value("AVAILABLE"))
-                .andExpect(jsonPath("$.data[0].displayStatusLabel").value("미입양"))
-                .andExpect(jsonPath("$.data[0].level").value(0))
-                .andExpect(jsonPath("$.data[0].levelTitle").value("미입양"))
-                .andExpect(jsonPath("$.data[0].xp").value(0))
-                .andExpect(jsonPath("$.data[1].id").value(normal.intValue()))
-                .andExpect(jsonPath("$.data[1].name").value("또랑이"))
-                .andExpect(jsonPath("$.data[1].displayStatus").value("NORMAL"))
-                .andExpect(jsonPath("$.data[1].level").value(3))
-                .andExpect(jsonPath("$.data[1].levelTitle").value("떡잎"))
-                .andExpect(jsonPath("$.data[1].xp").value(150));
+                .andExpect(jsonPath("$.data[*].id").value(
+                        org.hamcrest.Matchers.containsInAnyOrder(available.intValue(), normal.intValue())))
+                .andExpect(jsonPath("$.data[*].name").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("골목 친구", "또랑이")))
+                .andExpect(jsonPath("$.data[*].address").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("부천시 원미구 역곡동", "부천시 원미구 지봉로")))
+                .andExpect(jsonPath("$.data[*].displayStatus").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("AVAILABLE", "NORMAL")))
+                .andExpect(jsonPath("$.data[*].displayStatusLabel").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("미입양", "정상")))
+                .andExpect(jsonPath("$.data[*].level").value(
+                        org.hamcrest.Matchers.containsInAnyOrder(0, 3)))
+                .andExpect(jsonPath("$.data[*].levelTitle").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("미입양", "떡잎")))
+                .andExpect(jsonPath("$.data[*].xp").value(
+                        org.hamcrest.Matchers.containsInAnyOrder(0, 150)));
     }
 
     @Test

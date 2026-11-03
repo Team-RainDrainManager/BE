@@ -77,6 +77,8 @@ class DrainCreateApiTest extends IntegrationTestSupport {
                                   "latitude": 37.5,
                                   "longitude": 126.7,
                                   "photoKey": "%s",
+                                  "name": "테스트 빗물받이",
+                                  "address": "부천시 원미구",
                                   "isRisk": false
                                 }
                                 """.formatted(photoKey)))
