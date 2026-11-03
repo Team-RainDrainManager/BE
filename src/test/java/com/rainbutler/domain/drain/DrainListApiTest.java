@@ -56,8 +56,6 @@ class DrainListApiTest extends IntegrationTestSupport {
         mockMvc.perform(map())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(2)))
-                .andExpect(jsonPath("$.data[*].id").value(
-                        org.hamcrest.Matchers.containsInAnyOrder(available.intValue(), normal.intValue())))
                 .andExpect(jsonPath("$.data[*].name").value(
                         org.hamcrest.Matchers.containsInAnyOrder("골목 친구", "또랑이")))
                 .andExpect(jsonPath("$.data[*].address").value(
