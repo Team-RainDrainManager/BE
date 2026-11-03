@@ -9,6 +9,9 @@ import org.junit.jupiter.api.Test;
  */
 class GrowthLevelPolicyTest {
 
+    /** 만렙(Lv.50)이 되는 최소 누적 점수 */
+    private static final int MAX_LEVEL_SCORE = 203_300;
+
     private final GrowthLevelPolicy policy = new GrowthLevelPolicy();
 
     @Test
@@ -32,6 +35,7 @@ class GrowthLevelPolicyTest {
         assertThat(policy.nextLevelScore(6, 800)).isEqualTo(1200);
         assertThat(policy.nextLevelScore(7, 1200)).isEqualTo(1700);
         assertThat(policy.nextLevelScore(9, 2400)).isEqualTo(3300);
+        assertThat(policy.nextLevelScore(10, 3300)).isEqualTo(4400);
         assertThat(policy.progressPercent(5, 650)).isEqualTo(50);
         assertThat(policy.progressPercent(8, 2050)).isEqualTo(50);
     }
@@ -48,23 +52,45 @@ class GrowthLevelPolicyTest {
 
     @Test
     void 만렙이면_다음_레벨_점수는_현재_점수이고_진행률은_100이다() {
-        assertThat(policy.nextLevelScore(GrowthLevelPolicy.MAX_LEVEL, 4000)).isEqualTo(4000);
-        assertThat(policy.progressPercent(GrowthLevelPolicy.MAX_LEVEL, 4000)).isEqualTo(100);
+        assertThat(policy.nextLevelScore(GrowthLevelPolicy.MAX_LEVEL, MAX_LEVEL_SCORE))
+                .isEqualTo(MAX_LEVEL_SCORE);
+        assertThat(policy.progressPercent(GrowthLevelPolicy.MAX_LEVEL, MAX_LEVEL_SCORE))
+                .isEqualTo(100);
     }
 
     @Test
     void 레벨이_범위를_벗어나도_계산이_깨지지_않는다() {
+        // 0 이하는 1레벨로 맞춘다
         assertThat(policy.nextLevelScore(0, 0)).isEqualTo(50);
         assertThat(policy.progressPercent(0, 25)).isEqualTo(50);
-        assertThat(policy.progressPercent(11, 0)).isEqualTo(100);
+        // 만렙 초과는 만렙으로 맞춘다
+        int overMax = GrowthLevelPolicy.MAX_LEVEL + 1;
+        assertThat(policy.nextLevelScore(overMax, MAX_LEVEL_SCORE)).isEqualTo(MAX_LEVEL_SCORE);
+        assertThat(policy.progressPercent(overMax, 0)).isEqualTo(100);
+    }
+
+    @Test
+    void 점수로_레벨을_구한다() {
+        assertThat(policy.levelFor(0)).isEqualTo(1);
+        assertThat(policy.levelFor(49)).isEqualTo(1);
+        assertThat(policy.levelFor(50)).isEqualTo(2);
+        assertThat(policy.levelFor(3300)).isEqualTo(10);
+        assertThat(policy.levelFor(4400)).isEqualTo(11);
+        assertThat(policy.levelFor(MAX_LEVEL_SCORE)).isEqualTo(GrowthLevelPolicy.MAX_LEVEL);
+        assertThat(policy.levelFor(MAX_LEVEL_SCORE * 2)).isEqualTo(GrowthLevelPolicy.MAX_LEVEL);
     }
 
     @Test
     void 레벨별_칭호를_돌려주고_입양_전은_미입양이다() {
         assertThat(policy.titleFor(0)).isEqualTo("미입양");
+        assertThat(policy.titleFor(-1)).isEqualTo("미입양");
         assertThat(policy.titleFor(1)).isEqualTo("씨앗");
         assertThat(policy.titleFor(3)).isEqualTo("떡잎");
-        assertThat(policy.titleFor(GrowthLevelPolicy.MAX_LEVEL)).isEqualTo("전설");
-        assertThat(policy.titleFor(11)).isEqualTo("전설");
+        assertThat(policy.titleFor(10)).isEqualTo("전설");
+        assertThat(policy.titleFor(11)).isEqualTo("신화");
+        // TODO: 만렙 칭호를 확정하면 이 값도 함께 바꾼다
+        assertThat(policy.titleFor(GrowthLevelPolicy.MAX_LEVEL)).isEqualTo("책임감 있는5");
+        assertThat(policy.titleFor(GrowthLevelPolicy.MAX_LEVEL + 1))
+                .isEqualTo(policy.titleFor(GrowthLevelPolicy.MAX_LEVEL));
     }
 }

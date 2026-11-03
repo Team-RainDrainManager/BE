@@ -10,14 +10,15 @@ import static org.mockito.Mockito.when;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.drain.service.DrainDisplayStatusPolicy;
 import com.rainbutler.domain.inspection.dto.InspectionDetailResponse;
 import com.rainbutler.domain.inspection.dto.InspectionListResponse;
 import com.rainbutler.domain.inspection.entity.Inspection;
 import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.inspection.entity.InspectionStatus;
 import com.rainbutler.domain.inspection.repository.InspectionRepository;
-import com.rainbutler.domain.drain.entity.Drain;
-import com.rainbutler.domain.user.entity.Role;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
@@ -29,6 +30,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,10 +54,16 @@ class InspectionQueryServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private ReportRepository reportRepository;
+
+    @Mock
     private StorageService storageService;
 
     @Mock
     private PolicyProperties policyProperties;
+
+    @Mock
+    private DrainDisplayStatusPolicy drainDisplayStatusPolicy;
 
     @Mock
     private Clock clock;
@@ -107,6 +115,14 @@ class InspectionQueryServiceTest {
         lenient().when(adoption.getNickname()).thenReturn("또랑이");
         lenient().when(adoption.getStatus()).thenReturn(AdoptionStatus.ACTIVE);
 
+        // findDetail에서 쓰는 활성 입양 · 차단 신고 조회
+        lenient().when(adoptionRepository.findByDrain_IdAndStatus(anyLong(), any()))
+                .thenReturn(Optional.of(adoption));
+        lenient().when(reportRepository.existsByDrain_IdAndTypeAndStatus(any(), any(), any()))
+                .thenReturn(false);
+        // drainDisplayStatusPolicy.resolve(...)는 stubbing하지 않으면 null(enum)을 돌려주며,
+        // 이 테스트에서는 표시 상태를 검증하지 않으므로 그대로 둔다.
+
         lenient().when(clock.getZone()).thenReturn(ZoneId.systemDefault());
         lenient().when(clock.instant()).thenReturn(fixedClock.instant());
         lenient().when(policyProperties.photoRetentionDays()).thenReturn(365);
@@ -117,8 +133,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void 점검_기록_상세를_조회한다() {
-        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        when(inspectionRepository.findById(1L)).thenReturn(java.util.Optional.of(inspection));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(inspectionRepository.findById(1L)).thenReturn(Optional.of(inspection));
 
         InspectionDetailResponse response = inspectionQueryService.findDetail(1L, 1L);
 
@@ -143,8 +159,8 @@ class InspectionQueryServiceTest {
         User other = User.local(UUID.randomUUID() + "@test.com", "{noop}x", "다른집사");
         ReflectionTestUtils.setField(other, "id", 2L);
 
-        when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(other));
-        when(inspectionRepository.findById(1L)).thenReturn(java.util.Optional.of(inspection));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(other));
+        when(inspectionRepository.findById(1L)).thenReturn(Optional.of(inspection));
 
         assertThatThrownBy(() -> inspectionQueryService.findDetail(2L, 1L))
                 .isInstanceOf(BusinessException.class)
@@ -154,7 +170,7 @@ class InspectionQueryServiceTest {
 
     @Test
     void 없는_사용자이면_USER_NOT_FOUND() {
-        when(userRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> inspectionQueryService.findDetail(999L, 1L))
                 .isInstanceOf(BusinessException.class)
@@ -164,8 +180,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void 없는_점검_기록이면_INSPECTION_NOT_FOUND() {
-        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        when(inspectionRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(inspectionRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> inspectionQueryService.findDetail(1L, 999L))
                 .isInstanceOf(BusinessException.class)
@@ -175,8 +191,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void 입양별_점검_기록을_조회한다() {
-        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        when(adoptionRepository.findById(1L)).thenReturn(java.util.Optional.of(adoption));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(adoptionRepository.findById(1L)).thenReturn(Optional.of(adoption));
         when(inspectionRepository.findPageByAdoptionId(
                 1L, Long.MAX_VALUE, PageRequest.of(0, 21)))
                 .thenReturn(List.of(inspection));
@@ -193,8 +209,8 @@ class InspectionQueryServiceTest {
         User other = User.local(UUID.randomUUID() + "@test.com", "{noop}x", "다른집사");
         ReflectionTestUtils.setField(other, "id", 2L);
 
-        when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(other));
-        when(adoptionRepository.findById(1L)).thenReturn(java.util.Optional.of(adoption));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(other));
+        when(adoptionRepository.findById(1L)).thenReturn(Optional.of(adoption));
 
         assertThatThrownBy(() -> inspectionQueryService.findByAdoption(2L, 1L, null, null))
                 .isInstanceOf(BusinessException.class)
@@ -204,8 +220,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void 없는_입양이면_ADOPTION_NOT_FOUND() {
-        when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        when(adoptionRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(adoptionRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> inspectionQueryService.findByAdoption(1L, 999L, null, null))
                 .isInstanceOf(BusinessException.class)
@@ -215,8 +231,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void size가_0보다_작으면_INVALID_INPUT() {
-        lenient().when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        lenient().when(adoptionRepository.findById(1L)).thenReturn(java.util.Optional.of(adoption));
+        lenient().when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        lenient().when(adoptionRepository.findById(1L)).thenReturn(Optional.of(adoption));
 
         assertThatThrownBy(() -> inspectionQueryService.findByAdoption(1L, 1L, null, 0))
                 .isInstanceOf(BusinessException.class)
@@ -226,8 +242,8 @@ class InspectionQueryServiceTest {
 
     @Test
     void cursor가_0보다_작으면_INVALID_INPUT() {
-        lenient().when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
-        lenient().when(adoptionRepository.findById(1L)).thenReturn(java.util.Optional.of(adoption));
+        lenient().when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        lenient().when(adoptionRepository.findById(1L)).thenReturn(Optional.of(adoption));
 
         assertThatThrownBy(() -> inspectionQueryService.findByAdoption(1L, 1L, 0L, null))
                 .isInstanceOf(BusinessException.class)

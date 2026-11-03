@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.rainbutler.domain.drain.service.GrowthLevelPolicy;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.security.JwtTokenProvider;
@@ -22,6 +23,9 @@ import org.springframework.test.web.servlet.ResultActions;
  */
 @AutoConfigureMockMvc
 class DrainGrowthApiTest extends IntegrationTestSupport {
+
+    /** 만렙(Lv.50)이 되는 최소 누적 점수 */
+    private static final int MAX_LEVEL_SCORE = 203_300;
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,14 +73,26 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 만렙이면_진행률은_100이고_다음_레벨_점수는_현재_점수다() throws Exception {
+    void 만렙이_아니면_다음_레벨_점수를_구간표에서_준다() throws Exception {
         Long drainId = drain();
-        adoption(drainId, 10, 4000);
+        adoption(drainId, 10, 3300);
 
         growth(drainId)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.level").value(10))
-                .andExpect(jsonPath("$.data.nextLevelScore").value(4000))
+                .andExpect(jsonPath("$.data.nextLevelScore").value(4400))
+                .andExpect(jsonPath("$.data.progressPercent").value(0));
+    }
+
+    @Test
+    void 만렙이면_진행률은_100이고_다음_레벨_점수는_현재_점수다() throws Exception {
+        Long drainId = drain();
+        adoption(drainId, GrowthLevelPolicy.MAX_LEVEL, MAX_LEVEL_SCORE);
+
+        growth(drainId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.level").value(GrowthLevelPolicy.MAX_LEVEL))
+                .andExpect(jsonPath("$.data.nextLevelScore").value(MAX_LEVEL_SCORE))
                 .andExpect(jsonPath("$.data.progressPercent").value(100));
     }
 
@@ -115,9 +131,9 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
                 + "'ADOPTION', 'http://x', 'COMPLETED', 'NOT_REQUIRED', 37.5, 127.0, false, "
                 + "now(), now(), now()) RETURNING id", Long.class, userId, drainId);
         return jdbcTemplate.queryForObject("INSERT INTO adoption (user_id, drain_id, "
-                + "cleaning_id, nickname, status, level, score, ignore_count, adopted_at, "
-                + "created_at, updated_at) VALUES (?, ?, ?, '또랑이', 'ACTIVE', ?, ?, 0, now(), "
-                + "now(), now()) RETURNING id", Long.class, userId, drainId, cleaningId, level,
+                        + "cleaning_id, nickname, status, level, score, ignore_count, adopted_at, "
+                        + "created_at, updated_at) VALUES (?, ?, ?, '또랑이', 'ACTIVE', ?, ?, 0, now(), "
+                        + "now(), now()) RETURNING id", Long.class, userId, drainId, cleaningId, level,
                 score);
     }
 }
