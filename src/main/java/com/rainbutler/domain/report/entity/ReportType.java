@@ -13,5 +13,7 @@ public enum ReportType {
     /** 위치 수정 */
     LOCATION_FIX,
     /** 철거 */
-    REMOVAL
+    REMOVAL,
+    /** 악취 */
+    ODOR
 }

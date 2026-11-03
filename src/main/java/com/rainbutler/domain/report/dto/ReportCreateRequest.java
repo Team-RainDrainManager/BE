@@ -1,0 +1,40 @@
+package com.rainbutler.domain.report.dto;
+
+import com.rainbutler.domain.report.entity.ReportType;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * 제보 생성 요청입니다.
+ *
+ * <p>제보 종류에 따라 필요한 값이 다릅니다.
+ *
+ * <ul>
+ *   <li>{@code ODOR}: 사진({@code photoKey}) 또는 설명({@code description}) 중 하나 필수</li>
+ *   <li>{@code REMOVAL}: 사진 · 설명 모두 필수</li>
+ *   <li>{@code LOCATION_FIX}: 사진 · 새 위치({@code newLatitude}, {@code newLongitude}) 필수</li>
+ *   <li>{@code BLOCKAGE}, {@code NEW_DRAIN}: 사진 필수</li>
+ * </ul>
+ *
+ * @param drainId 빗물받이 id
+ * @param type 제보 종류 (BLOCKAGE, NEW_DRAIN, LOCATION_FIX, REMOVAL, ODOR)
+ * @param photoKey 제보 사진 key (S3 presigned URL로 업로드 후 받은 key)
+ * @param description 제보 설명 (최대 1000자)
+ * @param latitude 제보 촬영 위도 (없으면 빗물받이 위치)
+ * @param longitude 제보 촬영 경도 (없으면 빗물받이 위치)
+ * @param newLatitude LOCATION_FIX인 경우 새 위치 위도
+ * @param newLongitude LOCATION_FIX인 경우 새 위치 경도
+ */
+public record ReportCreateRequest(
+        @NotNull Long drainId,
+        @NotNull ReportType type,
+        @Size(max = 500) String photoKey,
+        @Size(max = 1000) String description,
+        @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
+        @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
+        @DecimalMin("-90.0") @DecimalMax("90.0") Double newLatitude,
+        @DecimalMin("-180.0") @DecimalMax("180.0") Double newLongitude
+) {
+}

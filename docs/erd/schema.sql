@@ -313,6 +313,8 @@ CREATE TABLE "report" (
   "type" varchar NOT NULL,
   "description" varchar,
   "photo_url" varchar,
+  "latitude" double precision,
+  "longitude" double precision,
   "new_latitude" double precision,
   "new_longitude" double precision,
   "status" varchar NOT NULL,
@@ -546,7 +548,11 @@ COMMENT ON COLUMN "inspection_request"."missed_at" IS '완료 마감까지 미�
 
 COMMENT ON COLUMN "report"."processed_by" IS '처리한 시청 관계자·관리자';
 
-COMMENT ON COLUMN "report"."type" IS 'BLOCKAGE / NEW_DRAIN / LOCATION_FIX / REMOVAL';
+COMMENT ON COLUMN "report"."type" IS 'BLOCKAGE / NEW_DRAIN / LOCATION_FIX / REMOVAL / ODOR';
+
+COMMENT ON COLUMN "report"."latitude" IS '제보 촬영 위치 위도 (없으면 빗물받이 위치)';
+
+COMMENT ON COLUMN "report"."longitude" IS '제보 촬영 위치 경도';
 
 COMMENT ON COLUMN "report"."new_latitude" IS 'LOCATION_FIX 제보의 새 위치';
 
@@ -657,3 +663,5 @@ CREATE INDEX idx_inspection_request_status_deadline ON "inspection_request" ("st
 CREATE INDEX idx_adoption_user_status ON "adoption" ("user_id", "status");
 CREATE INDEX ix_inspection_user_created ON "inspection" ("user_id", "created_at" DESC);
 CREATE INDEX ix_inspection_adoption_created ON "inspection" ("adoption_id", "created_at" DESC);
+CREATE INDEX ix_report_user_created ON "report" ("user_id", "created_at" DESC);
+CREATE INDEX ix_report_status_created ON "report" ("status", "created_at" DESC);

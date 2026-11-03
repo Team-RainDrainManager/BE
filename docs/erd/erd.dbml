@@ -374,9 +374,11 @@ Table report {
   user_id bigint [not null, ref: > users.id]
   drain_id bigint [not null, ref: > drain.id]
   processed_by bigint [ref: > users.id, note: '처리한 시청 관계자·관리자']
-  type varchar [not null, note: 'BLOCKAGE / NEW_DRAIN / LOCATION_FIX / REMOVAL']
+  type varchar [not null, note: 'BLOCKAGE / NEW_DRAIN / LOCATION_FIX / REMOVAL / ODOR']
   description varchar
   photo_url varchar
+  latitude "double precision" [note: '제보 촬영 위치 위도 (없으면 빗물받이 위치)']
+  longitude "double precision" [note: '제보 촬영 위치 경도']
   new_latitude "double precision" [note: 'LOCATION_FIX 제보의 새 위치']
   new_longitude "double precision"
   status varchar [not null, note: 'PENDING / APPROVED / REJECTED']
@@ -385,6 +387,11 @@ Table report {
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
+
+  indexes {
+    (user_id, created_at) [name: 'ix_report_user_created']
+    (status, created_at) [name: 'ix_report_status_created']
+  }
 }
 
 Table notification {
