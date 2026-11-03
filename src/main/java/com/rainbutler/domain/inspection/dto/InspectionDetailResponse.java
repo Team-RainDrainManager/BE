@@ -1,5 +1,6 @@
 package com.rainbutler.domain.inspection.dto;
 
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.global.entity.ReviewStatus;
 import java.time.LocalDateTime;
@@ -25,6 +26,9 @@ import java.time.LocalDateTime;
  * @param xp 이 점검으로 지급한 경험치
  * @param note 점검 메모 (없으면 null)
  * @param photoDeleted 사진 보존 기간이 지나 사진을 내려주지 않는지
+ * @param level 입양 레벨 (입양 없으면 0)
+ * @param displayStatus 지도 표시 상태 (미입양·정상·점검 지연·막힘 제보)
+ * @param hasBlockageReport 막힘 제보가 있는지
  */
 public record InspectionDetailResponse(
         Long inspectionId,
@@ -41,7 +45,10 @@ public record InspectionDetailResponse(
         Integer distanceM,
         Integer xp,
         String note,
-        boolean photoDeleted
+        boolean photoDeleted,
+        Integer level,
+        DrainDisplayStatus displayStatus,
+        boolean hasBlockageReport
 ) {
 
     /**

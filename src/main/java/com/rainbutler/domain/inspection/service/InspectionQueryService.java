@@ -1,13 +1,19 @@
 package com.rainbutler.domain.inspection.service;
 
 import com.rainbutler.domain.adoption.entity.Adoption;
+import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
+import com.rainbutler.domain.drain.service.DrainDisplayStatusPolicy;
 import com.rainbutler.domain.inspection.dto.InspectionDetailResponse;
 import com.rainbutler.domain.inspection.dto.InspectionListResponse;
 import com.rainbutler.domain.inspection.dto.InspectionSummaryResponse;
 import com.rainbutler.domain.inspection.entity.Inspection;
 import com.rainbutler.domain.inspection.entity.InspectionStatus;
 import com.rainbutler.domain.inspection.repository.InspectionRepository;
+import com.rainbutler.domain.report.entity.ReportStatus;
+import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.Role;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
@@ -45,8 +51,10 @@ public class InspectionQueryService {
     private final InspectionRepository inspectionRepository;
     private final AdoptionRepository adoptionRepository;
     private final UserRepository userRepository;
+    private final ReportRepository reportRepository;
     private final StorageService storageService;
     private final PolicyProperties policyProperties;
+    private final DrainDisplayStatusPolicy drainDisplayStatusPolicy;
     private final Clock clock;
 
     /**
@@ -65,6 +73,15 @@ public class InspectionQueryService {
         requireReadable(requester, inspection);
 
         boolean photoDeleted = photoExpired(inspection);
+        Adoption activeAdoption = adoptionRepository
+                .findByDrain_IdAndStatus(inspection.getDrain().getId(), AdoptionStatus.ACTIVE)
+                .orElse(null);
+        int level = activeAdoption == null ? 0 : activeAdoption.getLevel();
+        boolean hasBlockageReport = reportRepository.existsByDrain_IdAndTypeAndStatus(
+                inspection.getDrain().getId(), ReportType.BLOCKAGE, ReportStatus.PENDING);
+        DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
+                activeAdoption, hasBlockageReport, LocalDateTime.now(clock));
+
         return new InspectionDetailResponse(
                 inspection.getId(),
                 new InspectionDetailResponse.DrainResponse(
@@ -81,7 +98,10 @@ public class InspectionQueryService {
                 inspection.getDistanceM(),
                 inspection.getXpAwarded(),
                 inspection.getNote(),
-                photoDeleted);
+                photoDeleted,
+                level,
+                displayStatus,
+                hasBlockageReport);
     }
 
     /**
