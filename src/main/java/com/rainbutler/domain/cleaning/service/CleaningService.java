@@ -51,8 +51,8 @@ public class CleaningService {
      *
      * <p>AI 판정 결과에 따라:
      * <ul>
-     *   <li>0등급 → 바로 입양 (현재는 청소만 생성, 입양은 별도 API)</li>
-     *   <li>1~2등급 → 청소 진행</li>
+     *   <li>0등급 → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
+     *   <li>1등급 이상 → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
      *   <li>3등급·needsReport=true → 입양 불가, BLOCKAGE 제보로 전환</li>
      * </ul>
      */
@@ -92,7 +92,7 @@ public class CleaningService {
         boolean locationMismatch = distance > LOCATION_MISMATCH_THRESHOLD_METERS;
 
         // 8. 3등급·needsReport=true면 입양 불가, BLOCKAGE 제보로 전환
-        boolean blocked = assessment.dirtLevel() == 3 && assessment.needsReport();
+        boolean blocked = assessment.grade() == 3 && assessment.needsReport();
         if (blocked) {
             // BLOCKAGE 제보 생성
             User user = userRepository.findById(userId)
@@ -119,7 +119,7 @@ public class CleaningService {
             );
         }
 
-        // 9. 청소 생성 (0등급, 1~2등급 모두 청소 생성)
+        // 9. 청소 생성 (0등급은 청소 없이 입양할 수 있도록 완료 상태로 만든다)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -140,10 +140,18 @@ public class CleaningService {
         cleaning.setReviewStatus(com.rainbutler.global.entity.ReviewStatus.PENDING);
         cleaning.setLocationMismatch(locationMismatch);
 
+        // 이미 깨끗한 빗물받이(0등급)는 청소 인증 없이 바로 입양할 수 있게 한다
+        boolean alreadyClean = assessment.grade() == 0;
+        if (alreadyClean) {
+            cleaning.setStatus(CleaningStatus.COMPLETED);
+            cleaning.setCompletedAt(LocalDateTime.now());
+            drain.updateLatestPhoto(photoKey, assessment.dirtLevel());
+        }
+
         Cleaning saved = cleaningRepository.save(cleaning);
 
-        // 10. 응답
-        boolean mustClean = assessment.dirtLevel() >= 1 && assessment.dirtLevel() <= 2;
+        // 10. 응답 (0등급은 청소 불필요, 1등급 이상은 청소 후 사진 인증이 필요하다)
+        boolean mustClean = !alreadyClean;
         return new CleaningStartResponse(
                 saved.getId(),
                 assessment.grade(),

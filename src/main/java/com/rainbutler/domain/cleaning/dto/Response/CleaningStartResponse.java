@@ -7,7 +7,7 @@ package com.rainbutler.domain.cleaning.dto.Response;
  * @param grade AI 판정 촬영기 등급 (0~3)
  * @param dirtLevel AI 판정 더러움 단계 (1~3)
  * @param needsReport 덮개 안쪽 막힘 신고 필요 여부
- * @param mustClean 청소 필요 여부 (1~2등급)
+ * @param mustClean 청소 필요 여부 (0등급이면 false, 1등급 이상이면 true)
  * @param blocked 입양 불가 여부 (3등급·needsReport=true)
  */
 public record CleaningStartResponse(
