@@ -177,8 +177,9 @@ public class CleaningService {
      *
      * <p>AI 판정 결과에 따라:
      * <ul>
-     *   <li>afterGrade < beforeGrade: 인증 통과 (passed=true)</li>
-     *   <li>afterGrade >= beforeGrade: 인증 실패 (passed=false), 재시도 가능</li>
+     *   <li>afterGrade &lt; beforeGrade: 인증 통과 (passed=true) → 빗물받이 최신 사진 · 더러움 단계를
+     *       청소 후 사진 기준으로 갱신</li>
+     *   <li>afterGrade &gt;= beforeGrade: 인증 실패 (passed=false), 재시도 가능</li>
      * </ul>
      * 인증 통과해야 입양 가능합니다.
      */
@@ -219,10 +220,11 @@ public class CleaningService {
         // 9. 인증 통과 여부 판정 (afterGrade < beforeGrade)
         boolean passed = afterGrade < beforeGrade;
 
-        // 10. 통과하면 청소 완료 상태로 변경
+        // 10. 통과하면 청소 완료 상태로 변경하고, 빗물받이의 최신 사진을 청소 후 사진으로 갱신
         if (passed) {
             cleaning.setStatus(CleaningStatus.COMPLETED);
             cleaning.setCompletedAt(LocalDateTime.now());
+            cleaning.getDrain().updateLatestPhoto(photoKey, assessment.dirtLevel());
         }
 
         Cleaning saved = cleaningRepository.save(cleaning);
