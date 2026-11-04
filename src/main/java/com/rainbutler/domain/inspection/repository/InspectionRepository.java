@@ -56,6 +56,31 @@ public interface InspectionRepository extends JpaRepository<Inspection, Long> {
             Pageable pageable);
 
     /**
+     * 내 점검 기록을 최신순으로 커서 이후부터 찾습니다. (활동 내역)
+     *
+     * @param userId 사용자 id
+     * @param cursorTime 이 시각보다 이전 기록만 (첫 페이지는 미래 시각)
+     * @param cursorId 같은 시각일 때 이 id보다 작은 기록만
+     * @param sameType 커서와 같은 종류라서 시각 · id를 함께 비교할지
+     * @param afterType 커서 종류보다 뒤라서 같은 시각을 모두 포함할지
+     * @param pageable 가져올 개수
+     * @return 점검 기록 목록
+     */
+    @Query("SELECT i FROM Inspection i JOIN FETCH i.drain LEFT JOIN FETCH i.adoption "
+            + "WHERE i.user.id = :userId "
+            + "AND (i.createdAt < :cursorTime "
+            + "     OR (:sameType = true AND i.createdAt = :cursorTime AND i.id < :cursorId) "
+            + "     OR (:afterType = true AND i.createdAt = :cursorTime)) "
+            + "ORDER BY i.createdAt DESC, i.id DESC")
+    List<Inspection> findPageByUserId(
+            @Param("userId") Long userId,
+            @Param("cursorTime") LocalDateTime cursorTime,
+            @Param("cursorId") Long cursorId,
+            @Param("sameType") boolean sameType,
+            @Param("afterType") boolean afterType,
+            Pageable pageable);
+
+    /**
      * 같은 사용자가 같은 빗물받이에서 기간 안에 경험치를 받은 점검 수를 셉니다. (빗물받이별 하루 1회)
      *
      * @param userId 사용자 id

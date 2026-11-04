@@ -83,7 +83,7 @@
 | | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). 승인 후 +5 XP |
 | | GET | `/reports/me` | 16 | 내 제보 내역 (최신순) |
 | | GET | `/reports/{id}` | C-5 | 제보 상세. 제보자 본인 · `ADMIN` · `CITY_OFFICIAL`만 조회 |
-| | GET | `/users/me/activities` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 |
+| | GET | `/users/me/activities?type=&cursor=&size=` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 (커서 페이지) |
 | | GET | `/users/me/activities.csv` | 17 | 활동 기록 CSV |
 | | GET | `/users/me/volunteer-certificate` | 16 | 활동 확인서 (실명 인증 필요) |
 | | GET | `/leaderboard?type=WEEKLY\|TOTAL\|ZONE\|ORG` | 18 | 주간 · 누적 · 구역별 · 단체별 ⚠️ |
@@ -101,6 +101,16 @@
 - 상태: `PENDING` → `APPROVED` | `REJECTED`. 이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
 - 승인 시 `processedBy` · `resolvedAt` · `adminComment`를 남기고 제보자에게 `report-xp`(기본 5)를 지급한다.
   반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다.
+
+### 활동 내역 규칙
+
+- `type`: `ALL`(기본) · `INSPECTION` · `REPORT` · `POINT`. 생략하거나 `ALL`이면 세 종류를 합쳐 보여 준다.
+- 정렬: `occurredAt` 내림차순. 같은 시각이면 점검 → 제보 → 경험치 순, 그다음 `id` 내림차순.
+- 응답: `{ nextCursor, activities: [{ type, id, occurredAt, title, description, amount, drainId, drainName, status }] }`
+- `nextCursor`는 다음 페이지가 있을 때만 내려간다. 클라이언트는 값을 해석하지 말고 그대로 `cursor`에 보낸다.
+- `amount`: 점검 경험치(`xpAwarded`)와 경험치 내역의 증감. 적립은 양수, 회수는 음수다.
+- `status`: 점검 · 제보의 상태 이름(`COMPLETED` 등). 경험치 행은 `null`.
+- `size`: 기본 20, 최대 50(넘으면 50). 잘못된 `type` · `cursor` · `size`는 400 `INVALID_INPUT`.
 
 ## 6. 도구함 (파트 C) ⚠️ 피그마에 화면 없음
 
