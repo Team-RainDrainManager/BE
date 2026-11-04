@@ -58,6 +58,9 @@ class DrainListApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data", hasSize(2)))
                 .andExpect(jsonPath("$.data[*].name").exists())
                 .andExpect(jsonPath("$.data[*].address").exists())
+                .andExpect(jsonPath("$.data[*].status").exists())
+                .andExpect(jsonPath("$.data[0].status").value("unadopted"))
+                .andExpect(jsonPath("$.data[1].status").value("normal"))
                 .andExpect(jsonPath("$.data[*].displayStatus").exists())
                 .andExpect(jsonPath("$.data[*].level").exists())
                 .andExpect(jsonPath("$.data[*].levelTitle").exists())
@@ -70,11 +73,32 @@ class DrainListApiTest extends IntegrationTestSupport {
         Long blocked = drain("막힌 또랑", null, "AVAILABLE");
         blockageReport(blocked);
 
-        mockMvc.perform(map().param("status", "BLOCKAGE_REPORTED"))
+        mockMvc.perform(map().param("status", "blocked"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].id").value(blocked.intValue()))
+                .andExpect(jsonPath("$.data[0].status").value("blocked"))
                 .andExpect(jsonPath("$.data[0].displayStatus").value("BLOCKAGE_REPORTED"));
+
+        // 한글 라벨과 enum 이름도 같은 상태로 받는다
+        mockMvc.perform(map().param("status", "막힘 제보"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)));
+        mockMvc.perform(map().param("status", "BLOCKAGE_REPORTED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data", hasSize(1)));
+    }
+
+    @Test
+    void 점검일이_지난_입양은_overdue다() throws Exception {
+        Long delayed = drain("늦은 또랑", null, "ADOPTED");
+        adoption(delayed, 2, 100, "now() - interval '1 day'");
+
+        mockMvc.perform(map())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("overdue"))
+                .andExpect(jsonPath("$.data[0].displayStatus")
+                        .value("MANAGEMENT_DELAYED"));
     }
 
     @Test

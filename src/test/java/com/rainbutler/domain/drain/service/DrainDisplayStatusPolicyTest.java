@@ -1,6 +1,7 @@
 package com.rainbutler.domain.drain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -64,6 +65,23 @@ class DrainDisplayStatusPolicyTest {
         Adoption adoption = adoption(null);
 
         assertThat(policy.resolve(adoption, false, NOW)).isEqualTo(DrainDisplayStatus.NORMAL);
+    }
+
+    @Test
+    void 지도_상태_키와_한글_라벨과_enum_이름을_모두_받는다() {
+        assertThat(DrainDisplayStatus.from("unadopted")).isEqualTo(DrainDisplayStatus.AVAILABLE);
+        assertThat(DrainDisplayStatus.from("normal")).isEqualTo(DrainDisplayStatus.NORMAL);
+        assertThat(DrainDisplayStatus.from("overdue"))
+                .isEqualTo(DrainDisplayStatus.MANAGEMENT_DELAYED);
+        assertThat(DrainDisplayStatus.from("blocked"))
+                .isEqualTo(DrainDisplayStatus.BLOCKAGE_REPORTED);
+        assertThat(DrainDisplayStatus.from("점검 지연"))
+                .isEqualTo(DrainDisplayStatus.MANAGEMENT_DELAYED);
+        assertThat(DrainDisplayStatus.from("AVAILABLE")).isEqualTo(DrainDisplayStatus.AVAILABLE);
+        assertThat(DrainDisplayStatus.from("all")).isNull();
+        assertThat(DrainDisplayStatus.from(" ")).isNull();
+        assertThatThrownBy(() -> DrainDisplayStatus.from("NOPE"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private Adoption adoption(LocalDateTime nextManagementAt) {

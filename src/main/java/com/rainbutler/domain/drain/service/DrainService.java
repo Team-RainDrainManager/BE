@@ -416,6 +416,7 @@ public class DrainService {
                 .latitude(drain.getLatitude())
                 .longitude(drain.getLongitude())
                 .adoptionStatus(drain.getAdoptionStatus())
+                .status(displayStatus.getKey())
                 .displayStatus(displayStatus)
                 .displayStatusLabel(displayStatus.getLabel())
                 .isRisk(drain.isRisk())

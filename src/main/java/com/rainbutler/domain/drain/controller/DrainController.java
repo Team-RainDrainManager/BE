@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Drain", description = "빗물받이")
@@ -114,21 +113,16 @@ public class DrainController {
     }
 
     /**
-     * 표시 상태 파라미터를 enum으로 바꿉니다. 영문 이름과 화면 라벨(한글)을 모두 받습니다.
+     * 표시 상태 파라미터를 enum으로 바꿉니다. 영문 이름 · 지도 키(unadopted · normal · overdue ·
+     * blocked) · 화면 라벨(한글)을 모두 받습니다.
      */
     private DrainDisplayStatus parseStatus(String status) {
-        if (!StringUtils.hasText(status)) {
-            return null;
+        try {
+            return DrainDisplayStatus.from(status);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "표시 상태는 unadopted · normal · overdue · blocked 중 하나여야 합니다.");
         }
-        String value = status.trim();
-        for (DrainDisplayStatus candidate : DrainDisplayStatus.values()) {
-            if (candidate.name().equalsIgnoreCase(value)
-                    || candidate.getLabel().equals(value)) {
-                return candidate;
-            }
-        }
-        throw new BusinessException(
-                ErrorCode.INVALID_INPUT,
-                "표시 상태는 AVAILABLE · NORMAL · MANAGEMENT_DELAYED · BLOCKAGE_REPORTED 중 하나여야 합니다.");
     }
 }

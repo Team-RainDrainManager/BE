@@ -20,6 +20,12 @@ public class DrainResponse {
     private Double longitude;
     private Double latitude;
     private DrainAdoptionStatus adoptionStatus;
+    /**
+     * 지도 · 목록에 표시하는 상태 키입니다. (unadopted · normal · overdue · blocked 중 하나)
+     *
+     * <p>프론트 지도 화면이 그대로 쓸 수 있도록 {@link DrainDisplayStatus#getKey()} 값을 내려줍니다.
+     */
+    private String status;
     /** 화면 필터용 표시 상태 (미입양 · 정상 · 점검 지연 · 막힘 제보) */
     private DrainDisplayStatus displayStatus;
     private String displayStatusLabel;
