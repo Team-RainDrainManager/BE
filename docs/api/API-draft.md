@@ -86,7 +86,8 @@
 | | GET | `/users/me/activities?type=&cursor=&size=` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 (커서 페이지) |
 | | GET | `/users/me/activities.csv` | 17 | 활동 기록 CSV |
 | | GET | `/users/me/volunteer-certificate` | 16 | 활동 확인서 (실명 인증 필요) |
-| | GET | `/leaderboard?type=WEEKLY\|TOTAL\|ZONE\|ORG` | 18 | 주간 · 누적 · 구역별 · 단체별 ⚠️ |
+| | GET | `/leaderboard?type=WEEKLY\|TOTAL&limit=` | 18 | 주간 · 누적 참여 점수 순위 (구역 · 단체는 준비 중) |
+| | GET | `/leaderboard/me?type=WEEKLY\|TOTAL` | 18 | 내 리더보드 순위 |
 
 ### 제보 규칙
 
@@ -111,6 +112,17 @@
 - `amount`: 점검 경험치(`xpAwarded`)와 경험치 내역의 증감. 적립은 양수, 회수는 음수다.
 - `status`: 점검 · 제보의 상태 이름(`COMPLETED` 등). 경험치 행은 `null`.
 - `size`: 기본 20, 최대 50(넘으면 50). 잘못된 `type` · `cursor` · `size`는 400 `INVALID_INPUT`.
+
+### 리더보드 규칙
+
+- `type`: `WEEKLY`(기본) · `TOTAL`. `WEEKLY`는 이번 주 월요일 00:00부터 현재까지, `TOTAL`은 전체 누적이다.
+- `limit`: 상위 순위 개수. 기본 20, 최대 100(넘으면 100). 1보다 작으면 400 `INVALID_INPUT`.
+- 점수: `point_history`의 적립(EARN) 합 − 회수(REVOKE) 합. 점수 0 이하와 관리자 · 시청 관계자는 순위에서 뺀다.
+- 동점: 같은 순위를 주고 다음 순위를 건너뛴다. (예: 1, 1, 3) 동점 안에서는 `userId` 오름차순.
+- 응답: `{ type, periodStart, totalParticipants, rankings, me }`
+  - `rankings`: `{ rank, userId, nickname, profileImage, score, isMe }`
+  - `me`: 내가 상위 `limit` 밖이어도 항상 내려간다. 점수가 0 이하이면 `rank`는 null이고, `score`는 실제 값(음수 포함)을 내려준다.
+- `ZONE` · `ORG` 순위는 구역 · 단체 테이블이 정해지기 전까지 지원하지 않는다. (400 `INVALID_INPUT`)
 
 ## 6. 도구함 (파트 C) ⚠️ 피그마에 화면 없음
 
