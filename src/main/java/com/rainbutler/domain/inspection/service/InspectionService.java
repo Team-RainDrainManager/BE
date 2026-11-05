@@ -181,6 +181,57 @@ public class InspectionService {
     }
 
     /**
+     * 관리자 검토에서 점검을 승인합니다.
+     *
+     * <p>승인하면 인증을 통과한 점검과 같은 후처리를 합니다. 관리 주기 · 빗물받이 최신 사진을 갱신하고
+     * 경험치를 지급합니다. 검토 대기로 남을 때 이미 완료 처리한 점검 요청은 다시 완료하지 않습니다.
+     *
+     * @param inspectionId 점검 기록 id
+     * @param adminId 검토한 관리자 id
+     * @return 승인된 점검 기록
+     * @throws BusinessException 기록이 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *     (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public Inspection approveReview(Long inspectionId, Long adminId) {
+        Inspection inspection = findPendingReview(inspectionId);
+        LocalDateTime now = LocalDateTime.now(clock);
+        inspection.approve(findAdmin(adminId), now);
+        applyCompletion(inspection, resolveGrowthAdoption(inspection), now);
+        return inspectionRepository.save(inspection);
+    }
+
+    /**
+     * 관리자 검토에서 점검을 반려합니다. (점검 수 · 봉사 시간 집계에서 빠진다)
+     *
+     * @param inspectionId 점검 기록 id
+     * @param adminId 검토한 관리자 id
+     * @return 반려된 점검 기록
+     * @throws BusinessException 기록이 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *     (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public Inspection rejectReview(Long inspectionId, Long adminId) {
+        Inspection inspection = findPendingReview(inspectionId);
+        inspection.reject(findAdmin(adminId), LocalDateTime.now(clock));
+        return inspectionRepository.save(inspection);
+    }
+
+    private Inspection findPendingReview(Long inspectionId) {
+        Inspection inspection = inspectionRepository.findById(inspectionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+        if (inspection.getStatus() != InspectionStatus.PENDING) {
+            throw new BusinessException(ErrorCode.REVIEW_ALREADY_PROCESSED);
+        }
+        return inspection;
+    }
+
+    private User findAdmin(Long adminId) {
+        return userRepository.findById(adminId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /**
      * 제출 결과에 따라 요청 완료 · 인증 후처리를 실행합니다.
      */
     private void applyAfterSubmit(
@@ -216,13 +267,17 @@ public class InspectionService {
 
     /**
      * 연결된 비 예보 · 대신 점검 요청을 완료하고 입양의 연속 무응답 횟수를 초기화합니다.
+     *
+     * <p>검토 대기로 남을 때 이미 요청을 완료하므로, 승인 후처리에서 다시 불러도 안전하도록 완료된 요청은
+     * 건너뜁니다.
      */
     private void completeRequest(Inspection inspection, Adoption adoption, LocalDateTime now) {
-        if (inspection.getRequest() == null) {
+        InspectionRequest request = inspection.getRequest();
+        if (request == null || request.getStatus() == RequestStatus.COMPLETED) {
             return;
         }
         inspectionRequestService.complete(
-                inspection.getRequest().getId(), inspection.getUser().getId(), now);
+                request.getId(), inspection.getUser().getId(), now);
         if (adoption != null) {
             adoption.resetIgnoreCount();
         }

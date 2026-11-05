@@ -73,8 +73,11 @@ public class ManagementLog extends BaseEntity {
 
     private String afterPhotoUrl;
 
-    /** AI 더러움 단계 1~3 */
+    /** 점검 전 사진 AI 더러움 단계 1~3 */
     private Integer dirtLevel;
+
+    /** 청소 후 사진 AI 더러움 단계 1~3 (살펴보기만 했으면 null) */
+    private Integer afterDirtLevel;
 
     @Column(precision = 3, scale = 2)
     private BigDecimal aiConfidence;
@@ -113,6 +116,7 @@ public class ManagementLog extends BaseEntity {
      * @param beforePhotoUrl 점검 전 사진 key
      * @param afterPhotoUrl 청소 후 사진 key (살펴보기만 했으면 null)
      * @param dirtLevel 점검 전 사진 AI 더러움 단계 (1~3)
+     * @param afterDirtLevel 청소 후 사진 AI 더러움 단계 (1~3, 살펴보기만 했으면 null)
      * @param aiConfidence 점검 전 사진 AI 확신도
      * @param memo 남긴 메모
      * @param latitude 촬영 위도
@@ -123,6 +127,7 @@ public class ManagementLog extends BaseEntity {
             String beforePhotoUrl,
             String afterPhotoUrl,
             Integer dirtLevel,
+            Integer afterDirtLevel,
             BigDecimal aiConfidence,
             String memo,
             Double latitude,
@@ -131,6 +136,7 @@ public class ManagementLog extends BaseEntity {
         this.beforePhotoUrl = beforePhotoUrl;
         this.afterPhotoUrl = afterPhotoUrl;
         this.dirtLevel = dirtLevel;
+        this.afterDirtLevel = afterDirtLevel;
         this.aiConfidence = aiConfidence;
         this.memo = memo;
         this.latitude = latitude;
@@ -156,5 +162,35 @@ public class ManagementLog extends BaseEntity {
     /** 위치 불일치 · 낮은 AI 확신도라 관리자 검토가 필요합니다. */
     public void requireReview() {
         this.reviewStatus = ReviewStatus.PENDING;
+    }
+
+    /**
+     * 관리자 검토에서 승인됐습니다.
+     *
+     * <p>AI 판정이 실패였더라도 관리자가 인정했으므로 인증 성공으로 바꿉니다. 이미 인증에 성공한 기록은
+     * 관리 시각을 그대로 둡니다.
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void approve(User reviewer, LocalDateTime reviewedAt) {
+        this.reviewStatus = ReviewStatus.APPROVED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
+        if (this.status != ManagementStatus.VERIFIED) {
+            markVerified(reviewedAt);
+        }
+    }
+
+    /**
+     * 관리자 검토에서 반려됐습니다. (인정 집계에서 빠진다)
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void reject(User reviewer, LocalDateTime reviewedAt) {
+        this.reviewStatus = ReviewStatus.REJECTED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
     }
 }

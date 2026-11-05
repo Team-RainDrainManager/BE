@@ -6,6 +6,7 @@ import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.entity.ManagementLog;
+import com.rainbutler.domain.adoption.entity.ManagementStatus;
 import com.rainbutler.domain.adoption.entity.ManagementType;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.adoption.repository.ManagementLogRepository;
@@ -14,7 +15,10 @@ import com.rainbutler.domain.drain.service.DrainAiClassifier;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.request.service.InspectionRequestService;
+import com.rainbutler.domain.user.entity.User;
+import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
+import com.rainbutler.global.entity.ReviewStatus;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
@@ -54,6 +58,7 @@ public class ManagementLogService {
     private final DrainAiClassifier drainAiClassifier;
     private final ManagementCyclePolicy managementCyclePolicy;
     private final PolicyProperties policyProperties;
+    private final UserRepository userRepository;
     private final Clock clock;
 
     /**
@@ -124,6 +129,7 @@ public class ManagementLogService {
                 beforePhotoKey,
                 afterPhotoKey,
                 before.dirtLevel(),
+                after == null ? null : after.dirtLevel(),
                 BigDecimal.valueOf(before.confidence()),
                 request.memo(),
                 request.latitude(),
@@ -164,6 +170,75 @@ public class ManagementLogService {
                 after == null ? null : after.dirtLevel(),
                 saved.getManagedAt(),
                 adoption.getNextManagementAt());
+    }
+
+    /**
+     * 관리자 검토에서 관리 기록을 승인합니다.
+     *
+     * <p>AI 판정이 실패였더라도 관리자가 사진을 확인해 인정하면 관리 주기 · 빗물받이 최신 사진을 반영합니다.
+     * 이미 인증에 성공한 기록은 관리 주기를 다시 늘리지 않고 검토 결과만 남깁니다.
+     *
+     * @param logId 관리 기록 id
+     * @param adminId 검토한 관리자 id
+     * @return 승인된 관리 기록
+     * @throws BusinessException 기록이 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *     (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public ManagementLog approveReview(Long logId, Long adminId) {
+        ManagementLog log = findPendingReview(logId);
+        boolean newlyVerified = log.getStatus() != ManagementStatus.VERIFIED;
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        log.approve(findAdmin(adminId), now);
+        if (newlyVerified) {
+            Adoption adoption = log.getAdoption();
+            adoption.recordManagement(now, managementCyclePolicy.nextManagementAt(now));
+            adoption.getDrain().updateLatestPhoto(
+                    latestPhotoKey(log),
+                    latestDirtLevel(log));
+        }
+        return managementLogRepository.save(log);
+    }
+
+    /**
+     * 관리자 검토에서 관리 기록을 반려합니다. (점검 수 · 봉사 시간 집계에서 빠진다)
+     *
+     * <p>AI 인증에 성공해 이미 관리 주기가 갱신된 기록은 주기를 되돌리지 않습니다. 집계에서만 뺍니다.
+     *
+     * @param logId 관리 기록 id
+     * @param adminId 검토한 관리자 id
+     * @return 반려된 관리 기록
+     * @throws BusinessException 기록이 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *     (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public ManagementLog rejectReview(Long logId, Long adminId) {
+        ManagementLog log = findPendingReview(logId);
+        log.reject(findAdmin(adminId), LocalDateTime.now(clock));
+        return managementLogRepository.save(log);
+    }
+
+    private ManagementLog findPendingReview(Long logId) {
+        ManagementLog log = managementLogRepository.findById(logId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+        if (log.getReviewStatus() != ReviewStatus.PENDING) {
+            throw new BusinessException(ErrorCode.REVIEW_ALREADY_PROCESSED);
+        }
+        return log;
+    }
+
+    private User findAdmin(Long adminId) {
+        return userRepository.findById(adminId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private String latestPhotoKey(ManagementLog log) {
+        return log.getAfterPhotoUrl() == null ? log.getBeforePhotoUrl() : log.getAfterPhotoUrl();
+    }
+
+    private Integer latestDirtLevel(ManagementLog log) {
+        return log.getAfterDirtLevel() == null ? log.getDirtLevel() : log.getAfterDirtLevel();
     }
 
     /**

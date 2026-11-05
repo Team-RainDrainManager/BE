@@ -138,8 +138,8 @@
 | --- | --- | --- | --- |
 | | GET | `/admin/stats` | 입양률 · 정기 점검률 · 예보 점검 완료율 · 대신 점검 성사율 |
 | ★ | GET | `/admin/requests?forecastId=` | 비 예보 점검 현황, 위험 미점검 목록 |
-| | GET | `/admin/reviews` | 사진 검토 대기 (AI 저확신 · 위치 불일치) |
-| | PATCH | `/admin/reviews/{type}/{id}` | `{ decision: APPROVE \| REJECT }` (type = cleaning / management-log) |
+| ★ | GET | `/admin/reviews?type=&limit=` | 사진 검토 대기 (AI 저확신 · 위치 불일치). 화면 없음 |
+| ★ | PATCH | `/admin/reviews/{type}/{id}` | `{ decision: APPROVE \| REJECT, reason? }` (type = `INSPECTION` · `MANAGEMENT_LOG` · `CLEANING`) |
 | | GET | `/admin/reports?status=PENDING` | 제보 승인 대기 (status 생략 시 전체, 최신순). `ADMIN` · `CITY_OFFICIAL` |
 | | PATCH | `/admin/reports/{id}` | `{ approved: true\|false, adminComment? }` 승인 · 반려. 반려 시 사유 필수. `ADMIN` · `CITY_OFFICIAL` |
 | | PATCH | `/admin/drains/{id}/clear-blockage` | 막힘 표시 해제 (청소 후 사진이 없을 때) |
@@ -148,6 +148,25 @@
 | | POST | `/admin/users/{id}/sanctions` | 허위 제보 제재 (7일 · 14일 · 영구) ⚠️ |
 | | POST | `/admin/orgs/{id}/zones` | 단체 구역 배정 ⚠️ |
 | | POST | `/admin/demo/reset` | 시연 데이터 초기화 |
+
+### 사진 검토 규칙
+
+- 검토 대기(`PENDING`)는 촬영 위치가 기준 거리(기본 50m) 이상 떨어지거나 AI 확신도가 기준(0.7)보다 낮을 때 생긴다.
+- `type`
+  - `INSPECTION`: 점검 · 청소 기록 (`inspection.status = PENDING`)
+  - `MANAGEMENT_LOG`: 입양 후 관리 기록 (`management_log.review_status = PENDING`)
+  - `CLEANING`: 입양 전 · 대신 점검 청소 (`cleaning.review_status = PENDING`, 인증 통과한 청소만)
+  - 하이픈 표기도 허용한다. (`management-log`)
+- `GET /admin/reviews` 응답은 `{ reviews: [...] }`이고, 종류와 상관없이 같은 모양이다.
+  - `{ type, id, createdAt, userId, nickname, drainId, drainName, beforePhotoUrl, afterPhotoUrl, beforeGrade, afterGrade, dirtLevel, aiConfidence, distanceM, locationMismatch, reason }`
+  - 그 종류에 없는 값은 `null`이다.
+  - `limit` 기본 20 · 최대 100, `type` 생략 시 세 종류를 모아 최신순으로 내려준다.
+- `PATCH /admin/reviews/{type}/{id}`
+  - 점검 승인: 인증을 통과한 점검과 같은 후처리를 한다. (관리 주기 · 빗물받이 최신 사진 · 경험치 · 연결된 점검 요청 완료)
+  - 관리 기록 승인: AI 판정이 실패였더라도 인정해 관리 주기 · 빗물받이 최신 사진을 반영한다.
+  - 반려: 점검 수 · 봉사 시간 집계에서 빠진다. 반려 사유는 필수(최대 500자)다.
+  - 이미 처리된 검토는 409 `REVIEW_ALREADY_PROCESSED`, 대상이 없으면 404 `REVIEW_NOT_FOUND`다.
+- 검토는 `ADMIN` · `CITY_OFFICIAL`만 할 수 있다.
 
 ## ⚠️ 피그마 ↔ ERD 불일치 (결정 필요)
 

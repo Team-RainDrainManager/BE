@@ -97,4 +97,16 @@ public interface InspectionRepository extends JpaRepository<Inspection, Long> {
             @Param("drainId") Long drainId,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
+
+    /**
+     * 관리자 검토를 기다리는 점검 기록을 최신순으로 찾습니다.
+     *
+     * @param pageable 가져올 개수
+     * @return 검토 대기 점검 기록
+     */
+    @Query("SELECT i FROM Inspection i JOIN FETCH i.user JOIN FETCH i.drain "
+            + "LEFT JOIN FETCH i.adoption "
+            + "WHERE i.status = com.rainbutler.domain.inspection.entity.InspectionStatus.PENDING "
+            + "ORDER BY i.createdAt DESC, i.id DESC")
+    List<Inspection> findPendingReviews(Pageable pageable);
 }
