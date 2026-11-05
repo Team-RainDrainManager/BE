@@ -106,6 +106,14 @@ public class Inspection extends BaseEntity {
     @Column(nullable = false)
     private boolean rewarded;
 
+    /** 검토를 처리한 관리자 (검토 대기가 아니면 null) */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    /** 검토 처리 시각 (검토 대기가 아니면 null) */
+    private LocalDateTime reviewedAt;
+
     /** 필수 값으로 생성합니다. 점검 전 사진을 낸 직후 상태는 {@code NEEDS_CLEANING}입니다. */
     @Builder
     private Inspection(
@@ -193,14 +201,28 @@ public class Inspection extends BaseEntity {
         this.rewarded = true;
     }
 
-    /** 관리자 검토에서 승인됐습니다. (검토 대기 → 완료) */
-    public void approve() {
+    /**
+     * 관리자 검토에서 승인됐습니다. (검토 대기 → 완료)
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void approve(User reviewer, LocalDateTime reviewedAt) {
         this.status = InspectionStatus.COMPLETED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
     }
 
-    /** 관리자 검토에서 반려됐습니다. (검토 대기 → 반려) */
-    public void reject() {
+    /**
+     * 관리자 검토에서 반려됐습니다. (검토 대기 → 반려)
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void reject(User reviewer, LocalDateTime reviewedAt) {
         this.status = InspectionStatus.REJECTED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
     }
 
     private void recordAfter(String afterPhotoKey, int afterGrade, double afterConfidence) {

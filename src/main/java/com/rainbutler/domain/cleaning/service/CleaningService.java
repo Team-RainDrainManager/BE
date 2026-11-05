@@ -20,10 +20,13 @@ import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.config.PolicyProperties;
+import com.rainbutler.global.entity.ReviewStatus;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class CleaningService {
     private final ReportRepository reportRepository;
     private final DrainAiClassifier drainAiClassifier;
     private final StorageService storageService;
+    private final PolicyProperties policyProperties;
 
     /**
      * 입양 청소를 시작합니다.
@@ -135,9 +139,8 @@ public class CleaningService {
 
         // builder에 없는 필드 설정
         cleaning.setDirtLevel(assessment.dirtLevel());
-        cleaning.setDirtConfidence(java.math.BigDecimal.valueOf(assessment.confidence()));
+        cleaning.setDirtConfidence(BigDecimal.valueOf(assessment.confidence()));
         cleaning.setStatus(CleaningStatus.IN_PROGRESS);
-        cleaning.setReviewStatus(com.rainbutler.global.entity.ReviewStatus.PENDING);
         cleaning.setLocationMismatch(locationMismatch);
 
         // 이미 깨끗한 빗물받이(0등급)는 청소 인증 없이 바로 입양할 수 있게 한다
@@ -233,6 +236,13 @@ public class CleaningService {
             cleaning.setStatus(CleaningStatus.COMPLETED);
             cleaning.setCompletedAt(LocalDateTime.now());
             cleaning.getDrain().updateLatestPhoto(photoKey, assessment.dirtLevel());
+
+            // 위치가 멀거나 AI 확신도가 낮으면 봉사 시간 · 점검 수에 넣기 전에 관리자가 확인한다
+            if (cleaning.isLocationMismatch() || lowConfidence(assessment.confidence())) {
+                cleaning.requireReview();
+            } else {
+                cleaning.clearReview();
+            }
         }
 
         Cleaning saved = cleaningRepository.save(cleaning);
@@ -244,5 +254,58 @@ public class CleaningService {
                 passed,
                 saved.getAttemptNo()
         );
+    }
+
+    /**
+     * 관리자 검토에서 청소를 승인합니다.
+     *
+     * @param cleaningId 청소 id
+     * @param adminId 검토한 관리자 id
+     * @return 승인된 청소
+     * @throws BusinessException 청소가 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *         (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public Cleaning approveReview(Long cleaningId, Long adminId) {
+        Cleaning cleaning = findPendingReview(cleaningId);
+        cleaning.approve(findAdmin(adminId), LocalDateTime.now());
+        return cleaningRepository.save(cleaning);
+    }
+
+    /**
+     * 관리자 검토에서 청소를 반려합니다. (봉사 시간 · 점검 수에서 빠진다)
+     *
+     * @param cleaningId 청소 id
+     * @param adminId 검토한 관리자 id
+     * @return 반려된 청소
+     * @throws BusinessException 청소가 없거나(REVIEW_NOT_FOUND), 검토 대기가 아니면
+     *         (REVIEW_ALREADY_PROCESSED), 관리자가 없으면(USER_NOT_FOUND)
+     */
+    @Transactional
+    public Cleaning rejectReview(Long cleaningId, Long adminId) {
+        Cleaning cleaning = findPendingReview(cleaningId);
+        cleaning.reject(findAdmin(adminId), LocalDateTime.now());
+        return cleaningRepository.save(cleaning);
+    }
+
+    private Cleaning findPendingReview(Long cleaningId) {
+        Cleaning cleaning = cleaningRepository.findById(cleaningId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+        if (cleaning.getStatus() != CleaningStatus.COMPLETED
+                || cleaning.getReviewStatus() != ReviewStatus.PENDING) {
+            throw new BusinessException(ErrorCode.REVIEW_ALREADY_PROCESSED);
+        }
+        return cleaning;
+    }
+
+    private User findAdmin(Long adminId) {
+        return userRepository.findById(adminId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    /** AI 확신도가 정책 기준보다 낮은지 확인합니다. */
+    private boolean lowConfidence(double confidence) {
+        return BigDecimal.valueOf(confidence)
+                .compareTo(policyProperties.aiConfidenceThreshold()) < 0;
     }
 }

@@ -27,6 +27,7 @@ import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.request.service.InspectionRequestService;
 import com.rainbutler.domain.user.entity.User;
+import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.entity.ReviewStatus;
 import com.rainbutler.global.exception.BusinessException;
@@ -73,6 +74,8 @@ class ManagementLogServiceTest {
     private StorageService storageService;
     @Mock
     private DrainAiClassifier drainAiClassifier;
+    @Mock
+    private UserRepository userRepository;
 
     private ManagementLogService service;
     private Adoption adoption;
@@ -82,7 +85,8 @@ class ManagementLogServiceTest {
     void setUp() {
         service = new ManagementLogService(adoptionRepository, managementLogRepository,
                 inspectionRequestRepository, inspectionRequestService, storageService,
-                drainAiClassifier, new ManagementCyclePolicy(POLICIES), POLICIES, CLOCK);
+                drainAiClassifier, new ManagementCyclePolicy(POLICIES), POLICIES,
+                userRepository, CLOCK);
 
         drain = mock(Drain.class);
         lenient().when(drain.getLatitude()).thenReturn(DRAIN_LAT);

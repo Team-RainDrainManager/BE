@@ -28,6 +28,7 @@ import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
+import com.rainbutler.support.TestPolicies;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,7 +69,8 @@ class CleaningServiceTest {
     @BeforeEach
     void setUp() {
         service = new CleaningService(cleaningRepository, drainRepository, adoptionRepository,
-                userRepository, reportRepository, drainAiClassifier, storageService);
+                userRepository, reportRepository, drainAiClassifier, storageService,
+                TestPolicies.defaults());
 
         User owner = mock(User.class);
         lenient().when(owner.getId()).thenReturn(USER_ID);

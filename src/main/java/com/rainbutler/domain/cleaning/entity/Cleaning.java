@@ -149,6 +149,40 @@ public class Cleaning extends BaseEntity {
         this.completedAt = completedAt;
     }
 
+    /**
+     * 관리자 검토에서 승인됐습니다.
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void approve(User reviewer, LocalDateTime reviewedAt) {
+        this.reviewStatus = ReviewStatus.APPROVED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
+    }
+
+    /**
+     * 관리자 검토에서 반려됐습니다. (봉사 시간 · 점검 수 집계에서 빠진다)
+     *
+     * @param reviewer 검토한 관리자
+     * @param reviewedAt 검토 시각
+     */
+    public void reject(User reviewer, LocalDateTime reviewedAt) {
+        this.reviewStatus = ReviewStatus.REJECTED;
+        this.reviewedBy = reviewer;
+        this.reviewedAt = reviewedAt;
+    }
+
+    /** 위치 불일치 · 낮은 AI 확신도라 관리자 검토가 필요합니다. */
+    public void requireReview() {
+        this.reviewStatus = ReviewStatus.PENDING;
+    }
+
+    /** AI 판정만으로 인정돼 관리자 검토가 필요하지 않습니다. */
+    public void clearReview() {
+        this.reviewStatus = ReviewStatus.NOT_REQUIRED;
+    }
+
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
     private Cleaning(
