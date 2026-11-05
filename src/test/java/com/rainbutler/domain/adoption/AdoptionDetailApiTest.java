@@ -102,8 +102,10 @@ class AdoptionDetailApiTest extends IntegrationTestSupport {
     void 다음_관리일이_지나면_점검_지연이고_남은_일수는_음수다() throws Exception {
         Long drainId = drain(userId, "ADOPTED");
         Long adoptionId = adoption(userId, drainId, cleaning(userId, drainId));
-        jdbcTemplate.update("UPDATE adoption SET next_management_at = now() - interval '3 days', "
-                + "last_managed_at = now() - interval '31 days' WHERE id = ?", adoptionId);
+        // 마지막 돌봄이 입양일보다 이르면 입양일을 쓰므로 입양일도 함께 31일 전으로 옮긴다
+        jdbcTemplate.update("UPDATE adoption SET adopted_at = now() - interval '31 days', "
+                + "last_managed_at = now() - interval '31 days', "
+                + "next_management_at = now() - interval '3 days' WHERE id = ?", adoptionId);
 
         mockMvc.perform(get("/api/v1/adoptions/{adoptionId}", adoptionId)
                         .header("Authorization", "Bearer " + token))
