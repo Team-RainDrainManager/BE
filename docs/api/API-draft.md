@@ -54,7 +54,7 @@
 | | POST | `/admin/drains` | - | 현장 조사 등록 (좌표, 사진, `isRisk`) |
 | | POST | `/drains/{id}/adoptions` | 04 | `{ nickname, safetyAgreed }` → 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED` ⚠️ |
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
-| | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보 |
+| ★ | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보. 입양자 · 관리자만 조회 (해제된 입양은 404) |
 | | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason: MOVED \| NO_TIME \| OTHER }` 입양 그만두기(파양). 본인만 · 기록·성장 보관 · SENT·ACCEPTED 요청은 소유자 비우고 OPEN 재공개 |
 | | POST | `/adoptions/{id}/management-logs` | 07, 08, 09 | 정기·비 예보 점검 기록(기존 API). `{ type, requestId?, actionType, beforePhotoKey, afterPhotoKey?, memo, latitude, longitude, safetyAgreed }` → AI 판정, 위치 불일치·낮은 확신도면 검토 대기. 인증 성공 시 관리 주기·빗물받이 최신 사진 갱신 (포인트·성장 지급은 별도) |
 | ★ | GET | `/drains/{id}/inspection-eligibility?requestId=` | 07, 08, 09 | 점검 화면 진입 전 가능 여부. 정기·비 예보·대신 점검의 권한, 요청 상태, 마감, 제재 여부를 판정 |
@@ -64,6 +64,47 @@
 | ★ | GET | `/adoptions/{id}/inspections?cursor=&size=` | 03, 06 | 입양별 점검 기록을 최신순 커서 페이지로 조회. `size` 기본 20·최대 50, 응답 `{ nextCursor, inspections: [...] }`. 입양자·관리자만 조회 |
 | | POST | `/cleanings` | 13 | 대신 점검 청소 시작 `{ drainId, requestId, beforePhotoKey, latitude, longitude }` → AI 더러움 단계 |
 | | POST | `/cleanings/{id}/verifications` | 13 | 청소 후 사진 인증 `{ afterPhotoKey }` → PASS/FAIL (실패 시 재시도) |
+
+### 입양 상세 규칙
+
+- `GET /adoptions/{id}`는 내 입양 목록(`/adoptions/me`)의 돌봄 정보에 빗물받이 정보 · 입양일을 더한다.
+- 입양자 본인 · `ADMIN` · `CITY_OFFICIAL`만 볼 수 있다. 다른 사용자는 403 `FORBIDDEN`이다.
+- 해제(`RELEASED`)된 입양은 404 `ADOPTION_NOT_FOUND`다. (목록과 같은 기준)
+- 응답
+
+```json
+{
+  "adoptionId": 12,
+  "nickname": "또랑이",
+  "adoptedAt": "2026-10-20T10:00:00",
+  "level": 2,
+  "score": 60,
+  "levelTitle": "새싹",
+  "nextLevelScore": 150,
+  "progressPercent": 10,
+  "lastManagedAt": "2026-11-02T09:00:00",
+  "nextManagementAt": "2026-11-16T09:00:00",
+  "daysUntilNextManagement": 12,
+  "releaseWarning": false,
+  "missedForecastCount": 0,
+  "lonely": false,
+  "displayStatus": "NORMAL",
+  "displayStatusLabel": "정상",
+  "drain": {
+    "drainId": 8,
+    "name": "역곡역 앞",
+    "address": "경기도 부천시 역곡로",
+    "latitude": 37.5,
+    "longitude": 127.0,
+    "photoUrl": "https://.../latest.jpg",
+    "dirtLevel": 2,
+    "risk": false
+  }
+}
+```
+
+- `daysUntilNextManagement`는 다음 관리 예정일까지 남은 일수다. 지났으면 음수, 예정일이 없으면 `null`이다.
+- `displayStatus`는 `AVAILABLE` · `NORMAL` · `MANAGEMENT_DELAYED` · `BLOCKAGE_REPORTED` 중 하나다.
 
 ## 4. 비 예보 · 대신 점검 (파트 C)
 

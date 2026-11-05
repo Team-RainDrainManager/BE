@@ -1,5 +1,6 @@
 package com.rainbutler.domain.adoption.controller;
 
+import com.rainbutler.domain.adoption.dto.Response.AdoptionDetailResponse;
 import com.rainbutler.domain.adoption.dto.Response.MyAdoptionListResponse;
 import com.rainbutler.domain.adoption.service.MyAdoptionQueryService;
 import com.rainbutler.domain.inspection.dto.InspectionListResponse;
@@ -39,6 +40,20 @@ public class MyAdoptionController {
     public ResponseEntity<ApiResponse<MyAdoptionListResponse>> findMine(
             @LoginUserId Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(myAdoptionQueryService.findMine(userId)));
+    }
+
+    @Operation(summary = "입양 상세 조회", description = "입양 상세와 돌봄 정보를 조회합니다. "
+            + "다음 관리 예정일까지 남은 일수(daysUntilNextManagement, 지났으면 음수)와 위험 빗물받이 여부, "
+            + "최신 현장 사진을 함께 내려줍니다. 입양자 · 관리자(ADMIN · CITY_OFFICIAL)만 볼 수 있고, "
+            + "해제된 입양은 조회할 수 없습니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.USER_NOT_FOUND, ErrorCode.ADOPTION_NOT_FOUND, ErrorCode.FORBIDDEN})
+    @GetMapping("/{adoptionId}")
+    public ResponseEntity<ApiResponse<AdoptionDetailResponse>> findDetail(
+            @LoginUserId Long userId,
+            @PathVariable Long adoptionId) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                myAdoptionQueryService.findDetail(userId, adoptionId)));
     }
 
     @Operation(summary = "입양별 점검 이력 조회", description = "입양의 점검 기록을 최신순으로 커서 페이지로 조회합니다. "
