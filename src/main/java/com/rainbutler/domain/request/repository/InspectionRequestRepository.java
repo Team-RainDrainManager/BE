@@ -191,16 +191,21 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("since") LocalDateTime since);
 
     /**
-     * 완료 마감 전의 공개(OPEN) 요청을 모두 찾습니다. 근처인지는 호출하는 쪽에서 거릅니다. (내 요청 목록)
+     * 위경도 사각형 안 빗물받이의 완료 마감 전 공개(OPEN) 요청을 찾습니다. 정확한 반경은 호출하는 쪽에서 거릅니다.
+     * (내 요청 목록의 근처 요청)
      *
      * @param now 현재 시각
      * @return 요청 목록 (빗물받이 · 예보 · 입양 함께)
      */
-    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain JOIN FETCH r.forecast "
+    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain d JOIN FETCH r.forecast "
             + "LEFT JOIN FETCH r.adoption "
             + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
-            + "AND r.completeDeadlineAt > :now")
-    List<InspectionRequest> findOpenBefore(@Param("now") LocalDateTime now);
+            + "AND r.completeDeadlineAt > :now "
+            + "AND d.latitude BETWEEN :minLat AND :maxLat "
+            + "AND d.longitude BETWEEN :minLng AND :maxLng")
+    List<InspectionRequest> findOpenInBox(@Param("now") LocalDateTime now,
+            @Param("minLat") double minLat, @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng, @Param("maxLng") double maxLng);
 
     /**
      * 완료 마감이 지난 미입양 · 위험 아님 빗물받이의 진행 중 요청을 한 번에 EXPIRED로 끝냅니다. (마감 처리 배치)
