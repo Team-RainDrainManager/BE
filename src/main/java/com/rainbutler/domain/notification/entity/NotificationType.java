@@ -10,7 +10,10 @@ public enum NotificationType {
     RAIN_TOMORROW,
     /** 당일 비 예보 - 점검 요청 (즉시 발송) */
     RAIN_TODAY,
-    /** 대신 점검 공개 */
+    /**
+     * 대신 점검 공개. 더 이상 발송하지 않음 (2026-11-06, 대신 점검은 지도에서 자발 참여).
+     * DB에 저장된 기존 알림이 깨지지 않도록 값은 지우지 않는다
+     */
     SUBSTITUTE_OPEN,
     /** 점검 요청 취소 (비 예보 취소 · 비가 일찍 와서 취소) */
     REQUEST_CANCELLED,

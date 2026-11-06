@@ -12,7 +12,6 @@ import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +25,6 @@ public class RequestReplyService {
 
     private final InspectionRequestRepository inspectionRequestRepository;
     private final OnboardingGuard onboardingGuard;
-    private final SubstituteNotifier substituteNotifier;
     private final NearbyHelpCounter nearbyHelpCounter;
     private final PolicyProperties policy;
     private final Clock clock;
@@ -36,7 +34,7 @@ public class RequestReplyService {
      *
      * <ul>
      *   <li>가능 → ACCEPTED, 완료 마감과 근처(기본 100m) 도움 필요 빗물받이 수를 함께 돌려준다</li>
-     *   <li>불가 → OPEN (대신 점검 공개) + 근처 입양자 알림</li>
+     *   <li>불가 → OPEN (대신 점검 공개, 지도에 표시. 근처 입양자에게 개별 알림은 보내지 않는다)</li>
      *   <li>어느 쪽이든 연속 무응답 횟수 초기화</li>
      * </ul>
      *
@@ -71,7 +69,6 @@ public class RequestReplyService {
                     policy.nearbyHelpRadiusMeters());
         }
         request.decline(now);
-        substituteNotifier.notifyNearbyAdopters(List.of(request));
         return RequestReplyResponse.of(request, null, null);
     }
 }

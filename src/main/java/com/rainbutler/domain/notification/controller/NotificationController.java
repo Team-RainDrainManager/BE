@@ -41,7 +41,7 @@ public class NotificationController {
             | type | 내용 | 이동 화면 |
             | --- | --- | --- |
             | `RAIN_TOMORROW` · `RAIN_TODAY` | 비 예보 점검 요청 | 요청 상세 (`requestId`) → 가능 · 불가 응답 / 점검 |
-            | `SUBSTITUTE_OPEN` | 근처 대신 점검 공개 | 요청 상세 (`requestId`) → 대신 점검 맡기 |
+            | `SUBSTITUTE_OPEN` | 근처 대신 점검 공개 (**현재 미발송**, 이전 알림만) | 요청 상세 (`requestId`) |
             | `REQUEST_CLAIMED` | 내 요청을 이웃이 맡음 | 요청 상세 (`requestId`) |
             | `REQUEST_DEADLINE_CHANGED` | 비가 일찍 와서 마감 당겨짐 | 요청 상세 (`requestId`) |
             | `REQUEST_CANCELLED` | 예보 취소 · 비가 일찍 와서 취소 | 내 요청 목록 |

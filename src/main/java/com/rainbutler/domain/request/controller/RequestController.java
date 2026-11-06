@@ -43,7 +43,7 @@ public class RequestController {
             - `ACCEPT` → `ACCEPTED`: 완료 마감(기본 20:00)까지 점검해 주세요. 응답에 `completeDeadlineAt`과 함께
               근처(`nearbyRadiusMeters`, 기본 100m)에서 지금 대신 점검이 필요한 빗물받이 수(`nearbyOpenCount`)를 줍니다.
               예: "고마워요! 20:00까지 살펴봐 주세요. 근처 100m에 도움이 필요한 빗물받이가 4곳 있어요 [지도에서 보기]"
-            - `DECLINE` → `OPEN`: 대신 점검으로 공개되고 근처 입양자에게 알림이 갑니다. 불이익은 없습니다.
+            - `DECLINE` → `OPEN`: 대신 점검으로 공개되어 지도에 표시됩니다 (개별 알림 없음). 불이익은 없습니다.
             - 응답하면 연속 무응답 횟수가 초기화됩니다.
             """;
 

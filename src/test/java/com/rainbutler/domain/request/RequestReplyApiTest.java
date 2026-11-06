@@ -60,7 +60,7 @@ class RequestReplyApiTest extends RequestIntegrationTest {
     }
 
     @Test
-    void 불가로_응답하면_대신_점검으로_공개되고_근처_입양자에게_알린다() throws Exception {
+    void 불가로_응답하면_대신_점검으로_공개되고_근처_입양자에게_알리지_않는다() throws Exception {
         Long helper = fixtures.user("이웃");
         fixtures.adoption(helper,
                 fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG, false), "이웃몽");
@@ -72,7 +72,7 @@ class RequestReplyApiTest extends RequestIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT reply FROM inspection_request "
                 + "WHERE id = ?", String.class, request)).isEqualTo("DECLINE");
         assertThat(ignoreCount()).isZero();
-        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isEqualTo(1);
+        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isZero();
     }
 
     @Test
