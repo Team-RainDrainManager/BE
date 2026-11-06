@@ -61,27 +61,32 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
     }
 
     @Test
-    void 입양되지_않은_위험_빗물받이는_바로_OPEN이고_안전한_빗물받이는_만들지_않는다() {
+    void 입양되지_않은_빗물받이는_위험_여부와_관계없이_모두_바로_OPEN이다() {
         now(NOTICE);
         Long risky = fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, true);
-        fixtures.drain(RequestFixtures.north(50), RequestFixtures.BASE_LNG, false);
+        Long safe = fixtures.drain(RequestFixtures.north(50), RequestFixtures.BASE_LNG, false);
         Long neighbor = fixtures.user("이웃");
-        fixtures.adoption(neighbor,
-                fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG, false), "이웃몽");
+        Long neighborDrain = fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG,
+                false);
+        fixtures.adoption(neighbor, neighborDrain, "이웃몽");
         Long forecast = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false);
 
         int created = inspectionRequestService.createForForecast(
                 forecast, schedulePolicy.noticeSchedule(NOTICE));
 
-        // 이웃 입양 빗물받이 1건(SENT) + 위험 빗물받이 1건(OPEN)
-        assertThat(created).isEqualTo(2);
-        Map<String, Object> row = jdbcTemplate.queryForMap("SELECT status, adoption_id, "
-                + "opened_at FROM inspection_request WHERE forecast_id = ? AND drain_id = ?",
-                forecast, risky);
-        assertThat(row.get("status")).isEqualTo("OPEN");
-        assertThat(row.get("adoption_id")).isNull();
-        assertThat(row.get("opened_at")).isNotNull();
-        assertThat(fixtures.notificationCount(neighbor, "SUBSTITUTE_OPEN")).isEqualTo(1);
+        // 이웃 입양 빗물받이 1건(SENT) + 미입양 2건(OPEN, 위험 · 안전 모두)
+        assertThat(created).isEqualTo(3);
+        for (Long drain : java.util.List.of(risky, safe)) {
+            Map<String, Object> row = jdbcTemplate.queryForMap("SELECT status, adoption_id, "
+                    + "opened_at FROM inspection_request WHERE forecast_id = ? AND drain_id = ?",
+                    forecast, drain);
+            assertThat(row.get("status")).isEqualTo("OPEN");
+            assertThat(row.get("adoption_id")).isNull();
+            assertThat(row.get("opened_at")).isNotNull();
+        }
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM inspection_request "
+                + "WHERE forecast_id = ? AND drain_id = ?", String.class, forecast, neighborDrain))
+                .isEqualTo("SENT");
     }
 
     @Test
@@ -169,12 +174,16 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
         fixtures.claim(claimed, substitute);
         Long completed = fixtures.request(forecast, drain3, null, "COMPLETED",
                 NOTICE.withHour(12), NOTICE.withHour(20));
+        Long drain4 = fixtures.drain(RequestFixtures.north(30), RequestFixtures.BASE_LNG, false);
+        Long expired = fixtures.request(forecast, drain4, null, "EXPIRED",
+                NOTICE.withHour(12), NOTICE.withHour(20));
 
         assertThat(inspectionRequestService.cancelForForecast(forecast)).isEqualTo(2);
 
         assertThat(fixtures.status(sent)).isEqualTo("CANCELLED");
         assertThat(fixtures.status(claimed)).isEqualTo("CANCELLED");
         assertThat(fixtures.status(completed)).isEqualTo("COMPLETED");
+        assertThat(fixtures.status(expired)).isEqualTo("EXPIRED");
         assertThat(fixtures.notificationCount(owner, "REQUEST_CANCELLED")).isEqualTo(1);
         assertThat(fixtures.notificationCount(substitute, "REQUEST_CANCELLED")).isEqualTo(1);
     }

@@ -102,6 +102,20 @@ class DeadlineAdvanceTest extends RequestIntegrationTest {
         assertThat(fixtures.status(request)).isEqualTo("COMPLETED");
     }
 
+    @Test
+    void 종료된_EXPIRED_요청은_마감을_당기지_않는다() {
+        now(TODAY.atTime(8, 0));
+        Long safe = fixtures.drain(RequestFixtures.north(50), RequestFixtures.BASE_LNG, false);
+        Long expired = fixtures.request(tomorrowForecast, safe, null, "EXPIRED",
+                TODAY.atTime(9, 0), TODAY.atTime(14, 0));
+        confirm(TODAY, TODAY.atTime(15, 0));
+
+        confirm(TODAY, TODAY.atTime(13, 0));
+
+        assertThat(deadline(expired, "complete_deadline_at")).isEqualTo(TODAY.atTime(14, 0));
+        assertThat(fixtures.status(expired)).isEqualTo("EXPIRED");
+    }
+
     private void confirm(LocalDate date, LocalDateTime rainStartAt) {
         forecastService.apply(date, 80, BigDecimal.TEN, rainStartAt, false);
     }
