@@ -9,6 +9,7 @@ import com.rainbutler.domain.drain.dto.Response.DrainResponse;
 import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.drain.service.DrainService;
+import com.rainbutler.domain.request.dto.RainRequestStatus;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
@@ -27,10 +28,16 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/drain")
 public class DrainController {
 
+    private static final String RAIN_STATUS_DESCRIPTION = "각 빗물받이에 이번 비(오늘 · 내일 비 예보) 대신 점검 "
+            + "상태 `rainRequest`(`requestId`, `status`: NEEDS_HELP 필요 · IN_PROGRESS 진행 중 · DONE 완료, "
+            + "없으면 null)를 붙입니다. `rainStatus`(NEEDS_HELP · IN_PROGRESS · DONE)로 거를 수 있고, "
+            + "기존 `status` 필터와 함께 쓸 수 있습니다. 이번 비 예보가 없으면 `rainStatus` 필터 결과는 비어 있습니다.";
+
     private final DrainService drainService;
 
     @Operation(summary = "지도 위 빗물받이 목록 조회",
-            description = "경도/위도 범위 내 빗물받이 목록을 조회합니다. 표시 상태 · 검색어로 거를 수 있습니다.")
+            description = "경도/위도 범위 내 빗물받이 목록을 조회합니다. 표시 상태 · 검색어로 거를 수 있습니다. "
+                    + RAIN_STATUS_DESCRIPTION)
     @GetMapping
     public ApiResponse<List<DrainResponse>> getDrainList(
             @RequestParam Double minLatitude,
@@ -38,7 +45,8 @@ public class DrainController {
             @RequestParam Double minLongitude,
             @RequestParam Double maxLongitude,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String q
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String rainStatus
     ) {
         List<DrainResponse> drains = drainService.getDrainList(
                 minLatitude,
@@ -46,23 +54,26 @@ public class DrainController {
                 minLongitude,
                 maxLongitude,
                 parseStatus(status),
-                q
+                q,
+                parseRainStatus(rainStatus)
         );
 
         return ApiResponse.ok(drains);
     }
 
     @Operation(summary = "빗물받이 목록 조회 (페이지)",
-            description = "이름 · 주소 · 입양 별명으로 검색하고 표시 상태로 거른 목록을 페이지로 조회합니다.")
+            description = "이름 · 주소 · 입양 별명으로 검색하고 표시 상태로 거른 목록을 페이지로 조회합니다. "
+                    + RAIN_STATUS_DESCRIPTION)
     @GetMapping("/list")
     public ApiResponse<PageResponse<DrainResponse>> getDrainPage(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String q
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String rainStatus
     ) {
-        PageResponse<DrainResponse> response =
-                drainService.getDrainPage(page, size, parseStatus(status), q);
+        PageResponse<DrainResponse> response = drainService.getDrainPage(
+                page, size, parseStatus(status), q, parseRainStatus(rainStatus));
 
         return ApiResponse.ok(response);
     }
@@ -116,6 +127,16 @@ public class DrainController {
      * 표시 상태 파라미터를 enum으로 바꿉니다. 영문 이름 · 지도 키(unadopted · normal · overdue ·
      * blocked) · 화면 라벨(한글)을 모두 받습니다.
      */
+    private RainRequestStatus parseRainStatus(String rainStatus) {
+        try {
+            return RainRequestStatus.from(rainStatus);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "대신 점검 상태는 NEEDS_HELP · IN_PROGRESS · DONE 중 하나여야 합니다.");
+        }
+    }
+
     private DrainDisplayStatus parseStatus(String status) {
         try {
             return DrainDisplayStatus.from(status);

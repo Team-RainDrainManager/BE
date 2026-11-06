@@ -265,4 +265,14 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "WHERE r.forecast.id = :forecastId AND r.status IN :inProgress")
     LocalDateTime findEarliestCompleteDeadline(@Param("forecastId") Long forecastId,
             @Param("inProgress") Collection<RequestStatus> inProgress);
+
+    /**
+     * 예보의 요청 중 주어진 빗물받이들의 것을 찾습니다. (지도 빗물받이 이번 비 상태, 한 번에 조회)
+     *
+     * @param forecastId 예보 id
+     * @param drainIds 빗물받이 id
+     * @return 요청 목록
+     */
+    List<InspectionRequest> findAllByForecast_IdAndDrain_IdIn(
+            Long forecastId, Collection<Long> drainIds);
 }

@@ -34,8 +34,8 @@ public class RainNoticeController {
             - 우선순위: `RAINING` > `FORECAST` > `NONE`. `RAINING`이어도 예보가 있으면 `forecast` · `help`를 같이 준다
             - 이번 비 예보: 오늘 · 내일 진행 중 예보 중 가까운 날짜, 같은 날짜면 실제 예보 우선
               (가상 예보는 실제 예보가 없을 때만)
-            - `help`: `needsHelpCount` 대신 점검 필요(OPEN) · `inProgressCount` 진행 중(SENT · ACCEPTED · CLAIMED) ·
-              `doneCount` 완료(COMPLETED). 놓침 · 종료 · 취소는 빠진다
+            - `help`: `needsHelpCount` 대신 점검 필요(OPEN) · `inProgressCount` 진행 중
+              (SENT · ACCEPTED · CLAIMED) · `doneCount` 완료(COMPLETED). 놓침 · 종료 · 취소는 빠진다
             - 실황이 3시간보다 오래되면 비 아님으로 본다
             """;
 
