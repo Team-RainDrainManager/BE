@@ -52,15 +52,17 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("inProgress") Collection<RequestStatus> inProgress);
 
     /**
-     * 입양되지 않은 운영 중 위험 빗물받이를 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
+     * 입양되지 않은 운영 중 빗물받이를 모두 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
+     *
+     * <p>빗물받이는 공공데이터로 일괄 등록해 사진 · AI 판정(위험 여부)이 없으므로 위험 여부로 거르지 않습니다.
      *
      * @return 빗물받이 목록
      */
     @Query("SELECT d FROM Drain d "
             + "WHERE d.status = com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE "
-            + "AND d.isRisk = true AND NOT EXISTS (SELECT 1 FROM Adoption a WHERE a.drain = d "
+            + "AND NOT EXISTS (SELECT 1 FROM Adoption a WHERE a.drain = d "
             + "AND a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE)")
-    List<Drain> findUnadoptedRiskDrains();
+    List<Drain> findUnadoptedActiveDrains();
 
     /**
      * 예보의 요청 중 해당 상태인 것을 찾습니다. (예보 취소)

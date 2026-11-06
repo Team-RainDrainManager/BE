@@ -31,7 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>발송 대상 (운영 중 빗물받이)
  * <ol>
  *   <li>ACTIVE 입양이 있는 빗물받이 → {@code SENT}, 입양자에게 알림. 입양자가 점검 쉬기 중이어도 보낸다</li>
- *   <li>입양되지 않은 위험 빗물받이 → 바로 {@code OPEN}, 근처 입양자에게 대신 점검 알림</li>
+ *   <li>입양되지 않은 빗물받이 전부 → 바로 {@code OPEN} (미입양 대신 점검). 위험 여부로 거르지 않는다
+ *       (공공데이터로 일괄 등록해 사진 · AI 판정이 없음)</li>
  * </ol>
  * 같은 예보로 이미 요청이 있거나, 다른 예보의 요청이 아직 진행 중인 빗물받이는 건너뜁니다.
  */
@@ -78,20 +79,22 @@ public class InspectionRequestService {
             created++;
         }
 
-        List<InspectionRequest> opened = new ArrayList<>();
-        for (Drain drain : inspectionRequestRepository.findUnadoptedRiskDrains()) {
-            if (!blocked.add(drain.getId())) {
-                continue;
+        // 미입양 빗물받이는 수백 ~ 수천 개일 수 있어 한 번에 저장한다
+        long startedAt = System.currentTimeMillis();
+        List<InspectionRequest> toOpen = new ArrayList<>();
+        for (Drain drain : inspectionRequestRepository.findUnadoptedActiveDrains()) {
+            if (blocked.add(drain.getId())) {
+                toOpen.add(newRequest(forecast, drain, null, RequestStatus.OPEN, schedule));
             }
-            opened.add(inspectionRequestRepository.save(
-                    newRequest(forecast, drain, null, RequestStatus.OPEN, schedule)));
         }
+        List<InspectionRequest> opened = inspectionRequestRepository.saveAll(toOpen);
         if (!opened.isEmpty()) {
             substituteNotifier.notifyNearbyAdopters(opened);
         }
         created += opened.size();
-        log.info("[비 예보 요청] 예보 id={} 요청 {}건 생성 (입양자 {} · 바로 대신 점검 {})",
-                forecastId, created, created - opened.size(), opened.size());
+        log.info("[비 예보 요청] 예보 id={} 요청 {}건 생성 (입양자 {} · 미입양 대신 점검 {}, 미입양 저장 {}ms)",
+                forecastId, created, created - opened.size(), opened.size(),
+                System.currentTimeMillis() - startedAt);
         return created;
     }
 
