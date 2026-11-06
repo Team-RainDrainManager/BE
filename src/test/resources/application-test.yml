@@ -1,4 +1,8 @@
 spring:
+  datasource:
+    hikari:
+      # 테스트 컨텍스트가 여러 개 캐시돼도 공용 테스트 DB 연결 한도(100)를 넘지 않게 작게 둔다
+      maximum-pool-size: 5
   jpa:
     properties:
       hibernate:

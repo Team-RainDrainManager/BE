@@ -28,4 +28,17 @@ class KmaBaseTimeTest {
             LocalDateTime now, LocalDateTime expected) {
         assertThat(KmaBaseTime.latest(now)).isEqualTo(expected);
     }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-11-06T14:39:59, 2026-11-06T13:00",
+            "2026-11-06T14:40:00, 2026-11-06T14:00",
+            "2026-11-06T14:41:00, 2026-11-06T14:00",
+            "2026-11-06T00:20:00, 2026-11-05T23:00",
+            "2026-11-06T00:45:00, 2026-11-06T00:00"
+    })
+    void 초단기실황은_정시_발표_40분_뒤부터_조회한다(LocalDateTime now, LocalDateTime expected) {
+        assertThat(KmaBaseTime.latestObservation(now)).isEqualTo(expected);
+    }
 }
+
