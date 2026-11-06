@@ -243,4 +243,26 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
     List<OpenDrainPoint> findOpenDrainsInBox(@Param("now") LocalDateTime now,
             @Param("minLat") double minLat, @Param("maxLat") double maxLat,
             @Param("minLng") double minLng, @Param("maxLng") double maxLng);
+
+    /**
+     * 예보의 요청 수를 상태별로 셉니다. (지도 비 예보 배너의 대신 점검 진행 상황)
+     *
+     * @param forecastId 예보 id
+     * @return [상태, 개수] 목록
+     */
+    @Query("SELECT r.status, COUNT(r) FROM InspectionRequest r WHERE r.forecast.id = :forecastId "
+            + "GROUP BY r.status")
+    List<Object[]> countByStatus(@Param("forecastId") Long forecastId);
+
+    /**
+     * 예보의 진행 중 요청 중 가장 이른 완료 마감을 찾습니다. (지도 비 예보 배너)
+     *
+     * @param forecastId 예보 id
+     * @param inProgress 진행 중 상태
+     * @return 가장 이른 완료 마감 (진행 중 요청이 없으면 null)
+     */
+    @Query("SELECT MIN(r.completeDeadlineAt) FROM InspectionRequest r "
+            + "WHERE r.forecast.id = :forecastId AND r.status IN :inProgress")
+    LocalDateTime findEarliestCompleteDeadline(@Param("forecastId") Long forecastId,
+            @Param("inProgress") Collection<RequestStatus> inProgress);
 }
