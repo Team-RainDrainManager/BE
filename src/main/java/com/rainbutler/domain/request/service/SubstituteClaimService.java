@@ -48,7 +48,7 @@ public class SubstituteClaimService {
      *   <li>없는 요청 → 404 REQUEST_NOT_FOUND</li>
      *   <li>그 요청의 원래 입양자 → 403 SUBSTITUTE_OWN_REQUEST</li>
      *   <li>현재 위치가 빗물받이에서 반경(300m) 밖 → 400 SUBSTITUTE_OUT_OF_RANGE</li>
-     *   <li>오늘 이미 하루 제한(5건)만큼 수락 → 409 SUBSTITUTE_DAILY_LIMIT (수락 뒤 취소 · 놓침 · 종료도 센다)</li>
+     *   <li>오늘 이미 하루 제한(10건)만큼 수락 → 409 SUBSTITUTE_DAILY_LIMIT (수락 뒤 취소 · 놓침 · 종료도 센다)</li>
      *   <li>이미 누가 맡음 → 409 REQUEST_ALREADY_CLAIMED, 그 밖에 OPEN이 아니거나 완료 마감 지남 → 409
      *       REQUEST_NOT_OPEN</li>
      *   <li>선착순: 조건부 UPDATE가 0행이면(동시에 다른 사람이 먼저 맡음) → 409 REQUEST_ALREADY_CLAIMED</li>

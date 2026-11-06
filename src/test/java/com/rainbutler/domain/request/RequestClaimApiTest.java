@@ -114,24 +114,23 @@ class RequestClaimApiTest extends RequestIntegrationTest {
     }
 
     @Test
-    void 하루_5건까지_맡을_수_있고_취소_놓침_종료도_센다() throws Exception {
-        claimedEarlierToday("CANCELLED");
-        claimedEarlierToday("MISSED");
-        claimedEarlierToday("EXPIRED");
-        claimedEarlierToday("COMPLETED");
-        Long fifth = openRequest(ownerDrain, ownerAdoption);
-        claim(helper, fifth, RequestFixtures.BASE_LAT).andExpect(status().isOk());
+    void 하루_10건까지_맡을_수_있고_취소_놓침_종료도_센다() throws Exception {
+        List<String> earlier = List.of("CANCELLED", "MISSED", "EXPIRED", "COMPLETED", "CANCELLED",
+                "MISSED", "EXPIRED", "COMPLETED", "COMPLETED");
+        earlier.forEach(this::claimedEarlierToday);
+        Long tenth = openRequest(ownerDrain, ownerAdoption);
+        claim(helper, tenth, RequestFixtures.BASE_LAT).andExpect(status().isOk());
 
         Long other = fixtures.drain(RequestFixtures.north(10), RequestFixtures.BASE_LNG, true);
-        Long sixth = openRequest(other, null);
-        claim(helper, sixth, RequestFixtures.north(10))
+        Long eleventh = openRequest(other, null);
+        claim(helper, eleventh, RequestFixtures.north(10))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("SUBSTITUTE_DAILY_LIMIT"));
     }
 
     @Test
     void 어제_맡은_것은_오늘_횟수에_넣지_않는다() throws Exception {
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             Long drain = fixtures.drain(RequestFixtures.north(500 + i), RequestFixtures.BASE_LNG,
                     true);
             Long done = fixtures.request(forecast, drain, null, "COMPLETED", NOW, NOW.plusHours(1));

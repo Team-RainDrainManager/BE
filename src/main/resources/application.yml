@@ -86,7 +86,7 @@ rain-butler:
     adoption-warning-days: 28
     adoption-release-days: 35
     substitute-radius-meters: 300
-    substitute-daily-limit: 5            # 1인 하루 대신 점검 수락 최대 횟수 (수락 뒤 취소 · 놓침 포함)
+    substitute-daily-limit: 10           # 1인 하루 대신 점검 수락 최대 횟수 (수락 뒤 취소 · 놓침 포함)
     nearby-request-list-limit: 30        # 내 요청 목록의 근처(NEARBY) 요청 최대 개수 (가까운 순)
     location-mismatch-meters: 50
     ai-confidence-threshold: 0.7
