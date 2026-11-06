@@ -47,6 +47,7 @@ public class MyRequestQueryService {
 
     private final InspectionRequestRepository inspectionRequestRepository;
     private final AdoptionRepository adoptionRepository;
+    private final NearbyHelpCounter nearbyHelpCounter;
     private final PolicyProperties policy;
     private final Clock clock;
 
@@ -63,15 +64,23 @@ public class MyRequestQueryService {
         LocalDateTime since = now.minus(RECENT);
         Map<Long, MyRequestResponse> result = new LinkedHashMap<>();
 
-        for (InspectionRequest request : inspectionRequestRepository.findMineAsOwner(
-                userId, RequestStatus.IN_PROGRESS, since)) {
-            result.putIfAbsent(request.getId(),
-                    toResponse(request, Role.OWNER, now, latitude, longitude));
+        List<InspectionRequest> owned = inspectionRequestRepository.findMineAsOwner(
+                userId, RequestStatus.IN_PROGRESS, since);
+        // 진행 중인 내 또랑이 요청의 근처 도움 개수를 한 번의 조회로 센다
+        Map<Long, Integer> nearbyCounts = nearbyHelpCounter.countOpenNear(owned.stream()
+                .filter(request -> request.getStatus() == RequestStatus.SENT
+                        || request.getStatus() == RequestStatus.ACCEPTED)
+                .map(InspectionRequest::getDrain)
+                .distinct()
+                .toList(), now);
+        for (InspectionRequest request : owned) {
+            result.putIfAbsent(request.getId(), toResponse(request, Role.OWNER, now, latitude,
+                    longitude, nearbyCounts.get(request.getDrain().getId())));
         }
         for (InspectionRequest request : inspectionRequestRepository.findMineAsClaimant(
                 userId, RequestStatus.IN_PROGRESS, since)) {
             result.putIfAbsent(request.getId(),
-                    toResponse(request, Role.CLAIMANT, now, latitude, longitude));
+                    toResponse(request, Role.CLAIMANT, now, latitude, longitude, null));
         }
 
         List<MyRequestResponse> mine = new ArrayList<>(result.values());
@@ -132,12 +141,13 @@ public class MyRequestQueryService {
                 .filter(near -> near.distance() <= radius)
                 .sorted(Comparator.comparingDouble(Near::distance))
                 .limit(policy.nearbyRequestListLimit())
-                .map(near -> toResponse(near.request(), Role.NEARBY, now, latitude, longitude))
+                .map(near -> toResponse(
+                        near.request(), Role.NEARBY, now, latitude, longitude, null))
                 .toList();
     }
 
     private MyRequestResponse toResponse(InspectionRequest request, Role role,
-            LocalDateTime now, Double latitude, Double longitude) {
+            LocalDateTime now, Double latitude, Double longitude, Integer nearbyOpenCount) {
         Drain drain = request.getDrain();
         String name = request.getAdoption() == null ? null : request.getAdoption().getNickname();
         boolean finished = !request.isInProgress();
@@ -158,7 +168,8 @@ public class MyRequestQueryService {
                 request.getCompleteDeadlineAt(),
                 remaining,
                 distance,
-                actions(request, role, now, replyOpen));
+                actions(request, role, now, replyOpen),
+                nearbyOpenCount);
     }
 
     private List<Action> actions(InspectionRequest request, Role role, LocalDateTime now,

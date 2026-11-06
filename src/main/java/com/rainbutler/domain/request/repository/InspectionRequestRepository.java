@@ -226,4 +226,21 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "AND r.drain.id IN (SELECT d.id FROM Drain d WHERE d.isRisk = false)")
     int expireUnadoptedOverdue(@Param("inProgress") Collection<RequestStatus> inProgress,
             @Param("now") LocalDateTime now);
+
+    /**
+     * 위경도 사각형 안에서 지금 도움이 필요한(완료 마감 전 OPEN) 빗물받이 위치를 찾습니다. 같은 빗물받이는 한 번만
+     * 나옵니다. 정확한 반경은 호출하는 쪽에서 거릅니다. (근처 도움 필요 개수)
+     *
+     * @param now 현재 시각
+     * @return 빗물받이 id · 위경도
+     */
+    @Query("SELECT DISTINCT new com.rainbutler.domain.request.repository.OpenDrainPoint("
+            + "d.id, d.latitude, d.longitude) FROM InspectionRequest r JOIN r.drain d "
+            + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
+            + "AND r.completeDeadlineAt > :now "
+            + "AND d.latitude BETWEEN :minLat AND :maxLat "
+            + "AND d.longitude BETWEEN :minLng AND :maxLng")
+    List<OpenDrainPoint> findOpenDrainsInBox(@Param("now") LocalDateTime now,
+            @Param("minLat") double minLat, @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng, @Param("maxLng") double maxLng);
 }
