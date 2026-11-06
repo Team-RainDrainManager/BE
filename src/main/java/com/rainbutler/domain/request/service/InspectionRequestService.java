@@ -44,7 +44,6 @@ public class InspectionRequestService {
     private final InspectionRequestRepository inspectionRequestRepository;
     private final RainForecastRepository rainForecastRepository;
     private final AdoptionRepository adoptionRepository;
-    private final SubstituteNotifier substituteNotifier;
     private final PushService pushService;
     private final RequestNotifier requestNotifier;
     private final Clock clock;
@@ -87,10 +86,8 @@ public class InspectionRequestService {
                 toOpen.add(newRequest(forecast, drain, null, RequestStatus.OPEN, schedule));
             }
         }
+        // 대신 점검은 지도에서 보고 자발적으로 찾아간다. 근처 입양자에게 개별 알림을 보내지 않는다
         List<InspectionRequest> opened = inspectionRequestRepository.saveAll(toOpen);
-        if (!opened.isEmpty()) {
-            substituteNotifier.notifyNearbyAdopters(opened);
-        }
         created += opened.size();
         log.info("[비 예보 요청] 예보 id={} 요청 {}건 생성 (입양자 {} · 미입양 대신 점검 {}, 미입양 저장 {}ms)",
                 forecastId, created, created - opened.size(), opened.size(),

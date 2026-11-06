@@ -1,6 +1,7 @@
 package com.rainbutler.domain.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,29 +51,42 @@ class RequestReplyApiTest extends RequestIntegrationTest {
 
     @Test
     void 가능으로_응답하면_ACCEPTED이고_연속_무응답이_초기화된다() throws Exception {
+        // 근처 100m 안 공개 요청 2곳, 밖 1곳
+        Long forecastToday = fixtures.forecast(NOW.toLocalDate(), NOW.withHour(18), false);
+        for (double meters : new double[] {30, 90, 150}) {
+            fixtures.request(forecastToday, fixtures.drain(RequestFixtures.north(meters),
+                    RequestFixtures.BASE_LNG, false), null, "OPEN", NOW, NOW.withHour(17));
+        }
+
         reply(owner, request, "ACCEPT")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.requestId").value(request))
                 .andExpect(jsonPath("$.data.state").value("ACCEPTED"))
-                .andExpect(jsonPath("$.data.repliedAt").value("2027-07-01T09:00:00"));
+                .andExpect(jsonPath("$.data.repliedAt").value("2027-07-01T09:00:00"))
+                .andExpect(jsonPath("$.data.completeDeadlineAt").value("2027-07-01T20:00:00"))
+                .andExpect(jsonPath("$.data.nearbyOpenCount").value(2))
+                .andExpect(jsonPath("$.data.nearbyRadiusMeters").value(100));
 
         assertThat(ignoreCount()).isZero();
     }
 
     @Test
-    void 불가로_응답하면_대신_점검으로_공개되고_근처_입양자에게_알린다() throws Exception {
+    void 불가로_응답하면_대신_점검으로_공개되고_근처_입양자에게_알리지_않는다() throws Exception {
         Long helper = fixtures.user("이웃");
         fixtures.adoption(helper,
                 fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG, false), "이웃몽");
 
         reply(owner, request, "DECLINE")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.state").value("OPEN"));
+                .andExpect(jsonPath("$.data.state").value("OPEN"))
+                .andExpect(jsonPath("$.data.completeDeadlineAt").value("2027-07-01T20:00:00"))
+                .andExpect(jsonPath("$.data.nearbyOpenCount").value(nullValue()))
+                .andExpect(jsonPath("$.data.nearbyRadiusMeters").value(nullValue()));
 
         assertThat(jdbcTemplate.queryForObject("SELECT reply FROM inspection_request "
                 + "WHERE id = ?", String.class, request)).isEqualTo("DECLINE");
         assertThat(ignoreCount()).isZero();
-        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isEqualTo(1);
+        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isZero();
     }
 
     @Test

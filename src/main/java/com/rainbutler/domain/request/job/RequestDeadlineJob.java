@@ -5,11 +5,9 @@ import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
-import com.rainbutler.domain.request.service.SubstituteNotifier;
 import com.rainbutler.global.scheduling.SchedulingProperties;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +30,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *         <li>그 외(입양된 빗물받이, 미입양 위험 빗물받이) → {@code MISSED}, 입양자에게 "시청에 전달됐어요" 알림
  *             (불이익 없음)</li>
  *       </ul></li>
- *   <li><b>응답 마감 지남</b>: {@code SENT} → {@code OPEN}(대신 점검 공개) + 연속 무응답 횟수 1 증가 +
- *       근처 입양자 알림</li>
+ *   <li><b>응답 마감 지남</b>: {@code SENT} → {@code OPEN}(대신 점검 공개, 지도에 표시) + 연속 무응답 횟수 1 증가.
+ *       근처 입양자에게 개별 알림은 보내지 않는다</li>
  * </ol>
  * 완료 마감을 먼저 처리해 두 마감이 함께 지난 요청은 바로 MISSED가 되게 합니다 (쓸모없는 대신 점검 알림 방지).
  * 요청마다 따로 커밋해 한 건 실패가 전체를 멈추지 않게 하고, 한 번에 최대 500건씩 처리합니다.
@@ -45,20 +43,17 @@ public class RequestDeadlineJob {
     private static final int BATCH_SIZE = 500;
 
     private final InspectionRequestRepository inspectionRequestRepository;
-    private final SubstituteNotifier substituteNotifier;
     private final PushService pushService;
     private final SchedulingProperties schedulingProperties;
     private final Clock clock;
     private final TransactionTemplate transaction;
 
     public RequestDeadlineJob(InspectionRequestRepository inspectionRequestRepository,
-            SubstituteNotifier substituteNotifier,
             PushService pushService,
             SchedulingProperties schedulingProperties,
             Clock clock,
             PlatformTransactionManager transactionManager) {
         this.inspectionRequestRepository = inspectionRequestRepository;
-        this.substituteNotifier = substituteNotifier;
         this.pushService = pushService;
         this.schedulingProperties = schedulingProperties;
         this.clock = clock;
@@ -142,27 +137,18 @@ public class RequestDeadlineJob {
     private int processReplyOverdue(LocalDateTime now) {
         List<Long> ids = inspectionRequestRepository.findIdsReplyOverdue(
                 now, PageRequest.of(0, BATCH_SIZE));
-        List<Long> opened = new ArrayList<>();
+        int opened = 0;
         for (Long id : ids) {
             try {
                 Boolean done = transaction.execute(status -> open(id, now));
                 if (Boolean.TRUE.equals(done)) {
-                    opened.add(id);
+                    opened++;
                 }
             } catch (RuntimeException e) {
                 log.error("[요청 마감 처리] 응답 마감 처리 실패 requestId={}: {}", id, e.getMessage(), e);
             }
         }
-        if (!opened.isEmpty()) {
-            try {
-                // 같은 사용자에게 여러 건이면 알림 1개로 묶이도록 한 번에 보낸다
-                transaction.executeWithoutResult(status -> substituteNotifier.notifyNearbyAdopters(
-                        inspectionRequestRepository.findAllById(opened)));
-            } catch (RuntimeException e) {
-                log.error("[요청 마감 처리] 대신 점검 알림 실패: {}", e.getMessage(), e);
-            }
-        }
-        return opened.size();
+        return opened;
     }
 
     private boolean open(Long id, LocalDateTime now) {

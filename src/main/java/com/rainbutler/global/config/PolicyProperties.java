@@ -44,6 +44,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param photoRetentionDays 점검 사진 보존 기간 (일). 촬영일부터 이 기간이 지나면 사진 URL을 내려주지 않는다
  * @param reportXp 제보를 승인했을 때 지급하는 경험치
  * @param nearbyRequestListLimit 내 요청 목록에 보여 줄 근처(NEARBY) 대신 점검 요청 최대 개수 (가까운 순)
+ * @param nearbyHelpRadiusMeters 입양자에게 "내 빗물받이 근처 도움 필요" 개수를 셀 반경 (m). 대신 점검 수락 위치
+ *     확인 반경({@code substituteRadiusMeters})과 다른 값이다
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -80,5 +82,6 @@ public record PolicyProperties(
         int inspectionXp,
         int photoRetentionDays,
         int reportXp,
-        int nearbyRequestListLimit) {
+        int nearbyRequestListLimit,
+        int nearbyHelpRadiusMeters) {
 }
