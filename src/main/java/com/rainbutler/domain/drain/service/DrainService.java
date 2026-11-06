@@ -14,9 +14,13 @@ import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.drain.repository.DrainSpecifications;
+import com.rainbutler.domain.forecast.entity.RainForecast;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.request.dto.RainRequestStatus;
+import com.rainbutler.domain.request.dto.RainRequestSummary;
+import com.rainbutler.domain.request.service.RainRequestLookup;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
@@ -24,6 +28,7 @@ import com.rainbutler.global.response.PageResponse;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -66,6 +71,7 @@ public class DrainService {
     private final GrowthLevelPolicy growthLevelPolicy;
     private final DrainDisplayStatusPolicy drainDisplayStatusPolicy;
     private final DrainAddressResolver drainAddressResolver;
+    private final RainRequestLookup rainRequestLookup;
     private final Clock clock;
 
     /**
@@ -73,6 +79,7 @@ public class DrainService {
      *
      * @param status 화면 표시 상태 필터 (없으면 전체)
      * @param keyword 이름 · 주소 · 입양 별명 검색어 (없으면 전체)
+     * @param rainStatus 이번 비 대신 점검 상태 필터 (없으면 전체)
      */
     public List<DrainResponse> getDrainList(
             Double minLatitude,
@@ -80,12 +87,14 @@ public class DrainService {
             Double minLongitude,
             Double maxLongitude,
             DrainDisplayStatus status,
-            String keyword
+            String keyword,
+            RainRequestStatus rainStatus
     ) {
         validateBounds(minLatitude, maxLatitude, minLongitude, maxLongitude);
 
         Specification<Drain> spec = specification(
-                minLatitude, maxLatitude, minLongitude, maxLongitude, status, keyword);
+                minLatitude, maxLatitude, minLongitude, maxLongitude, status, keyword)
+                .and(rainStatusSpecification(rainStatus));
         Page<Drain> page = drainRepository.findAll(
                 spec,
                 PageRequest.of(0, MAP_MAX_RESULTS, Sort.by(Sort.Direction.ASC, "id")));
@@ -100,10 +109,12 @@ public class DrainService {
      * @param size 페이지 크기 (1~100)
      * @param status 화면 표시 상태 필터 (없으면 전체)
      * @param keyword 이름 · 주소 · 입양 별명 검색어 (없으면 전체)
+     * @param rainStatus 이번 비 대신 점검 상태 필터 (없으면 전체)
      * @return 페이지 응답
      */
     public PageResponse<DrainResponse> getDrainPage(
-            int page, int size, DrainDisplayStatus status, String keyword) {
+            int page, int size, DrainDisplayStatus status, String keyword,
+            RainRequestStatus rainStatus) {
         if (page < 0) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "페이지 번호는 0 이상이어야 합니다.");
         }
@@ -123,6 +134,7 @@ public class DrainService {
         if (statusSpec != null) {
             spec = spec.and(statusSpec);
         }
+        spec = spec.and(rainStatusSpecification(rainStatus));
 
         Page<Drain> result = drainRepository.findAll(
                 spec, PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id")));
@@ -200,7 +212,9 @@ public class DrainService {
                 xp,
                 nextLevelScore,
                 progressPercent,
-                adoptionResponse
+                adoptionResponse,
+                rainRequestLookup.findForDrains(
+                        List.of(drain.getId()), LocalDate.now(clock)).get(drain.getId())
         );
     }
 
@@ -374,6 +388,19 @@ public class DrainService {
         return spec;
     }
 
+    /**
+     * 이번 비 대신 점검 상태 조건입니다. 상태가 없으면 조건 없음, 이번 비 예보가 없으면 결과 없음.
+     */
+    private Specification<Drain> rainStatusSpecification(RainRequestStatus rainStatus) {
+        if (rainStatus == null) {
+            return (root, query, cb) -> cb.conjunction();
+        }
+        Long forecastId = rainRequestLookup.currentForecast(LocalDate.now(clock))
+                .map(RainForecast::getId)
+                .orElse(null);
+        return DrainSpecifications.rainRequestStatus(forecastId, rainStatus.requestStatuses());
+    }
+
     private List<DrainResponse> toResponses(List<Drain> drains) {
         if (drains.isEmpty()) {
             return List.of();
@@ -389,12 +416,16 @@ public class DrainService {
         Set<Long> blockageDrainIds =
                 new HashSet<>(reportRepository.findPendingBlockageDrainIds(drainIds));
         LocalDateTime now = LocalDateTime.now(clock);
+        // 이번 비 대신 점검 상태도 빗물받이 id로 한 번에 조회한다
+        Map<Long, RainRequestSummary> rainRequests =
+                rainRequestLookup.findForDrains(drainIds, now.toLocalDate());
 
         return drains.stream()
                 .map(drain -> toResponse(
                         drain,
                         activeAdoptions.get(drain.getId()),
                         blockageDrainIds.contains(drain.getId()),
+                        rainRequests.get(drain.getId()),
                         now))
                 .toList();
     }
@@ -403,6 +434,7 @@ public class DrainService {
             Drain drain,
             Adoption adoption,
             boolean hasPendingBlockage,
+            RainRequestSummary rainRequest,
             LocalDateTime now) {
         int level = adoption == null ? 0 : adoption.getLevel();
         int xp = adoption == null ? 0 : adoption.getScore();
@@ -424,6 +456,7 @@ public class DrainService {
                 .level(level)
                 .levelTitle(growthLevelPolicy.titleFor(level))
                 .xp(xp)
+                .rainRequest(rainRequest)
                 .build();
     }
 

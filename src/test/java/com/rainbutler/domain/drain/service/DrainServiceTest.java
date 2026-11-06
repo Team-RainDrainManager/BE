@@ -22,6 +22,7 @@ import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.request.service.RainRequestLookup;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
@@ -68,6 +69,8 @@ class DrainServiceTest {
     private StorageService storageService;
     @Mock
     private DrainAddressResolver drainAddressResolver;
+    @Mock
+    private RainRequestLookup rainRequestLookup;
 
     private DrainService drainService;
 
@@ -84,7 +87,7 @@ class DrainServiceTest {
                 java.time.ZoneId.of("Asia/Seoul"));
         drainService = new DrainService(drainRepository, adoptionRepository, reportRepository,
                 drainAiClassifier, drainWriter, policy, storageService, new GrowthLevelPolicy(),
-                new DrainDisplayStatusPolicy(), drainAddressResolver, clock);
+                new DrainDisplayStatusPolicy(), drainAddressResolver, rainRequestLookup, clock);
     }
 
     @Test
