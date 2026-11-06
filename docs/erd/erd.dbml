@@ -346,7 +346,7 @@ Table inspection_request {
   drain_id bigint [not null, ref: > drain.id]
   adoption_id bigint [ref: > adoption.id, note: '입양자에게 간 요청. 미입양 위험 배수구면 null → 바로 대신 점검 공개']
   substitute_user_id bigint [ref: > users.id, note: '대신 점검 수락자 (선착순 1명)']
-  status varchar [not null, note: 'SENT / ACCEPTED / OPEN / CLAIMED / COMPLETED / MISSED / CANCELLED']
+  status varchar [not null, note: 'SENT / ACCEPTED / OPEN / CLAIMED / COMPLETED / MISSED / CANCELLED / EXPIRED(미입양 대신 점검 마감 종료, 시청 인계 아님)']
   reply varchar [note: 'ACCEPT / DECLINE / null(무응답)']
   sent_at timestamp [not null, note: '발송 시각 (기본 06:00, 당일 예보는 즉시)']
   reply_deadline_at timestamp [not null, note: '응답 마감 (기본 발송 당일 12:00, 당일 예보는 발송 + 1시간). 지나면 대신 점검 공개']
@@ -356,7 +356,7 @@ Table inspection_request {
   claimed_at timestamp
   completed_at timestamp
   cancelled_at timestamp [note: '취소 시각 (예보 취소 · 비가 일찍 와서 취소)']
-  missed_at timestamp [note: '완료 마감까지 미완료로 시청 인계된 시각']
+  missed_at timestamp [note: '완료 마감까지 미완료로 끝난 시각 (MISSED 시청 인계 · EXPIRED 미입양 종료)']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp

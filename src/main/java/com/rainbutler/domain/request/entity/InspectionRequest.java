@@ -71,7 +71,7 @@ public class InspectionRequest extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime replyDeadlineAt;
 
-    /** 완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전) - 지나면 MISSED */
+    /** 완료 마감 (기본 20:00, 당일 예보는 비 시작 1시간 전) - 지나면 MISSED (미입양 · 위험 아님은 EXPIRED) */
     @Column(nullable = false)
     private LocalDateTime completeDeadlineAt;
 
@@ -85,7 +85,7 @@ public class InspectionRequest extends BaseEntity {
 
     private LocalDateTime cancelledAt;
 
-    /** 완료 마감까지 미완료로 시청 인계된 시각 */
+    /** 완료 마감까지 미완료로 끝난 시각 (MISSED: 시청 인계, EXPIRED: 미입양 대신 점검 종료) */
     private LocalDateTime missedAt;
 
     /** 필수 값으로 생성합니다. */
@@ -188,6 +188,17 @@ public class InspectionRequest extends BaseEntity {
      */
     public void miss(LocalDateTime now) {
         this.status = RequestStatus.MISSED;
+        this.missedAt = now;
+    }
+
+    /**
+     * 미입양 빗물받이 대신 점검이 마감까지 아무도 하지 않아 끝냅니다. 시청에 인계하지 않습니다.
+     * 종료 시각은 {@code missedAt}에 남깁니다.
+     *
+     * @param now 처리 시각
+     */
+    public void expire(LocalDateTime now) {
+        this.status = RequestStatus.EXPIRED;
         this.missedAt = now;
     }
 

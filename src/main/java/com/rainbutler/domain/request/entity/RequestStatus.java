@@ -21,7 +21,12 @@ public enum RequestStatus {
     /** 마감까지 미점검 */
     MISSED,
     /** 비 예보 취소 */
-    CANCELLED;
+    CANCELLED,
+    /**
+     * 미입양 빗물받이 대신 점검이 마감까지 아무도 하지 않아 종료됨 (시청 인계 아님, 알림 없음).
+     * 미입양 빗물받이는 수가 많아 MISSED(시청 인계)로 쌓지 않는다. 위험 빗물받이는 미입양이어도 MISSED
+     */
+    EXPIRED;
 
     /** 진행 중인 상태 (마감 처리 · 취소 · 마감 당기기 대상) */
     public static final Set<RequestStatus> IN_PROGRESS = Set.of(SENT, ACCEPTED, OPEN, CLAIMED);

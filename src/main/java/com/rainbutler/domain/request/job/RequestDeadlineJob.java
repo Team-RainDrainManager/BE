@@ -25,8 +25,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p>당일 예보처럼 마감 시각이 요청마다 달라서 고정 시각이 아니라 주기적으로 확인합니다.
  * <ol>
- *   <li><b>완료 마감 지남</b>: 진행 중(SENT · ACCEPTED · OPEN · CLAIMED) → {@code MISSED}, 입양자에게
- *       "시청에 전달됐어요" 알림 (불이익 없음)</li>
+ *   <li><b>완료 마감 지남</b>: 진행 중(SENT · ACCEPTED · OPEN · CLAIMED) →
+ *       <ul>
+ *         <li>미입양 · 위험 아님 빗물받이 → {@code EXPIRED} (시청 인계 아님, 알림 없음). 수가 많아 UPDATE 한 번으로
+ *             처리</li>
+ *         <li>그 외(입양된 빗물받이, 미입양 위험 빗물받이) → {@code MISSED}, 입양자에게 "시청에 전달됐어요" 알림
+ *             (불이익 없음)</li>
+ *       </ul></li>
  *   <li><b>응답 마감 지남</b>: {@code SENT} → {@code OPEN}(대신 점검 공개) + 연속 무응답 횟수 1 증가 +
  *       근처 입양자 알림</li>
  * </ol>
@@ -85,6 +90,17 @@ public class RequestDeadlineJob {
     }
 
     private int processCompleteOverdue(LocalDateTime now) {
+        int expired = 0;
+        try {
+            Integer updated = transaction.execute(status -> inspectionRequestRepository
+                    .expireUnadoptedOverdue(RequestStatus.IN_PROGRESS, now));
+            expired = updated == null ? 0 : updated;
+        } catch (RuntimeException e) {
+            log.error("[요청 마감 처리] 미입양 대신 점검 종료 실패: {}", e.getMessage(), e);
+        }
+        if (expired > 0) {
+            log.info("[요청 마감 처리] 미입양 대신 점검 종료(EXPIRED) {}건", expired);
+        }
         List<Long> ids = inspectionRequestRepository.findIdsCompleteOverdue(
                 RequestStatus.IN_PROGRESS, now, PageRequest.of(0, BATCH_SIZE));
         int missed = 0;
@@ -106,6 +122,11 @@ public class RequestDeadlineJob {
         if (request == null || !request.isInProgress()
                 || request.getCompleteDeadlineAt().isAfter(now)) {
             return false;
+        }
+        if (request.getAdoption() == null && !request.getDrain().isRisk()) {
+            // 일괄 종료 뒤에 마감이 지난 미입양 요청도 같은 규칙으로 끝낸다 (알림 없음)
+            request.expire(now);
+            return true;
         }
         request.miss(now);
         if (request.getAdoption() != null) {

@@ -110,4 +110,51 @@ class RequestDeadlineJobTest extends RequestIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT ignore_count FROM adoption WHERE id = ?",
                 Integer.class, adoption)).isEqualTo(3);
     }
+
+    @Test
+    void 완료_마감이_지난_미입양_안전_빗물받이_요청은_알림_없이_EXPIRED다() {
+        Long safe = fixtures.drain(RequestFixtures.north(10), RequestFixtures.BASE_LNG, false);
+        Long open = fixtures.request(forecast, safe, null, "OPEN", NOW.minusHours(3), NOW);
+        Long safeClaimedDrain = fixtures.drain(RequestFixtures.north(20), RequestFixtures.BASE_LNG,
+                false);
+        Long claimed = fixtures.request(forecast, safeClaimedDrain, null, "OPEN",
+                NOW.minusHours(3), NOW);
+        Long substitute = fixtures.user("대신집사");
+        fixtures.claim(claimed, substitute);
+
+        job.run();
+
+        assertThat(fixtures.status(open)).isEqualTo("EXPIRED");
+        assertThat(fixtures.status(claimed)).isEqualTo("EXPIRED");
+        assertThat(jdbcTemplate.queryForObject("SELECT missed_at FROM inspection_request "
+                + "WHERE id = ?", LocalDateTime.class, open)).isEqualTo(NOW);
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM notification "
+                + "WHERE request_id IN (?, ?)", Integer.class, open, claimed)).isZero();
+    }
+
+    @Test
+    void 미입양이어도_위험_빗물받이와_입양된_빗물받이는_MISSED다() {
+        Long risky = fixtures.drain(RequestFixtures.north(10), RequestFixtures.BASE_LNG, true);
+        Long riskyRequest = fixtures.request(forecast, risky, null, "OPEN", NOW.minusHours(3),
+                NOW);
+        Long adopted = fixtures.request(forecast, drain, adoption, "SENT", NOW.minusHours(3),
+                NOW);
+
+        job.run();
+
+        assertThat(fixtures.status(riskyRequest)).isEqualTo("MISSED");
+        assertThat(fixtures.status(adopted)).isEqualTo("MISSED");
+        assertThat(fixtures.notificationCount(owner, "REQUEST_MISSED")).isEqualTo(1);
+    }
+
+    @Test
+    void 마감_전인_미입양_요청은_그대로_둔다() {
+        Long safe = fixtures.drain(RequestFixtures.north(10), RequestFixtures.BASE_LNG, false);
+        Long open = fixtures.request(forecast, safe, null, "OPEN", NOW.minusHours(3),
+                NOW.plusMinutes(1));
+
+        job.run();
+
+        assertThat(fixtures.status(open)).isEqualTo("OPEN");
+    }
 }

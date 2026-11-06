@@ -13,6 +13,8 @@ import com.rainbutler.global.security.JwtTokenProvider;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -139,6 +141,26 @@ class MyRequestListApiTest extends RequestIntegrationTest {
                         .header("Authorization", "Bearer " + token()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void 근처_요청은_가까운_순으로_최대_30개다() throws Exception {
+        // 내 또랑이(기준점)에서 북쪽 100 ~ 135m에 공개 요청 36개 (setUp의 250m 요청 포함 37개)
+        List<Long> near = new ArrayList<>();
+        for (int i = 35; i >= 0; i--) {
+            near.add(fixtures.request(forecast,
+                    fixtures.drain(RequestFixtures.north(100 + i), RequestFixtures.BASE_LNG, true),
+                    null, "OPEN", NOW, NOW.withHour(16)));
+        }
+
+        list(null, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.role == 'NEARBY')]", hasSize(30)))
+                // 가장 가까운 100m가 첫 번째 근처 요청 (내 요청 · 맡은 요청 다음)
+                .andExpect(jsonPath("$.data[2].requestId").value(near.get(35).intValue()))
+                .andExpect(jsonPath("$.data[3].requestId").value(near.get(34).intValue()))
+                // 30개 밖의 먼 요청(250m)은 빠진다
+                .andExpect(jsonPath("$.data[?(@.requestId == " + nearMyDrain + ")]", empty()));
     }
 
     private ResultActions list(Double latitude, Double longitude) throws Exception {

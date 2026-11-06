@@ -52,15 +52,17 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("inProgress") Collection<RequestStatus> inProgress);
 
     /**
-     * 입양되지 않은 운영 중 위험 빗물받이를 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
+     * 입양되지 않은 운영 중 빗물받이를 모두 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
+     *
+     * <p>빗물받이는 공공데이터로 일괄 등록해 사진 · AI 판정(위험 여부)이 없으므로 위험 여부로 거르지 않습니다.
      *
      * @return 빗물받이 목록
      */
     @Query("SELECT d FROM Drain d "
             + "WHERE d.status = com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE "
-            + "AND d.isRisk = true AND NOT EXISTS (SELECT 1 FROM Adoption a WHERE a.drain = d "
+            + "AND NOT EXISTS (SELECT 1 FROM Adoption a WHERE a.drain = d "
             + "AND a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE)")
-    List<Drain> findUnadoptedRiskDrains();
+    List<Drain> findUnadoptedActiveDrains();
 
     /**
      * 예보의 요청 중 해당 상태인 것을 찾습니다. (예보 취소)
@@ -189,14 +191,39 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("since") LocalDateTime since);
 
     /**
-     * 완료 마감 전의 공개(OPEN) 요청을 모두 찾습니다. 근처인지는 호출하는 쪽에서 거릅니다. (내 요청 목록)
+     * 위경도 사각형 안 빗물받이의 완료 마감 전 공개(OPEN) 요청을 찾습니다. 정확한 반경은 호출하는 쪽에서 거릅니다.
+     * (내 요청 목록의 근처 요청)
      *
      * @param now 현재 시각
      * @return 요청 목록 (빗물받이 · 예보 · 입양 함께)
      */
-    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain JOIN FETCH r.forecast "
+    @Query("SELECT r FROM InspectionRequest r JOIN FETCH r.drain d JOIN FETCH r.forecast "
             + "LEFT JOIN FETCH r.adoption "
             + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
-            + "AND r.completeDeadlineAt > :now")
-    List<InspectionRequest> findOpenBefore(@Param("now") LocalDateTime now);
+            + "AND r.completeDeadlineAt > :now "
+            + "AND d.latitude BETWEEN :minLat AND :maxLat "
+            + "AND d.longitude BETWEEN :minLng AND :maxLng")
+    List<InspectionRequest> findOpenInBox(@Param("now") LocalDateTime now,
+            @Param("minLat") double minLat, @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng, @Param("maxLng") double maxLng);
+
+    /**
+     * 완료 마감이 지난 미입양 · 위험 아님 빗물받이의 진행 중 요청을 한 번에 EXPIRED로 끝냅니다. (마감 처리 배치)
+     *
+     * <p>미입양 대신 점검은 수백 ~ 수천 건이 같은 마감을 가지므로 건별이 아니라 UPDATE 한 번으로 처리합니다.
+     * 알림이 없어서 가능합니다. 종료 시각은 {@code missed_at}에 남깁니다.
+     *
+     * @param inProgress 진행 중 상태
+     * @param now 현재 시각
+     * @return 끝낸 요청 수
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE InspectionRequest r SET "
+            + "r.status = com.rainbutler.domain.request.entity.RequestStatus.EXPIRED, "
+            + "r.missedAt = :now, r.updatedAt = :now "
+            + "WHERE r.status IN :inProgress AND r.completeDeadlineAt <= :now "
+            + "AND r.adoption IS NULL AND r.deletedAt IS NULL "
+            + "AND r.drain.id IN (SELECT d.id FROM Drain d WHERE d.isRisk = false)")
+    int expireUnadoptedOverdue(@Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("now") LocalDateTime now);
 }

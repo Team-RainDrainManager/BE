@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>CLAIMANT: 내가 대신 점검으로 맡은 요청</li>
  *   <li>NEARBY: 공개(OPEN) 요청 중 보낸 위치에서 300m 안, 또는 내 또랑이에서 300m 안. 내 또랑이 요청은 제외</li>
  * </ul>
- * 진행 중인 요청과 최근 24시간 안에 끝난(완료 · 놓침) 요청을 보여 주고, 취소된 요청은 뺍니다.
- * 진행 중인 요청을 다음 마감이 임박한 순으로, 그다음 끝난 요청을 보여 줍니다.
+ * 진행 중인 요청과 최근 24시간 안에 끝난(완료 · 놓침 · 종료) 요청을 보여 주고, 취소된 요청은 뺍니다.
+ * 순서: 내 요청 · 맡은 요청(진행 중, 마감 임박순) → 근처 요청(가까운 순, 최대 30개) → 끝난 요청.
  */
 @Service
 @RequiredArgsConstructor
@@ -73,31 +74,66 @@ public class MyRequestQueryService {
                     toResponse(request, Role.CLAIMANT, now, latitude, longitude));
         }
 
-        List<Drain> myDrains = adoptionRepository
-                .findAllByUser_IdAndStatus(userId, AdoptionStatus.ACTIVE).stream()
-                .map(Adoption::getDrain)
+        List<MyRequestResponse> mine = new ArrayList<>(result.values());
+        List<MyRequestResponse> active = mine.stream()
+                .filter(r -> r.remainingMinutes() != null)
+                .sorted(Comparator.comparing(MyRequestQueryService::nextDeadline))
                 .toList();
-        int radius = policy.substituteRadiusMeters();
-        for (InspectionRequest request : inspectionRequestRepository.findOpenBefore(now)) {
-            if (result.containsKey(request.getId()) || isOwnedBy(request, userId)) {
-                continue;
-            }
-            Drain drain = request.getDrain();
-            boolean nearMe = latitude != null && longitude != null
-                    && distance(latitude, longitude, drain) <= radius;
-            boolean nearMyDrain = myDrains.stream().anyMatch(mine ->
-                    distance(mine.getLatitude(), mine.getLongitude(), drain) <= radius);
-            if (nearMe || nearMyDrain) {
-                result.put(request.getId(),
-                        toResponse(request, Role.NEARBY, now, latitude, longitude));
-            }
+        List<MyRequestResponse> finished = mine.stream()
+                .filter(r -> r.remainingMinutes() == null)
+                .sorted(Comparator.comparing(MyRequestQueryService::nextDeadline))
+                .toList();
+
+        List<MyRequestResponse> list = new ArrayList<>(active);
+        list.addAll(findNearby(userId, latitude, longitude, now, result.keySet()));
+        list.addAll(finished);
+        return list;
+    }
+
+    /**
+     * 근처 공개 요청을 가까운 순으로 최대 {@code nearby-request-list-limit}개 찾습니다.
+     *
+     * <p>기준점은 보낸 위치와 내 또랑이들입니다. 기준점들을 덮는 사각형으로 DB에서 후보를 거른 뒤, 기준점 중 가장
+     * 가까운 곳과의 거리가 반경(300m) 안인 것만 남깁니다.
+     */
+    private List<MyRequestResponse> findNearby(Long userId, Double latitude, Double longitude,
+            LocalDateTime now, Set<Long> alreadyListed) {
+        List<double[]> centers = new ArrayList<>();
+        if (latitude != null && longitude != null) {
+            centers.add(new double[] {latitude, longitude});
+        }
+        adoptionRepository.findAllByUser_IdAndStatus(userId, AdoptionStatus.ACTIVE).stream()
+                .map(Adoption::getDrain)
+                .forEach(drain -> centers.add(
+                        new double[] {drain.getLatitude(), drain.getLongitude()}));
+        if (centers.isEmpty()) {
+            return List.of();
         }
 
-        List<MyRequestResponse> list = new ArrayList<>(result.values());
-        list.sort(Comparator
-                .comparing((MyRequestResponse r) -> r.remainingMinutes() == null)
-                .thenComparing(MyRequestQueryService::nextDeadline));
-        return list;
+        int radius = policy.substituteRadiusMeters();
+        double minLat = centers.stream().mapToDouble(c -> c[0]).min().orElseThrow();
+        double maxLat = centers.stream().mapToDouble(c -> c[0]).max().orElseThrow();
+        double minLng = centers.stream().mapToDouble(c -> c[1]).min().orElseThrow();
+        double maxLng = centers.stream().mapToDouble(c -> c[1]).max().orElseThrow();
+        double latDelta = GeoDistance.latDelta(radius);
+        double lngDelta = GeoDistance.lngDelta(Math.max(Math.abs(minLat), Math.abs(maxLat)),
+                radius);
+        List<InspectionRequest> candidates = inspectionRequestRepository.findOpenInBox(now,
+                minLat - latDelta, maxLat + latDelta, minLng - lngDelta, maxLng + lngDelta);
+
+        record Near(InspectionRequest request, double distance) {
+        }
+        return candidates.stream()
+                .filter(request -> !alreadyListed.contains(request.getId())
+                        && !isOwnedBy(request, userId))
+                .map(request -> new Near(request, centers.stream()
+                        .mapToDouble(c -> distance(c[0], c[1], request.getDrain()))
+                        .min().orElseThrow()))
+                .filter(near -> near.distance() <= radius)
+                .sorted(Comparator.comparingDouble(Near::distance))
+                .limit(policy.nearbyRequestListLimit())
+                .map(near -> toResponse(near.request(), Role.NEARBY, now, latitude, longitude))
+                .toList();
     }
 
     private MyRequestResponse toResponse(InspectionRequest request, Role role,
