@@ -28,7 +28,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param sanctionSecondDays 허위 제보 2회째 제재 일수
  * @param sanctionPermanentCount 이 횟수째부터 영구 제재
  * @param pauseDays 점검 쉬기 기간 (일)
- * @param volunteerMinutesPerCleaning 청소 1회당 인정하는 봉사 시간 (분)
+ * @param volunteerPointsPerHour 봉사 시간 1시간으로 인정하는 활동 점수 (점)
  * @param rainCompleteDeadlineTime 비 예보 요청 완료 마감 시각 (20:00)
  * @param rainPopThreshold 비 예보 기준: 강수확률 최댓값 (%, 이상)
  * @param rainMmThreshold 비 예보 기준: 강수량 합계 (mm, 이상)
@@ -64,7 +64,7 @@ public record PolicyProperties(
         int sanctionSecondDays,
         int sanctionPermanentCount,
         int pauseDays,
-        int volunteerMinutesPerCleaning,
+        int volunteerPointsPerHour,
         LocalTime rainCompleteDeadlineTime,
         int rainPopThreshold,
         BigDecimal rainMmThreshold,

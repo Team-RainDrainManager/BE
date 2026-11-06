@@ -75,6 +75,8 @@ class ManagementLogServiceTest {
     @Mock
     private DrainAiClassifier drainAiClassifier;
     @Mock
+    private ManagementRewardService managementRewardService;
+    @Mock
     private UserRepository userRepository;
 
     private ManagementLogService service;
@@ -85,8 +87,8 @@ class ManagementLogServiceTest {
     void setUp() {
         service = new ManagementLogService(adoptionRepository, managementLogRepository,
                 inspectionRequestRepository, inspectionRequestService, storageService,
-                drainAiClassifier, new ManagementCyclePolicy(POLICIES), POLICIES,
-                userRepository, CLOCK);
+                drainAiClassifier, new ManagementCyclePolicy(POLICIES), managementRewardService,
+                POLICIES, userRepository, CLOCK);
 
         drain = mock(Drain.class);
         lenient().when(drain.getLatitude()).thenReturn(DRAIN_LAT);

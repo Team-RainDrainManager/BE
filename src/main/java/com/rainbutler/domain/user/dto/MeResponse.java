@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * @param sanction 제재 상태
  * @param pause 점검 쉬기 상태
  * @param inspectionCount 인정된 점검 수 (정기 · 비 예보 · 대신 점검)
- * @param volunteerMinutes 봉사 시간 (분, 청소 1회당 정책 값만큼)
+ * @param volunteerMinutes 봉사 시간 (분, 활동 점수 100점당 1시간)
  */
 public record MeResponse(
         Long id,

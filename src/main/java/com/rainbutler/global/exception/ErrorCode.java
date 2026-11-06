@@ -50,6 +50,10 @@ public enum ErrorCode {
     PAUSE_NO_ADOPTION(HttpStatus.CONFLICT, "입양한 빗물받이가 있어야 쉬기를 신청할 수 있어요."),
     PAUSE_COOLDOWN(HttpStatus.CONFLICT, "점검 쉬기는 90일에 한 번 신청할 수 있어요."),
     WITHDRAW_TOOL_NOT_RETURNED(HttpStatus.CONFLICT, "빌린 도구를 반납한 뒤 탈퇴할 수 있어요."),
+    IDENTITY_VERIFICATION_REQUIRED(HttpStatus.CONFLICT,
+            "활동 확인서를 발급하려면 실명을 먼저 등록해 주세요."),
+    CERTIFICATE_NO_ACTIVITY(HttpStatus.CONFLICT,
+            "활동 확인서를 발급할 인정된 활동 기록이 없어요."),
 
     // ───────── 빗물받이 ─────────
     DRAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "빗물받이를 찾을 수 없어요."),

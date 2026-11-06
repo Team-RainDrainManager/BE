@@ -30,7 +30,7 @@
 | ★ | PUT | `/users/me/location` | 13 | 활동 위치 갱신 (대신 점검 300m 판정용) |
 | | GET · PATCH | `/users/me/settings` | 19 | 앱 알림, 야간 수신(06시 발송) 동의. 관리 주기는 14일, 겨울(12~2월)은 서버가 28일 자동 적용 |
 | | POST | `/users/me/rest` | 05, 19 | 점검 쉬기 신청 (90일에 한 번) ⚠️ |
-| | POST | `/users/me/identity` | 16 | 실명 인증 (봉사 확인서용) |
+| | POST | `/users/me/identity` | 16 | 실명 등록 (봉사 확인서용, 현재 목업 인증). `{ realName }` → `{ realName, method, verifiedAt }` |
 
 ## 2. 사진 · 알림 (파트 A)
 
@@ -126,7 +126,7 @@
 | | GET | `/reports/{id}` | C-5 | 제보 상세. 제보자 본인 · `ADMIN` · `CITY_OFFICIAL`만 조회 |
 | | GET | `/users/me/activities?type=&cursor=&size=` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 (커서 페이지) |
 | | GET | `/users/me/activities.csv` | 17 | 활동 기록 CSV |
-| | GET | `/users/me/volunteer-certificate` | 16 | 활동 확인서 (실명 인증 필요) |
+| | GET | `/users/me/certificate` | 16 | 활동 확인서 PDF 다운로드 (실명 등록 + 인정 점검 1건 이상 필요) |
 | | GET | `/leaderboard?type=WEEKLY\|TOTAL&limit=` | 18 | 주간 · 누적 참여 점수 순위 (구역 · 단체는 준비 중) |
 | | GET | `/leaderboard/me?type=WEEKLY\|TOTAL` | 18 | 내 리더보드 순위 |
 
@@ -153,6 +153,21 @@
 - `amount`: 점검 경험치(`xpAwarded`)와 경험치 내역의 증감. 적립은 양수, 회수는 음수다.
 - `status`: 점검 · 제보의 상태 이름(`COMPLETED` 등). 경험치 행은 `null`.
 - `size`: 기본 20, 최대 50(넘으면 50). 잘못된 `type` · `cursor` · `size`는 400 `INVALID_INPUT`.
+
+### 활동 확인서 규칙
+
+- `POST /users/me/identity`로 실명을 등록해야 한다. 지금은 본인인증 대행사 연동 전이라 이름만 저장하는 목업이며,
+  `method`는 `MOCK`이다. 실명은 `/users/me` 응답에 내려주지 않는다.
+- `GET /users/me/certificate`는 JSON이 아니라 **PDF 파일**을 바로 내려준다.
+  - `Content-Type: application/pdf`
+  - `Content-Disposition: attachment; filename="activity-certificate-{yyyy-MM-dd}.pdf"`
+  - 서버에 저장하지 않고 요청할 때마다 만든다. 발급번호는 없다.
+- 발급 조건: 실명 등록 + 인정 점검 1건 이상. 아니면 409 `IDENTITY_VERIFICATION_REQUIRED` ·
+  `CERTIFICATE_NO_ACTIVITY`.
+- 인정 점검 수: 대신 점검(완료 청소) + 입양 후 인증 점검(정기 · 비 예보). 반려된 기록은 뺀다.
+- 봉사 시간: **활동 점수 100점당 1시간**(내림). 활동 점수는 개인 포인트 적립(점검 · 청소 · 입양 관리, 제보 제외)과
+  입양한 빗물받이의 성장 점수 합이다.
+- 1365 자원봉사포털 등록 전에는 공식 봉사 실적이 아니라는 문구를 PDF에 넣는다.
 
 ### 리더보드 규칙
 

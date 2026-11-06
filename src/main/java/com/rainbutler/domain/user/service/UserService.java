@@ -4,8 +4,11 @@ import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.cleaning.entity.CleaningType;
+import com.rainbutler.domain.point.entity.PointSourceType;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
 import com.rainbutler.domain.sanction.service.SanctionService;
+import com.rainbutler.domain.user.dto.IdentityVerifyRequest;
+import com.rainbutler.domain.user.dto.IdentityVerifyResponse;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
@@ -16,6 +19,8 @@ import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +43,7 @@ public class UserService {
     private final PauseService pauseService;
     private final ActivityStatsRepository activityStatsRepository;
     private final PolicyProperties policyProperties;
+    private final Clock clock;
 
     /**
      * 로그인 사용자의 정보를 조회합니다.
@@ -72,15 +78,41 @@ public class UserService {
                 userId, List.of(CleaningType.SUBSTITUTE))
                 + activityStatsRepository.countVerifiedManagements(
                         userId, List.of(ManagementActionType.values()));
-        // 봉사 시간: 청소한 횟수(입양 전 · 대신 점검 · 점검 중 청소) × 1회당 분
-        long cleaningCount = activityStatsRepository.countCompletedCleanings(
-                userId, List.of(CleaningType.values()))
-                + activityStatsRepository.countVerifiedManagements(
-                        userId, List.of(ManagementActionType.CLEANING));
-        long volunteerMinutes = cleaningCount * policyProperties.volunteerMinutesPerCleaning();
+        // 봉사 시간: 활동 점수(개인 적립 + 입양 빗물받이 성장) 100점당 1시간
+        long personalPoints = pointHistoryRepository.sumActivityPoints(userId,
+                List.of(PointSourceType.INSPECTION, PointSourceType.CLEANING,
+                        PointSourceType.MANAGEMENT));
+        long drainPoints = adoptionRepository.sumScoreByUser(userId);
+        long volunteerMinutes = (personalPoints + drainPoints)
+                / policyProperties.volunteerPointsPerHour() * 60;
 
         return MeResponse.of(user, participationScore, adoptionCount, sanction, pause,
                 inspectionCount, volunteerMinutes);
+    }
+
+    /**
+     * 활동 확인서에 쓸 실명을 등록합니다.
+     *
+     * <p>지금은 본인인증 대행사 연동 전이라 이름만 저장하는 목업입니다. 실제 인증을 붙일 때는
+     * {@code IdentityVerifier}가 돌려준 실명을 같은 자리에 넣으면 됩니다. 실명은 확인서 발급에만 쓰고
+     * 다른 응답에는 내려주지 않습니다.
+     *
+     * @param userId 로그인 사용자 id
+     * @param request 실명
+     * @return 저장된 실명과 인증 시각
+     * @throws BusinessException 사용자가 없거나(USER_NOT_FOUND) 이름이 비었을 때 (INVALID_INPUT)
+     */
+    @Transactional
+    public IdentityVerifyResponse verifyIdentity(Long userId, IdentityVerifyRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        String realName = request.realName() == null ? "" : request.realName().trim();
+        if (realName.isEmpty() || realName.length() > 20) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "성명은 1~20자로 입력해 주세요.");
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        user.verifyIdentity(realName, now);
+        return new IdentityVerifyResponse(realName, IdentityVerifyResponse.METHOD_MOCK, now);
     }
 
     /**

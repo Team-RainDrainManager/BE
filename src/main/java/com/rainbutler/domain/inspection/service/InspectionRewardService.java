@@ -3,6 +3,7 @@ package com.rainbutler.domain.inspection.service;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.drain.service.GrowthLevelPolicy;
 import com.rainbutler.domain.inspection.entity.Inspection;
+import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.inspection.repository.InspectionRepository;
 import com.rainbutler.domain.point.entity.PointHistory;
 import com.rainbutler.domain.point.entity.PointSourceType;
@@ -68,7 +69,8 @@ public class InspectionRewardService {
                     .build());
             inspection.getUser().addPoint(xp);
 
-            if (growthAdoption != null) {
+            // 대신 점검은 맡은 사람의 개인 포인트만 준다. 남의 빗물받이 성장 점수는 올리지 않는다.
+            if (growthAdoption != null && inspection.getKind() != InspectionKind.SUBSTITUTE) {
                 growthAdoption.addGrowth(
                         xp, growthLevelPolicy.levelFor(growthAdoption.getScore() + xp));
             }
