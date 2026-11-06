@@ -15,6 +15,7 @@ import com.rainbutler.domain.forecast.client.DailyRain;
 import com.rainbutler.domain.forecast.client.KmaApiException;
 import com.rainbutler.domain.forecast.client.KmaForecastClient;
 import com.rainbutler.domain.forecast.client.KmaProperties;
+import com.rainbutler.domain.forecast.client.KmaRequestExecutor;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ import org.springframework.web.client.RestClient;
 class KmaForecastClientTest {
 
     private static final String BASE_URL = "https://kma.test/getVilageFcst";
+    private static final String NCST_URL = "https://kma.test/getUltraSrtNcst";
     private static final String KEY = "test-kma-key";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 30, 5, 15);
 
@@ -112,7 +114,9 @@ class KmaForecastClientTest {
     }
 
     private KmaForecastClient client(RestClient.Builder builder, String key) {
-        return new KmaForecastClient(builder.build(), new KmaProperties(key, BASE_URL, 57, 125));
+        KmaProperties properties = new KmaProperties(key, BASE_URL, NCST_URL, 57, 125);
+        return new KmaForecastClient(
+                new KmaRequestExecutor(builder.build(), properties), properties);
     }
 
     private String sample() throws IOException {

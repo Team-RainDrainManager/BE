@@ -118,6 +118,7 @@ rain-butler:
   kma:
     auth-key: ${KMA_AUTH_KEY:}             # 기상청 API허브 인증키. 비어 있으면 예보 수집을 건너뛴다
     base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst
+    ultra-srt-ncst-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst
     nx: 57                                 # 파일럿 역곡동 격자 (위경도 → 격자 변환으로 확인)
     ny: 125
   scheduling:
