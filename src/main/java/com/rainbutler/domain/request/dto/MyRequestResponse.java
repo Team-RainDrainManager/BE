@@ -9,7 +9,8 @@ import java.util.List;
  *
  * @param requestId 요청 id
  * @param drain 빗물받이
- * @param state 요청 상태
+ * @param state 요청 상태 (SENT · ACCEPTED · OPEN · CLAIMED 진행 중 / COMPLETED 완료 · MISSED 시청 인계 ·
+ *     EXPIRED 미입양 대신 점검이 마감까지 안 돼 종료)
  * @param role 나와의 관계 (OWNER 내 또랑이 · CLAIMANT 내가 맡음 · NEARBY 근처 대신 점검)
  * @param rainStartAt 비 시작 예상 시각
  * @param replyDeadlineAt 응답 마감

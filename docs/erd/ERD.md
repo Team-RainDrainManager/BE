@@ -55,6 +55,8 @@
   `request_id`는 요청당 1건만 연결(유니크)
 - V15: 제보 촬영 위치 `report.latitude/longitude` (없는 기존 행은 빗물받이 위치로 백필),
   제보 종류에 `ODOR` 추가(`type`은 varchar), 내 제보 · 관리자 상태별 목록 조회 인덱스
+- 요청 상태 `EXPIRED` 추가 (Flyway 없음, 문자열 값만): 미입양 · 위험 아님 빗물받이 대신 점검이 완료 마감까지 안 되면 종료.
+  시청 인계(`MISSED`) 아님. 종료 시각은 `missed_at`을 같이 쓴다
 - `erd.png`는 V2 ~ V14 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)

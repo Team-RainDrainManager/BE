@@ -201,4 +201,24 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
             + "AND r.completeDeadlineAt > :now")
     List<InspectionRequest> findOpenBefore(@Param("now") LocalDateTime now);
+
+    /**
+     * 완료 마감이 지난 미입양 · 위험 아님 빗물받이의 진행 중 요청을 한 번에 EXPIRED로 끝냅니다. (마감 처리 배치)
+     *
+     * <p>미입양 대신 점검은 수백 ~ 수천 건이 같은 마감을 가지므로 건별이 아니라 UPDATE 한 번으로 처리합니다.
+     * 알림이 없어서 가능합니다. 종료 시각은 {@code missed_at}에 남깁니다.
+     *
+     * @param inProgress 진행 중 상태
+     * @param now 현재 시각
+     * @return 끝낸 요청 수
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE InspectionRequest r SET "
+            + "r.status = com.rainbutler.domain.request.entity.RequestStatus.EXPIRED, "
+            + "r.missedAt = :now, r.updatedAt = :now "
+            + "WHERE r.status IN :inProgress AND r.completeDeadlineAt <= :now "
+            + "AND r.adoption IS NULL AND r.deletedAt IS NULL "
+            + "AND r.drain.id IN (SELECT d.id FROM Drain d WHERE d.isRisk = false)")
+    int expireUnadoptedOverdue(@Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("now") LocalDateTime now);
 }

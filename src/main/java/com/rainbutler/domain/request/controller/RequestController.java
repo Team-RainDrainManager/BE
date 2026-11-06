@@ -56,7 +56,7 @@ public class RequestController {
             """;
 
     private static final String MY_REQUESTS = """
-            내 비 예보 요청 목록입니다. 진행 중인 요청을 마감이 임박한 순으로, 그다음 최근 24시간 안에 끝난(완료 · 놓침)
+            내 비 예보 요청 목록입니다. 진행 중인 요청을 마감이 임박한 순으로, 그다음 최근 24시간 안에 끝난(완료 · 놓침 · 종료)
             요청을 보여 줍니다. 취소된 요청은 빠집니다.
 
             | role | 대상 | availableActions |
@@ -69,6 +69,9 @@ public class RequestController {
               근처만 나오고 `distanceM`은 null입니다. 둘 중 하나만 보내면 400.
             - `remainingMinutes`: 응답 전이면 응답 마감까지, 아니면 완료 마감까지 남은 분 (끝난 요청은 null)
             - `drain.name`: 입양된 빗물받이면 입양 이름, 아니면 null
+            - `state`: 진행 중 `SENT` · `ACCEPTED` · `OPEN` · `CLAIMED` / 끝남 `COMPLETED`(완료) ·
+              `MISSED`(마감까지 미완료, 시청 인계) · `EXPIRED`(미입양 빗물받이 대신 점검이 마감까지 안 돼 종료,
+              시청 인계 아님)
             """;
 
     private final RequestReplyService requestReplyService;
