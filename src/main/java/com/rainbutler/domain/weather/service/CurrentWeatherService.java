@@ -56,4 +56,17 @@ public class CurrentWeatherService {
                 && !weather.observedAt().isBefore(now.minus(FRESHNESS));
         return new WeatherStatus(fresh && weather.raining(), weather.observedAt(), false);
     }
+
+    /**
+     * 시연용으로 지금부터 정한 시간 동안 "비 오는 중"으로 표시합니다. 0분이면 해제합니다.
+     *
+     * @param minutes 분 (0이면 해제)
+     * @param now 현재 시각
+     * @return 강제 비 종료 시각 (해제했으면 null)
+     */
+    public LocalDateTime simulateRain(int minutes, LocalDateTime now) {
+        LocalDateTime until = minutes == 0 ? null : now.plusMinutes(minutes);
+        currentWeatherRepository.saveSimulatedRainingUntil(until, now);
+        return until;
+    }
 }
