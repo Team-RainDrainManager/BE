@@ -79,11 +79,11 @@ class MeStatsApiTest extends IntegrationTestSupport {
 
     @Test
     void 참여_점수는_적립에서_회수를_뺀_값이다() throws Exception {
-        point(30, "EARN");
-        point(5, "EARN");
-        point(5, "REVOKE");
+        point(30, "EARN", "CLEANING");
+        point(5, "EARN", "CLEANING");
+        point(5, "REVOKE", "CLEANING");
         // 회수를 음수로 저장한 경우도 같은 결과
-        point(-10, "REVOKE");
+        point(-10, "REVOKE", "CLEANING");
 
         me().andExpect(jsonPath("$.data.participationScore").value(20));
     }
@@ -139,31 +139,50 @@ class MeStatsApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 입양_전_청소는_봉사_시간에만_들어간다() throws Exception {
-        cleaning(user.getId(), "ADOPTION", "COMPLETED", "PENDING");
-        cleaning(user.getId(), "ADOPTION", "COMPLETED", "NOT_REQUIRED");
+    void 활동_점수_100점당_1시간이다() throws Exception {
+        point(250, "EARN", "INSPECTION");
 
-        me().andExpect(jsonPath("$.data.inspectionCount").value(0))
-                .andExpect(jsonPath("$.data.volunteerMinutes").value(30));
+        me().andExpect(jsonPath("$.data.volunteerMinutes").value(120));
     }
 
     @Test
-    void 대신_점검은_점검_수와_봉사_시간에_모두_들어간다() throws Exception {
+    void 빗물받이_성장_점수도_봉사_시간에_들어간다() throws Exception {
+        Long adoption = adoption("ACTIVE");
+        jdbcTemplate.update("UPDATE adoption SET score = 100 WHERE id = ?", adoption);
+
+        me().andExpect(jsonPath("$.data.volunteerMinutes").value(60));
+    }
+
+    @Test
+    void 제보_점수는_봉사_시간에서_뺀다() throws Exception {
+        point(100, "EARN", "REPORT");
+
+        me().andExpect(jsonPath("$.data.volunteerMinutes").value(0));
+    }
+
+    @Test
+    void 활동_점수가_100점_미만이면_봉사_시간이_없다() throws Exception {
+        point(99, "EARN", "INSPECTION");
+
+        me().andExpect(jsonPath("$.data.volunteerMinutes").value(0));
+    }
+
+    @Test
+    void 대신_점검은_점검_수에_들어간다() throws Exception {
         cleaning(user.getId(), "SUBSTITUTE", "COMPLETED", "APPROVED");
 
         me().andExpect(jsonPath("$.data.inspectionCount").value(1))
-                .andExpect(jsonPath("$.data.volunteerMinutes").value(15));
+                .andExpect(jsonPath("$.data.volunteerMinutes").value(0));
     }
 
     @Test
-    void 입양_후_점검은_모두_세고_청소까지_한_것만_봉사_시간에_들어간다() throws Exception {
+    void 입양_후_점검은_모두_센다() throws Exception {
         Long adoption = adoption("ACTIVE");
         management(adoption, "INSPECTION", "VERIFIED", "NOT_REQUIRED");
         management(adoption, "CLEANING", "VERIFIED", "PENDING");
 
-        // 입양 때 만든 입양 전 청소 1회 + 점검 중 청소 1회
         me().andExpect(jsonPath("$.data.inspectionCount").value(2))
-                .andExpect(jsonPath("$.data.volunteerMinutes").value(30));
+                .andExpect(jsonPath("$.data.volunteerMinutes").value(0));
     }
 
     @Test
@@ -172,7 +191,7 @@ class MeStatsApiTest extends IntegrationTestSupport {
         management(adoption, "CLEANING", "VERIFIED", "APPROVED");
 
         me().andExpect(jsonPath("$.data.inspectionCount").value(1))
-                .andExpect(jsonPath("$.data.volunteerMinutes").value(30));
+                .andExpect(jsonPath("$.data.volunteerMinutes").value(0));
     }
 
     @Test
@@ -185,9 +204,8 @@ class MeStatsApiTest extends IntegrationTestSupport {
         management(adoption, "CLEANING", "FAILED", "NOT_REQUIRED");
         management(adoption, "CLEANING", "VERIFIED", "REJECTED");
 
-        // 입양 때 만든 입양 전 청소 1회만 남는다
         me().andExpect(jsonPath("$.data.inspectionCount").value(0))
-                .andExpect(jsonPath("$.data.volunteerMinutes").value(15));
+                .andExpect(jsonPath("$.data.volunteerMinutes").value(0));
     }
 
     @Test
@@ -204,10 +222,10 @@ class MeStatsApiTest extends IntegrationTestSupport {
         return mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token));
     }
 
-    private void point(int amount, String type) {
+    private void point(int amount, String type, String sourceType) {
         jdbcTemplate.update("INSERT INTO point_history (user_id, source_type, source_id, amount, "
-                + "type, created_at, updated_at) VALUES (?, 'CLEANING', 1, ?, ?, now(), now())",
-                user.getId(), amount, type);
+                + "type, created_at, updated_at) VALUES (?, ?, 1, ?, ?, now(), now())",
+                user.getId(), sourceType, amount, type);
     }
 
     /**

@@ -57,6 +57,15 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
     long countByUser_IdAndStatus(Long userId, AdoptionStatus status);
 
     /**
+     * 사용자가 입양했던 빗물받이들의 성장 점수 합입니다. (봉사 시간 산정 · 해제한 입양도 포함)
+     *
+     * @param userId 사용자 id
+     * @return 빗물받이 성장 점수 합
+     */
+    @Query("SELECT COALESCE(SUM(a.score), 0) FROM Adoption a WHERE a.user.id = :userId")
+    long sumScoreByUser(@Param("userId") Long userId);
+
+    /**
      * 해당 상태인 입양 id를 모두 찾습니다. (미관리 경고 · 자동 해제 · 관리 예정 알림 배치)
      *
      * @param status 입양 상태

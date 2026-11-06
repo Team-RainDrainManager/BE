@@ -1,5 +1,7 @@
 package com.rainbutler.domain.user.controller;
 
+import com.rainbutler.domain.user.dto.IdentityVerifyRequest;
+import com.rainbutler.domain.user.dto.IdentityVerifyResponse;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
@@ -17,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,6 +45,20 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> me(@LoginUserId Long userId) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getMe(userId)));
+    }
+
+    /**
+     * 활동 확인서에 쓸 실명을 등록합니다. (목업 본인인증)
+     */
+    @Operation(summary = "실명 등록",
+            description = "활동 확인서에 표시할 실명을 저장합니다. 지금은 본인인증 대행사 연동 전이라 "
+                    + "이름만 받는 목업이며, 실제 인증을 붙일 때 같은 자리에서 결과를 검증합니다.")
+    @ApiErrorCodes({ErrorCode.INVALID_INPUT, ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN,
+            ErrorCode.INVALID_TOKEN, ErrorCode.USER_NOT_FOUND})
+    @PostMapping("/me/identity")
+    public ResponseEntity<ApiResponse<IdentityVerifyResponse>> verifyIdentity(
+            @LoginUserId Long userId, @Valid @RequestBody IdentityVerifyRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.verifyIdentity(userId, request)));
     }
 
     /**

@@ -108,6 +108,32 @@ class InspectionRewardServiceTest {
     }
 
     @Test
+    void 대신_점검은_개인_점수만_주고_빗물받이_성장은_올리지_않는다() {
+        Inspection substitute = Inspection.builder()
+                .user(user)
+                .drain(drain)
+                .adoption(adoption)
+                .kind(InspectionKind.SUBSTITUTE)
+                .beforePhotoKey("before-key")
+                .beforeGrade(1)
+                .aiConfidence(BigDecimal.valueOf(0.9))
+                .distanceM(1)
+                .capturedAt(NOW)
+                .build();
+        ReflectionTestUtils.setField(substitute, "id", 31L);
+        given(inspectionRepository.countRewardedBetween(USER_ID, DRAIN_ID,
+                NOW.toLocalDate().atStartOfDay(), NOW.toLocalDate().plusDays(1).atStartOfDay()))
+                .willReturn(0L);
+
+        int xp = service.reward(substitute, adoption, "대신 점검", NOW);
+
+        assertThat(xp).isEqualTo(POLICIES.inspectionXp());
+        assertThat(user.getPoint()).isEqualTo(POLICIES.inspectionXp());
+        assertThat(adoption.getScore()).isZero();
+        verify(pointHistoryRepository).save(any(PointHistory.class));
+    }
+
+    @Test
     void 같은_날_같은_빗물받이는_두_번째부터_경험치를_주지_않는다() {
         lenient().when(inspectionRepository.countRewardedBetween(any(), any(), any(), any()))
                 .thenReturn(1L);

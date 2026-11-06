@@ -43,7 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>비 예보 점검({@code type=RAIN})은 연결된 요청을 완료 처리합니다.</li>
  * </ul>
  *
- * <p>포인트 · 성장 점수 지급은 XP 정책이 확정된 뒤 별도로 붙입니다.
+ * <p>인정된 기록에는 {@link ManagementRewardService}가 개인 포인트와 빗물받이 성장 점수를 지급합니다.
+ * (같은 빗물받이는 하루 한 번)
  */
 @Service
 @RequiredArgsConstructor
@@ -57,6 +58,7 @@ public class ManagementLogService {
     private final StorageService storageService;
     private final DrainAiClassifier drainAiClassifier;
     private final ManagementCyclePolicy managementCyclePolicy;
+    private final ManagementRewardService managementRewardService;
     private final PolicyProperties policyProperties;
     private final UserRepository userRepository;
     private final Clock clock;
@@ -157,6 +159,9 @@ public class ManagementLogService {
         }
 
         ManagementLog saved = managementLogRepository.save(log);
+        if (verified) {
+            managementRewardService.reward(saved, now);
+        }
 
         return new ManagementLogResponse(
                 saved.getId(),
@@ -198,7 +203,11 @@ public class ManagementLogService {
                     latestPhotoKey(log),
                     latestDirtLevel(log));
         }
-        return managementLogRepository.save(log);
+        ManagementLog saved = managementLogRepository.save(log);
+        if (newlyVerified) {
+            managementRewardService.reward(saved, now);
+        }
+        return saved;
     }
 
     /**

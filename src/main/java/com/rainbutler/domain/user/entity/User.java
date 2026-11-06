@@ -191,6 +191,17 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 실명 인증 결과를 저장합니다. (활동 확인서 발급용)
+     *
+     * @param realName 인증된 실명
+     * @param now 인증 시각
+     */
+    public void verifyIdentity(String realName, LocalDateTime now) {
+        this.realName = realName;
+        this.identityVerifiedAt = now;
+    }
+
+    /**
      * 본인인증을 마쳤는지 확인합니다.
      *
      * @return 본인인증 여부

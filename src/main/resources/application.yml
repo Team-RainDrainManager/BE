@@ -112,7 +112,7 @@ rain-butler:
     sanction-second-days: 14
     sanction-permanent-count: 3
     pause-days: 14                   # 점검 쉬기 기간 (신청 간격은 rest-cooldown-days)
-    volunteer-minutes-per-cleaning: 15   # 봉사 시간: 청소 1회(입양 전 · 대신 점검 · 점검 중 청소)당 15분
+    volunteer-points-per-hour: 100     # 봉사 시간: 활동 점수(개인 포인트 + 빗물받이 성장) 100점당 1시간
   kma:
     auth-key: ${KMA_AUTH_KEY:}             # 기상청 API허브 인증키. 비어 있으면 예보 수집을 건너뛴다
     base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst
