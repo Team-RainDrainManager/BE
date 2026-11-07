@@ -19,6 +19,7 @@ import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.entity.ReviewStatus;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -83,6 +84,19 @@ public class AdoptionService {
         // 7. 청소 완료 상태 확인
         if (cleaning.getStatus() != CleaningStatus.COMPLETED) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "인증에 실패한 청소입니다.");
+        }
+
+        // 7-1. 촬영 위치가 불일치한 청소는 입양할 수 없다 (기존 데이터 방어)
+        if (cleaning.isLocationMismatch()) {
+            throw new BusinessException(ErrorCode.CLEANING_LOCATION_MISMATCH);
+        }
+
+        // 7-2. 관리자 검토 중이거나 반려된 청소는 입양할 수 없다
+        if (cleaning.getReviewStatus() == ReviewStatus.PENDING) {
+            throw new BusinessException(ErrorCode.CLEANING_UNDER_REVIEW);
+        }
+        if (cleaning.getReviewStatus() == ReviewStatus.REJECTED) {
+            throw new BusinessException(ErrorCode.CLEANING_REJECTED);
         }
 
         // 8. 청소의 빗물받이가 요청한 빗물받이와 일치하는지 확인

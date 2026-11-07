@@ -26,6 +26,7 @@ import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
+import com.rainbutler.global.util.GeoDistance;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,6 @@ import java.time.LocalDateTime;
 public class CleaningService {
 
     private static final int MAX_ADOPTION_COUNT = 3;
-    private static final double LOCATION_MISMATCH_THRESHOLD_METERS = 50.0;
 
     private final CleaningRepository cleaningRepository;
     private final DrainRepository drainRepository;
@@ -53,12 +53,18 @@ public class CleaningService {
     /**
      * 입양 청소를 시작합니다.
      *
+     * <p>촬영 위치가 빗물받이에서 정책 거리({@code location-mismatch-meters})를 넘으면 청소를 시작하지
+     * 않고 다시 촬영하게 합니다.
+     *
      * <p>AI 판정 결과에 따라:
      * <ul>
      *   <li>0등급 → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
      *   <li>1등급 이상 → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
      *   <li>3등급·needsReport=true → 입양 불가, BLOCKAGE 제보로 전환</li>
      * </ul>
+     *
+     * @throws BusinessException 빗물받이가 없거나, 이미 입양됐거나, 입양 한도를 넘었거나, 촬영 위치가
+     *     빗물받이와 너무 멀면
      */
     @Transactional
     public CleaningStartResponse startAdoptionCleaning(Long userId, Long drainId, CleaningStartRequest request) {
@@ -77,23 +83,20 @@ public class CleaningService {
             throw new BusinessException(ErrorCode.ADOPTION_LIMIT_EXCEEDED);
         }
 
-        // 4. 사진 검증
+        // 4. 촬영 위치가 빗물받이 근처인지 확인 (멀면 AI 판정 전에 다시 촬영하게 한다)
+        requireNearDrain(request.latitude(), request.longitude(), drain);
+
+        // 5. 사진 검증
         String photoKey = storageService.verifyUploaded(userId, request.photoKey(), UploadPurpose.BEFORE);
 
-        // 5. 사진 중복 확인
+        // 6. 사진 중복 확인
         if (cleaningRepository.existsByBeforePhotoUrl(photoKey)) {
             throw new BusinessException(ErrorCode.DUPLICATE_PHOTO);
         }
 
-        // 6. AI 판정
+        // 7. AI 판정
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
-
-        // 7. 촬영 위치와 빗물받이 위치 거리 계산
-        double distance = calculateDistance(
-                request.latitude(), request.longitude(),
-                drain.getLatitude(), drain.getLongitude());
-        boolean locationMismatch = distance > LOCATION_MISMATCH_THRESHOLD_METERS;
 
         // 8. 3등급·needsReport=true면 입양 불가, BLOCKAGE 제보로 전환
         boolean blocked = assessment.grade() == 3 && assessment.needsReport();
@@ -141,7 +144,6 @@ public class CleaningService {
         cleaning.setDirtLevel(assessment.dirtLevel());
         cleaning.setDirtConfidence(BigDecimal.valueOf(assessment.confidence()));
         cleaning.setStatus(CleaningStatus.IN_PROGRESS);
-        cleaning.setLocationMismatch(locationMismatch);
 
         // 이미 깨끗한 빗물받이(0등급)는 청소 인증 없이 바로 입양할 수 있게 한다
         boolean alreadyClean = assessment.grade() == 0;
@@ -166,25 +168,26 @@ public class CleaningService {
     }
 
     /**
-     * 두 좌표 사이의 거리를 미터 단위로 계산합니다. (Haversine 공식)
+     * 촬영 위치가 빗물받이에서 정책 거리 안인지 확인합니다.
+     *
+     * @param latitude 촬영 위도
+     * @param longitude 촬영 경도
+     * @param drain 촬영한 빗물받이
+     * @throws BusinessException 정책 거리({@code location-mismatch-meters})를 넘으면
      */
-    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-        final int R = 6371000; // 지구 반지름 (미터)
-
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-        return R * c;
+    private void requireNearDrain(double latitude, double longitude, Drain drain) {
+        double distance = GeoDistance.meters(
+                latitude, longitude, drain.getLatitude(), drain.getLongitude());
+        if (distance > policyProperties.locationMismatchMeters()) {
+            throw new BusinessException(ErrorCode.CLEANING_LOCATION_MISMATCH);
+        }
     }
 
     /**
      * 청소 완료 인증을 진행합니다.
+     *
+     * <p>청소 후 사진 위치가 빗물받이에서 멀거나, 점검 전 사진을 찍은 위치와 크게 차이 나면 인증하지 않고
+     * 다시 촬영하게 합니다.
      *
      * <p>AI 판정 결과에 따라:
      * <ul>
@@ -210,28 +213,37 @@ public class CleaningService {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이미 완료된 청소입니다.");
         }
 
-        // 4. 사진 검증
+        // 4. 청소 후 촬영 위치 확인 (빗물받이 근처 + 점검 전 사진과 같은 자리)
+        requireNearDrain(request.latitude(), request.longitude(), cleaning.getDrain());
+        double distanceFromBefore = GeoDistance.meters(
+                request.latitude(), request.longitude(),
+                cleaning.getLatitude(), cleaning.getLongitude());
+        if (distanceFromBefore > policyProperties.locationMismatchMeters()) {
+            throw new BusinessException(ErrorCode.CLEANING_LOCATION_MISMATCH);
+        }
+
+        // 5. 사진 검증
         String photoKey = storageService.verifyUploaded(userId, request.photoKey(), UploadPurpose.AFTER);
 
-        // 5. AI 판정 (청소 후 사진)
+        // 6. AI 판정 (청소 후 사진)
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
 
-        // 6. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→grade 0, 2→1, 3→2)
+        // 7. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→grade 0, 2→1, 3→2)
         int beforeGrade = cleaning.getDirtLevel() != null ? cleaning.getDirtLevel() - 1 : 0;
         int afterGrade = assessment.grade();
 
-        // 7. 인증 시도 횟수 증가
+        // 8. 인증 시도 횟수 증가
         cleaning.incrementAttemptNo();
 
-        // 8. 청소 후 정보 저장
+        // 9. 청소 후 정보 저장
         cleaning.setAfterPhotoUrl(photoKey);
         cleaning.setAfterGrade(afterGrade);
 
-        // 9. 인증 통과 여부 판정 (afterGrade < beforeGrade)
+        // 10. 인증 통과 여부 판정 (afterGrade < beforeGrade)
         boolean passed = afterGrade < beforeGrade;
 
-        // 10. 통과하면 청소 완료 상태로 변경하고, 빗물받이의 최신 사진을 청소 후 사진으로 갱신
+        // 11. 통과하면 청소 완료 상태로 변경하고, 빗물받이의 최신 사진을 청소 후 사진으로 갱신
         if (passed) {
             cleaning.setStatus(CleaningStatus.COMPLETED);
             cleaning.setCompletedAt(LocalDateTime.now());

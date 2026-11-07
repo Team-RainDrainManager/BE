@@ -67,6 +67,12 @@ public enum ErrorCode {
     INSPECTION_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 기록을 찾을 수 없어요."),
     INSPECTION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 점검이에요."),
 
+    // ───────── 청소 ─────────
+    CLEANING_LOCATION_MISMATCH(HttpStatus.BAD_REQUEST,
+            "촬영 위치가 빗물받이와 너무 멀어요. 빗물받이 앞에서 다시 촬영해 주세요."),
+    CLEANING_UNDER_REVIEW(HttpStatus.CONFLICT, "관리자 검토가 끝나야 입양할 수 있어요."),
+    CLEANING_REJECTED(HttpStatus.CONFLICT, "반려된 청소로는 입양할 수 없어요. 다시 청소해 주세요."),
+
     // ───────── 사진 ─────────
     DUPLICATE_PHOTO(HttpStatus.CONFLICT, "이미 등록된 사진이에요. 새로 촬영한 사진을 올려 주세요."),
     AI_API_ERROR(HttpStatus.BAD_GATEWAY, "AI 판정에 실패했어요. 잠시 후 다시 시도해 주세요."),

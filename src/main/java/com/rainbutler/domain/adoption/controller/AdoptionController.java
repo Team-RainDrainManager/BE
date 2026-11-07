@@ -19,7 +19,9 @@ public class AdoptionController {
 
     private final AdoptionService adoptionService;
 
-    @Operation(summary = "입양 등록", description = "인증 통과한 청소를 통해 빗물받이를 입양합니다.")
+    @Operation(summary = "입양 등록", description = "인증 통과한 청소를 통해 빗물받이를 입양합니다. "
+            + "위치가 불일치한 청소(400 CLEANING_LOCATION_MISMATCH), 관리자 검토 대기 중인 청소"
+            + "(409 CLEANING_UNDER_REVIEW), 반려된 청소(409 CLEANING_REJECTED)로는 입양할 수 없습니다.")
     @PostMapping
     public ApiResponse<AdoptionRegisterResponse> registerAdoption(
             @LoginUserId Long userId,
