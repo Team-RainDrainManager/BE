@@ -52,7 +52,7 @@
 | ★ | GET | `/drains/{id}` | 03, 06 | 상세: 상태, 사진, 최근 점검, 성장(Lv·XP), 입양 여부, 내가 입양했는지 |
 | | GET | `/drains/{id}/growth` | 10 | 성장 도감: Lv(1~10) · 점수 · 다음 레벨 점수 · 진행률. 입양 귀속(집사 변경 시 초기화) |
 | | POST | `/admin/drains` | - | 현장 조사 등록 (좌표, 사진, `isRisk`) |
-| | POST | `/drains/{id}/adoptions` | 04 | `{ nickname, safetyAgreed }` → 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED` ⚠️ |
+| | POST | `/drains/{id}/adoptions` | 04 | `{ cleaningId, nickname, safetyAgreed }` → 인증 통과한 청소로 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED`. 위치 불일치·검토 대기·검토 반려 청소는 거부 ⚠️ |
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
 | ★ | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보. 입양자 · 관리자만 조회 (해제된 입양은 404) |
 | | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason: MOVED \| NO_TIME \| OTHER }` 입양 그만두기(파양). 본인만 · 기록·성장 보관 · SENT·ACCEPTED 요청은 소유자 비우고 OPEN 재공개 |
@@ -62,8 +62,19 @@
 | | POST | `/inspections/{id}/complete` | 08, 09 | 청소 후 사진 인증. `{ afterKey, safetyConfirmed }` → 청소 후 등급이 좋아지면 `COMPLETED`(관리 주기·빗물받이 사진·XP 갱신), 아니면 재청소 `NEEDS_CLEANING`, 위치·확신도 문제면 `PENDING` |
 | ★ | GET | `/inspections/{id}` | 07, 08, 09 | 점검 기록 상세. `{ inspectionId, drain: { drainId, name }, kind, createdAt, review, reviewReason?, beforePhotoUrl?, afterPhotoUrl?, beforeGrade, afterGrade?, cleaned, distanceM, xp, note?, photoDeleted }`. 점검한 본인·해당 입양의 입양자·관리자만 조회. 촬영일부터 365일이 지나면 `photoDeleted=true`이고 사진 URL은 null |
 | ★ | GET | `/adoptions/{id}/inspections?cursor=&size=` | 03, 06 | 입양별 점검 기록을 최신순 커서 페이지로 조회. `size` 기본 20·최대 50, 응답 `{ nextCursor, inspections: [...] }`. 입양자·관리자만 조회 |
-| | POST | `/cleanings` | 13 | 대신 점검 청소 시작 `{ drainId, requestId, beforePhotoKey, latitude, longitude }` → AI 더러움 단계 |
-| | POST | `/cleanings/{id}/verifications` | 13 | 청소 후 사진 인증 `{ afterPhotoKey }` → PASS/FAIL (실패 시 재시도) |
+| | POST | `/drains/{id}/cleanings` | 04 | 입양 전 청소 시작 `{ photoKey, latitude, longitude }` → AI 더러움 단계. 촬영 위치가 빗물받이에서 50m를 넘으면 400 `CLEANING_LOCATION_MISMATCH` |
+| | POST | `/cleanings/{id}/verify` | 04 | 청소 후 사진 인증 `{ photoKey, latitude, longitude }` → PASS/FAIL (실패 시 재시도). 위치가 빗물받이 또는 청소 전 사진에서 50m를 넘으면 400 `CLEANING_LOCATION_MISMATCH` |
+
+### 입양 전 청소 위치 검증 규칙
+
+- 청소 전 · 후 사진 모두 촬영 위치(`latitude`, `longitude`)를 함께 보낸다. (필수)
+- 청소 전 사진이 빗물받이에서 `location-mismatch-meters`(기본 50m)를 넘으면 청소 시작을 거부한다. (400 `CLEANING_LOCATION_MISMATCH`)
+- 청소 후 사진도 빗물받이에서 50m를 넘거나, 청소 전 사진 위치와 50m 넘게 차이 나면 완료 인증을 거부한다. (400 `CLEANING_LOCATION_MISMATCH`)
+- 위치가 맞지 않는 청소는 관리자 검토로 넘기지 않고, 빗물받이 앞에서 다시 촬영해야 한다.
+- 입양 등록은 인증을 통과한 청소만 허용하며, 방어적으로 다음을 한 번 더 막는다.
+  - 위치 불일치 청소 → 400 `CLEANING_LOCATION_MISMATCH`
+  - 관리자 검토 대기 청소 → 409 `CLEANING_UNDER_REVIEW`
+  - 관리자 검토 반려 청소 → 409 `CLEANING_REJECTED`
 
 ### 입양 상세 규칙
 

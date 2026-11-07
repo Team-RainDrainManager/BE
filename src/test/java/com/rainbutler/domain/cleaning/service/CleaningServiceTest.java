@@ -1,6 +1,7 @@
 package com.rainbutler.domain.cleaning.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -26,6 +27,8 @@ import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import com.rainbutler.support.TestPolicies;
@@ -89,6 +92,9 @@ class CleaningServiceTest {
         lenient().when(cleaning.getStatus()).thenReturn(CleaningStatus.IN_PROGRESS);
         lenient().when(cleaning.getDirtLevel()).thenReturn(2);
         lenient().when(cleaning.getAttemptNo()).thenReturn(1);
+        lenient().when(cleaning.getLatitude()).thenReturn(37.5);
+        lenient().when(cleaning.getLongitude()).thenReturn(127.0);
+        lenient().when(cleaning.isLocationMismatch()).thenReturn(false);
         lenient().when(cleaningRepository.findById(CLEANING_ID)).thenReturn(Optional.of(cleaning));
         lenient().when(cleaningRepository.save(any(Cleaning.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -180,8 +186,8 @@ class CleaningServiceTest {
         given(drainAiClassifier.assess("after-key-url"))
                 .willReturn(assessment(1, 0));
 
-        CleaningVerifyResponse response =
-                service.verifyCleaning(USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key"));
+        CleaningVerifyResponse response = service.verifyCleaning(
+                USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0));
 
         assertThat(response.passed()).isTrue();
         verify(drain).updateLatestPhoto("after-key", 1);
@@ -192,11 +198,49 @@ class CleaningServiceTest {
         given(drainAiClassifier.assess("after-key-url"))
                 .willReturn(assessment(2, 1));
 
-        CleaningVerifyResponse response =
-                service.verifyCleaning(USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key"));
+        CleaningVerifyResponse response = service.verifyCleaning(
+                USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0));
 
         assertThat(response.passed()).isFalse();
         verify(drain, never()).updateLatestPhoto(anyString(), any());
+    }
+
+    @Test
+    void 청소_전_사진_위치가_빗물받이에서_50m_넘으면_청소를_시작하지_않는다() {
+        assertThatThrownBy(() -> service.startAdoptionCleaning(
+                USER_ID, DRAIN_ID, new CleaningStartRequest("before-key", 37.6, 127.0)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_LOCATION_MISMATCH);
+
+        verify(drainAiClassifier, never()).assess(anyString());
+        verify(cleaningRepository, never()).save(any(Cleaning.class));
+    }
+
+    @Test
+    void 청소_후_사진_위치가_빗물받이에서_50m_넘으면_인증하지_않는다() {
+        assertThatThrownBy(() -> service.verifyCleaning(
+                USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.6, 127.0)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_LOCATION_MISMATCH);
+
+        verify(cleaning, never()).incrementAttemptNo();
+        verify(drainAiClassifier, never()).assess(anyString());
+    }
+
+    @Test
+    void 청소_후_사진_위치가_청소_전_사진과_50m_넘게_차이_나면_인증하지_않는다() {
+        given(cleaning.getLatitude()).willReturn(37.6);
+
+        assertThatThrownBy(() -> service.verifyCleaning(
+                USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_LOCATION_MISMATCH);
+
+        verify(cleaning, never()).incrementAttemptNo();
+        verify(drainAiClassifier, never()).assess(anyString());
     }
 
     private CleaningStartResponse start() {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseReason;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
@@ -17,13 +18,18 @@ import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.entity.ReleaseReason;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.cleaning.entity.Cleaning;
+import com.rainbutler.domain.cleaning.entity.CleaningStatus;
 import com.rainbutler.domain.cleaning.repository.CleaningRepository;
+import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.drain.entity.DrainAdoptionStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.entity.ReviewStatus;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.support.TestPolicies;
@@ -47,6 +53,8 @@ class AdoptionServiceTest {
 
     private static final Long USER_ID = 3L;
     private static final Long ADOPTION_ID = 10L;
+    private static final Long DRAIN_ID = 5L;
+    private static final Long CLEANING_ID = 20L;
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-10-31T03:00:00Z"), ZoneId.of("Asia/Seoul"));
     private static final LocalDateTime NOW = LocalDateTime.now(CLOCK);
@@ -142,6 +150,76 @@ class AdoptionServiceTest {
                 .isEqualTo(ErrorCode.DUPLICATE_RESOURCE);
         verify(adoption, never()).release(any(), any());
         verifyNoInteractions(inspectionRequestRepository);
+    }
+
+    @Test
+    void 위치가_불일치한_청소로는_입양할_수_없다() {
+        Drain drain = givenRegisterableDrain();
+        Cleaning cleaning = completedCleaning(drain, ReviewStatus.NOT_REQUIRED, true);
+        given(cleaningRepository.findById(CLEANING_ID)).willReturn(Optional.of(cleaning));
+
+        assertThatThrownBy(this::register)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_LOCATION_MISMATCH);
+
+        verify(adoptionRepository, never()).save(any());
+    }
+
+    @Test
+    void 관리자_검토_대기_중인_청소로는_입양할_수_없다() {
+        Drain drain = givenRegisterableDrain();
+        Cleaning cleaning = completedCleaning(drain, ReviewStatus.PENDING, false);
+        given(cleaningRepository.findById(CLEANING_ID)).willReturn(Optional.of(cleaning));
+
+        assertThatThrownBy(this::register)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_UNDER_REVIEW);
+
+        verify(adoptionRepository, never()).save(any());
+    }
+
+    @Test
+    void 반려된_청소로는_입양할_수_없다() {
+        Drain drain = givenRegisterableDrain();
+        Cleaning cleaning = completedCleaning(drain, ReviewStatus.REJECTED, false);
+        given(cleaningRepository.findById(CLEANING_ID)).willReturn(Optional.of(cleaning));
+
+        assertThatThrownBy(this::register)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CLEANING_REJECTED);
+
+        verify(adoptionRepository, never()).save(any());
+    }
+
+    private void register() {
+        adoptionService.registerAdoption(USER_ID, DRAIN_ID,
+                new AdoptionRegisterRequest(CLEANING_ID, "또랑이", true));
+    }
+
+    private Drain givenRegisterableDrain() {
+        Drain drain = mock(Drain.class);
+        lenient().when(drain.getId()).thenReturn(DRAIN_ID);
+        lenient().when(drain.getAdoptionStatus()).thenReturn(DrainAdoptionStatus.AVAILABLE);
+        lenient().when(drainRepository.findById(DRAIN_ID)).thenReturn(Optional.of(drain));
+        lenient().when(adoptionRepository.countByUser_IdAndStatus(
+                USER_ID, AdoptionStatus.ACTIVE)).thenReturn(0L);
+        return drain;
+    }
+
+    private Cleaning completedCleaning(
+            Drain drain, ReviewStatus reviewStatus, boolean locationMismatch) {
+        Cleaning cleaning = mock(Cleaning.class);
+        User owner = mock(User.class);
+        lenient().when(owner.getId()).thenReturn(USER_ID);
+        lenient().when(cleaning.getUser()).thenReturn(owner);
+        lenient().when(cleaning.getStatus()).thenReturn(CleaningStatus.COMPLETED);
+        lenient().when(cleaning.getReviewStatus()).thenReturn(reviewStatus);
+        lenient().when(cleaning.isLocationMismatch()).thenReturn(locationMismatch);
+        lenient().when(cleaning.getDrain()).thenReturn(drain);
+        return cleaning;
     }
 
     private Adoption activeAdoption(Long ownerId) {
