@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.rainbutler.domain.drain.ai.AiProperties;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -78,11 +80,42 @@ class DrainAiClassifierTest {
         server.expect(requestTo(containsString(":generateContent")))
                 .andExpect(content().string(containsString("\"temperature\":0")))
                 .andExpect(content().string(containsString("괜찮음")))
+                .andExpect(content().string(containsString("빨간 박스")))
                 .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
 
         DrainAiClassifier.Assessment assessment = classifier.assess("https://example.com/photo.jpg");
         assertThat(assessment.grade()).isEqualTo(DrainAiClassifier.GRADE_PILED);
         assertThat(assessment.dirtLevel()).isEqualTo(2);
+        server.verify();
+    }
+
+    @Test
+    void Gemini가_일시적으로_503을_돌려주면_다시_시도한다() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        DrainAiClassifier classifier = new DrainAiClassifier(
+                builder.build(), new AiProperties("test-key", "gemini-test")) {
+            @Override
+            void sleepBeforeRetry() {
+                // 테스트에서는 기다리지 않는다
+            }
+        };
+
+        server.expect(requestTo("https://example.com/photo.jpg"))
+                .andRespond(withSuccess(new byte[] {1, 2, 3}, MediaType.IMAGE_JPEG));
+        server.expect(requestTo(containsString(":generateContent")))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        String response = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":"
+                + "\"{\\\"is_drain\\\":true,\\\"grade\\\":\\\"괜찮음\\\",\\\"confidence\\\":0.9,"
+                + "\\\"reason\\\":\\\"깨끗함\\\",\\\"unusable\\\":false,"
+                + "\\\"needs_report\\\":false}\""
+                + "}]}}]}";
+        server.expect(requestTo(containsString(":generateContent")))
+                .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+
+        DrainAiClassifier.Assessment assessment = classifier.assess("https://example.com/photo.jpg");
+
+        assertThat(assessment.grade()).isEqualTo(DrainAiClassifier.GRADE_OK);
         server.verify();
     }
 }

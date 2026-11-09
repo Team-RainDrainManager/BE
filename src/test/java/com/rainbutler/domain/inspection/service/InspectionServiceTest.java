@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
@@ -42,6 +43,7 @@ import com.rainbutler.support.TestPolicies;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,6 +70,7 @@ class InspectionServiceTest {
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-11-02T01:00:00Z"), ZoneId.of("Asia/Seoul"));
     private static final LocalDateTime NOW = LocalDateTime.now(CLOCK);
+    private static final OffsetDateTime CAPTURED_AT = OffsetDateTime.now(CLOCK);
     private static final PolicyProperties POLICIES = TestPolicies.defaults();
 
     @Mock
@@ -233,17 +236,45 @@ class InspectionServiceTest {
     }
 
     @Test
-    void 위치가_멀면_검토_대기로_남긴다() {
-        assessment("before-key", 0, 0.9);
-
-        InspectionSubmitResponse response = service.start(
+    void 위치가_멀면_기록을_남기지_않고_다시_찍게_한다() {
+        assertThatThrownBy(() -> service.start(
                 USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
-                        DRAIN_LAT + 0.01, DRAIN_LNG));
+                        DRAIN_LAT + 0.01, DRAIN_LNG)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INSPECTION_LOCATION_MISMATCH);
 
-        assertThat(response.status()).isEqualTo(InspectionStatus.PENDING);
-        assertThat(response.distanceM()).isGreaterThan(POLICIES.locationMismatchMeters());
-        assertThat(response.xpAwarded()).isZero();
-        assertThat(adoption.getLastManagedAt()).isNull();
+        verify(inspectionRepository, never()).save(any());
+        verifyNoInteractions(drainAiClassifier);
+    }
+
+    @Test
+    void 찍은_지_오래된_사진은_기록을_남기지_않고_다시_찍게_한다() {
+        InspectionStartRequest request = new InspectionStartRequest(
+                DRAIN_ID, InspectionKind.ROUTINE, null, "before-key", DRAIN_LAT, DRAIN_LNG,
+                CAPTURED_AT.minusMinutes(POLICIES.captureMaxAgeMinutes() + 1L), null, true);
+
+        assertThatThrownBy(() -> service.start(USER_ID, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INSPECTION_PHOTO_TOO_OLD);
+
+        verify(inspectionRepository, never()).save(any());
+        verifyNoInteractions(drainAiClassifier);
+    }
+
+    @Test
+    void 촬영_시각은_앱이_보낸_시간대와_상관없이_서버_시간으로_저장한다() {
+        assessment("before-key", 0, 0.9);
+        InspectionStartRequest request = new InspectionStartRequest(
+                DRAIN_ID, InspectionKind.ROUTINE, null, "before-key", DRAIN_LAT, DRAIN_LNG,
+                OffsetDateTime.parse("2026-11-02T00:50:00Z"), null, true);
+
+        service.start(USER_ID, request);
+
+        ArgumentCaptor<Inspection> captor = ArgumentCaptor.forClass(Inspection.class);
+        verify(inspectionRepository).save(captor.capture());
+        assertThat(captor.getValue().getCapturedAt()).isEqualTo(NOW.minusMinutes(10));
     }
 
     @Test
@@ -317,7 +348,7 @@ class InspectionServiceTest {
     void 안전_수칙을_확인하지_않으면_제출할_수_없다() {
         InspectionStartRequest request = new InspectionStartRequest(
                 DRAIN_ID, InspectionKind.ROUTINE, null, "before-key", DRAIN_LAT, DRAIN_LNG,
-                NOW, null, false);
+                CAPTURED_AT, null, false);
 
         assertThatThrownBy(() -> service.start(USER_ID, request))
                 .isInstanceOf(BusinessException.class)
@@ -392,7 +423,7 @@ class InspectionServiceTest {
             Long requestId, InspectionKind kind, String beforeKey, double latitude,
             double longitude) {
         return new InspectionStartRequest(
-                DRAIN_ID, kind, requestId, beforeKey, latitude, longitude, NOW, "메모", true);
+                DRAIN_ID, kind, requestId, beforeKey, latitude, longitude, CAPTURED_AT, "메모", true);
     }
 
     private InspectionRequest request(RequestStatus status) {

@@ -168,16 +168,15 @@ class InspectionApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 위치가_멀면_검토_대기로_남긴다() throws Exception {
+    void 위치가_멀면_기록을_남기지_않고_400() throws Exception {
         Long drainId = drain("ADOPTED");
         Long adoptionId = adoption(drainId);
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
                 .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
 
         start(drainId, "ROUTINE", null, LAT + 0.01, LNG + 0.01, true)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("PENDING"))
-                .andExpect(jsonPath("$.data.xpAwarded").value(0));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INSPECTION_LOCATION_MISMATCH"));
 
         Map<String, Object> adoption = jdbcTemplate.queryForMap(
                 "SELECT last_managed_at FROM adoption WHERE id = ?", adoptionId);
@@ -261,7 +260,7 @@ class InspectionApiTest extends IntegrationTestSupport {
                 + (requestId == null ? "" : "\"requestId\":" + requestId + ",")
                 + "\"beforeKey\":\"" + beforePhotoKey + "\","
                 + "\"latitude\":" + latitude + ",\"longitude\":" + longitude + ","
-                + "\"capturedAt\":\"2026-11-02T10:00:00\",\"note\":\"점검했어요\","
+                + "\"capturedAt\":\"" + java.time.OffsetDateTime.now() + "\",\"note\":\"점검했어요\","
                 + "\"safetyConfirmed\":" + safetyConfirmed + "}";
     }
 

@@ -77,7 +77,7 @@ class DrainServiceTest {
                 new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 100,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 5, 365, 5, 30);
+                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 5, 365, 5, 30, 30);
         Clock clock = Clock.fixed(
                 LocalDateTime.of(2026, 11, 3, 9, 0)
                         .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),

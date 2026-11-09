@@ -47,12 +47,14 @@ public class InspectionController {
 
     @Operation(summary = "점검 시작", description = "점검 전 사진으로 정기 · 비 예보 · 대신 점검을 제출합니다. "
             + "AI가 사진을 판정하고, 깨끗하면 바로 점검을 마치며 더러우면 청소 후 사진을 받습니다. "
-            + "위치가 너무 멀거나 AI 확신도가 낮으면 관리자 검토 대기(PENDING)로 남깁니다. "
+            + "AI 확신도가 낮으면 관리자 검토 대기(PENDING)로 남깁니다. "
+            + "촬영 위치가 너무 멀거나 찍은 지 오래된 사진은 기록을 남기지 않고 거절해 바로 다시 찍을 수 있습니다. "
             + "입양자 · 요청 상태 · 마감 · 제재 여부를 제출 시 다시 확인합니다. 로그인이 필요합니다.")
     @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
             ErrorCode.INVALID_INPUT, ErrorCode.USER_NOT_FOUND, ErrorCode.USER_SANCTIONED,
             ErrorCode.DRAIN_NOT_FOUND, ErrorCode.FORBIDDEN, ErrorCode.REQUEST_NOT_FOUND,
             ErrorCode.REQUEST_NOT_COMPLETABLE, ErrorCode.DUPLICATE_RESOURCE,
+            ErrorCode.INSPECTION_LOCATION_MISMATCH, ErrorCode.INSPECTION_PHOTO_TOO_OLD,
             ErrorCode.DUPLICATE_PHOTO, ErrorCode.INVALID_PHOTO_KEY, ErrorCode.PHOTO_FORBIDDEN,
             ErrorCode.PHOTO_NOT_UPLOADED, ErrorCode.UNSUPPORTED_IMAGE_TYPE,
             ErrorCode.PHOTO_TOO_LARGE, ErrorCode.STORAGE_ERROR,
