@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -212,7 +213,7 @@ public class DrainAiClassifier {
     }
 
     /**
-     * Gemini에 사진을 보내 등급을 매깁니다. (429면 최대 2회 재시도)
+     * Gemini에 사진을 보내 등급을 매깁니다. (한도 초과 429 · 일시 과부하 503이면 최대 2회 재시도)
      */
     private GeminiGrade gradePhoto(byte[] image) {
         String base64 = Base64.getEncoder().encodeToString(image);
@@ -240,12 +241,13 @@ public class DrainAiClassifier {
                         .retrieve()
                         .body(GeminiResponse.class);
                 return parseGrade(response);
-            } catch (HttpClientErrorException.TooManyRequests e) {
+            } catch (HttpClientErrorException.TooManyRequests
+                    | HttpServerErrorException.ServiceUnavailable e) {
                 if (attempt >= MAX_RETRIES) {
                     throw new BusinessException(ErrorCode.AI_API_ERROR);
                 }
-                log.warn("[AI 한도 초과, {}초 후 재시도 {}/{}]", RETRY_WAIT_MILLIS / 1000, attempt + 1,
-                        MAX_RETRIES);
+                log.warn("[AI 일시 오류 {}, {}초 후 재시도 {}/{}]", e.getStatusCode().value(),
+                        RETRY_WAIT_MILLIS / 1000, attempt + 1, MAX_RETRIES);
                 sleepBeforeRetry();
             } catch (RestClientException e) {
                 log.error("[AI 판정 오류] {}", e.getMessage(), e);
@@ -275,7 +277,7 @@ public class DrainAiClassifier {
         }
     }
 
-    private void sleepBeforeRetry() {
+    void sleepBeforeRetry() {
         try {
             Thread.sleep(RETRY_WAIT_MILLIS);
         } catch (InterruptedException e) {
@@ -285,12 +287,16 @@ public class DrainAiClassifier {
     }
 
     /**
-     * 등급 기준 v6 (촬영기 앱과 같은 문장, 빨간 박스 대신 사진 전체에서 덮개를 찾습니다).
+     * 등급 기준 v6 (촬영기 앱과 같은 문장).
+     *
+     * <p>앱은 빨간 박스(덮개)와 주변만 잘라 박스 선을 그린 사진을 보냅니다. 아직 예전 화면을 쓰는 사용자가
+     * 올린 박스 없는 전체 사진도 판정할 수 있도록 박스가 없을 때의 범위를 함께 알려 줍니다.
      */
     private String prompt() {
         return String.join("\n",
                 "너는 빗물받이 덮개와 그 주변에 쓰레기가 얼마나 쌓였는지 판정한다.",
-                "사진에서 빗물받이 덮개를 찾고, 덮개와 그 바로 옆을 따로 본 뒤 둘 중 더 심한 쪽으로 등급을 매긴다. 판정 범위는 덮개와 그 바로 옆까지이고, 그 밖의 길바닥·인도·차도는 사진에 보여도 판정에 넣지 않는다.",
+                "사진은 빗물받이(빨간 박스)와 그 주변을 잘라 낸 것이다. 사진 전체가 판정 범위다.",
+                "빨간 박스가 없는 사진이면 덮개를 직접 찾아 그 테두리를 빨간 박스로 보고, 덮개 폭의 5분의 1 너비만큼 둘러싼 띠까지만 주변으로 본다.",
                 "등급 기준:",
                 "- 괜찮음: 치울 필요 없다. 덮개와 주변 둘 다 20% 이하 (꽁초·낙엽 몇 개는 괜찮음)",
                 "- 쌓임: 치워야 한다. 더 심한 쪽이 20% 넘고 3분의 2(66%) 미만 덮였다",
@@ -298,14 +304,15 @@ public class DrainAiClassifier {
                 "- 판단 불가: 빗물받이가 아니거나, 흐리거나, 너무 멀어서 쓰레기 양을 알 수 없다. 이때 unusable=true 로 답한다.",
                 "- 신고 필요(등급과 별개): 빗물받이 아래(덮개 틈 안쪽)에 쓰레기·흙·낙엽이 쌓여 있다. 시민이 치울 수 없어 지자체에 신고한다. 이때 needs_report=true 로 답한다.",
                 "규칙:",
+                "- 덮개와 주변을 따로 보고, 둘 중 더 심한 쪽으로 매긴다. 덮개 = 빨간 박스 안을 쓰레기가 위에서 가린 비율, 주변 = 빨간 박스 밖을 쓰레기가 덮은 비율.",
                 "- 물길을 막는 것만 센다: 쓰레기·낙엽·담배꽁초·흙더미, 덮개 위를 덮어 둔 고무판·장판·비닐. 얇게 깔린 흙먼지·모래, 얼룩, 이끼는 세지 않는다.",
-                "- 빗물받이 아래(덮개 틈으로 보이는 안쪽)에 쌓인 쓰레기는 등급에 넣지 않고 신고 필요로 따로 표시한다.",
+                "- 빗물받이 아래(덮개 틈으로 보이는 안쪽)에 쌓인 쓰레기는 등급에 넣지 않고 신고 필요로 따로 표시한다. 시민이 덮개를 열고 치울 수 없기 때문이다.",
                 "- 사진에 보이는 것만 보고 매긴다.",
                 "- 애매하면 괜찮음과 쌓임 사이는 괜찮음, 쌓임과 막힘 사이는 막힘을 고른다.",
-                "grate_percent 는 덮개 면적 중 물길을 막는 것이 위에서 가린 비율이다.",
-                "around_percent 는 덮개 테두리에서 바깥으로 덮개 폭의 5분의 1 너비만큼 둘러싼 좁은 띠 안에서 물길을 막는 것이 덮은 비율이다. 그 띠 밖에 있는 낙엽과 쓰레기는 세지 않는다.",
+                "grate_percent 는 빨간 박스 안(덮개) 면적 중 물길을 막는 것이 위에서 가린 비율이다. 얇은 흙먼지·얼룩·이끼는 세지 않는다. 덮개 틈으로 보이는 아래 안쪽에 쌓인 것은 넣지 않는다.",
+                "around_percent 는 빨간 박스 바깥(사진에서 빨간 박스를 뺀 나머지) 면적 중 물길을 막는 것이 덮은 비율이다. 얇은 흙먼지·모래, 얼룩, 이끼는 세지 않는다.",
                 "grade 는 grate_percent 와 around_percent 중 큰 값으로 정한다. 20 이하면 괜찮음, 66 이상이면 막힘, 그 사이는 쌓임. 경계에서 애매할 때는 위 규칙을 따른다.",
-                "덮개가 사진에 없으면 is_drain=false, unusable=true 로 답한다.",
+                "빨간 박스 안에 빗물받이가 없으면 is_drain=false, unusable=true 로 답한다.",
                 "정해진 JSON 형식으로만 답한다.");
     }
 
