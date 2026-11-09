@@ -68,7 +68,7 @@ public class Cleaning extends BaseEntity {
     /** 청소 후 사진 */
     private String afterPhotoUrl;
 
-    /** AI가 애프터 사진으로 판정한 등급 (0~3) */
+    /** AI가 애프터 사진으로 판정한 등급 (0 괜찮음 · 2 쌓임 · 3 막힘) */
     private Integer afterGrade;
 
     /** 인증 시도 횟수 */

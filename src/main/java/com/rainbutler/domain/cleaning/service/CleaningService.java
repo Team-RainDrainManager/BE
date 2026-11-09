@@ -58,9 +58,9 @@ public class CleaningService {
      *
      * <p>AI 판정 결과에 따라:
      * <ul>
-     *   <li>0등급 → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
-     *   <li>1등급 이상 → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
-     *   <li>3등급·needsReport=true → 입양 불가, BLOCKAGE 제보로 전환</li>
+     *   <li>괜찮음(0) → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
+     *   <li>쌓임(2) · 막힘(3) → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
+     *   <li>막힘(3)·needsReport=true → 입양 불가, BLOCKAGE 제보로 전환</li>
      * </ul>
      *
      * @throws BusinessException 빗물받이가 없거나, 이미 입양됐거나, 입양 한도를 넘었거나, 촬영 위치가
@@ -229,8 +229,10 @@ public class CleaningService {
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
 
-        // 7. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→grade 0, 2→1, 3→2)
-        int beforeGrade = cleaning.getDirtLevel() != null ? cleaning.getDirtLevel() - 1 : 0;
+        // 7. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→괜찮음 0, 2→쌓임 2, 3→막힘 3)
+        int beforeGrade = cleaning.getDirtLevel() != null
+                ? DrainAiClassifier.gradeOfDirtLevel(cleaning.getDirtLevel())
+                : 0;
         int afterGrade = assessment.grade();
 
         // 8. 인증 시도 횟수 증가
