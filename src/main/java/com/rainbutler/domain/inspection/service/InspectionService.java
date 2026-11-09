@@ -419,9 +419,9 @@ public class InspectionService {
                 || (afterConfidence != null && afterConfidence < threshold);
     }
 
-    /** AI 등급(0~3)을 빗물받이 더러움 단계(1~3)로 바꿉니다. */
+    /** AI 등급을 빗물받이 더러움 단계(1~3)로 바꿉니다. */
     private int dirtLevel(int grade) {
-        return Math.min(Math.max(grade, 0) + 1, 3);
+        return DrainAiClassifier.toDirtLevel(grade);
     }
 
     private String description(InspectionKind kind) {

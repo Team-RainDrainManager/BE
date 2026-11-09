@@ -202,6 +202,20 @@ class InspectionServiceTest {
     }
 
     @Test
+    void 막힘에서_쌓임으로_좋아지면_더러움을_2단계로_반영한다() {
+        assessment("before-key", DrainAiClassifier.GRADE_BLOCKED, 0.9);
+        startAndCapture(USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
+                DRAIN_LAT, DRAIN_LNG));
+        assessment("after-key", DrainAiClassifier.GRADE_PILED, 0.9);
+
+        InspectionSubmitResponse response = service.complete(
+                USER_ID, INSPECTION_ID, new InspectionCompleteRequest("after-key", true));
+
+        assertThat(response.status()).isEqualTo(InspectionStatus.COMPLETED);
+        assertThat(drain.getDirtLevel()).isEqualTo(2);
+    }
+
+    @Test
     void 청소_후_등급이_좋아지지_않으면_다시_청소를_기다린다() {
         assessment("before-key", 2, 0.9);
         startAndCapture(USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
@@ -397,6 +411,6 @@ class InspectionServiceTest {
     private void assessment(String key, int grade, double confidence) {
         given(drainAiClassifier.assess(key + "-url"))
                 .willReturn(new DrainAiClassifier.Assessment(
-                        Math.min(grade + 1, 3), grade >= 3, confidence, "판정", grade, false));
+                        DrainAiClassifier.toDirtLevel(grade), grade >= 3, confidence, "판정", grade, false));
     }
 }

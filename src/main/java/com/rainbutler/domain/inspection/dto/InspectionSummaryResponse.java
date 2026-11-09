@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
  * @param review 검토 상태 (NOT_REQUIRED · PENDING · APPROVED · REJECTED)
  * @param beforePhotoUrl 점검 전 사진 조회 URL (사진이 삭제됐으면 null)
  * @param afterPhotoUrl 청소 후 사진 조회 URL (청소 전 · 사진이 삭제됐으면 null)
- * @param beforeGrade AI가 판정한 점검 전 등급 (0~3)
- * @param afterGrade AI가 판정한 청소 후 등급 (0~3, 청소 전이면 null)
+ * @param beforeGrade AI가 판정한 점검 전 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+ * @param afterGrade AI가 판정한 청소 후 등급 (0 괜찮음 · 2 쌓임 · 3 막힘, 청소 전이면 null)
  * @param cleaned 청소 후 사진을 낸 기록인지
  * @param xp 이 점검으로 지급한 경험치
  * @param photoDeleted 사진 보존 기간이 지나 사진을 내려주지 않는지
