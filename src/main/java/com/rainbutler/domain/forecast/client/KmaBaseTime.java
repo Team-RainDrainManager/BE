@@ -2,6 +2,7 @@ package com.rainbutler.domain.forecast.client;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -17,6 +18,7 @@ public final class KmaBaseTime {
 
     private static final List<Integer> ISSUE_HOURS = List.of(23, 20, 17, 14, 11, 8, 5, 2);
     private static final int AVAILABLE_AFTER_MINUTES = 10;
+    private static final int OBSERVATION_AVAILABLE_AFTER_MINUTES = 40;
 
     /**
      * 지금 조회할 수 있는 가장 최근 발표 시각을 구합니다.
@@ -34,5 +36,18 @@ public final class KmaBaseTime {
         }
         // 00:00 ~ 02:09 → 전날 23시 발표
         return reference.toLocalDate().minusDays(1).atTime(23, 0);
+    }
+
+    /**
+     * 지금 조회할 수 있는 가장 최근 초단기실황 발표 시각을 구합니다.
+     *
+     * <p>초단기실황은 매시 정시에 발표하고 40분 뒤부터 조회할 수 있습니다. (14:39 → 13:00, 14:40 → 14:00,
+     * 00:20 → 전날 23:00)
+     *
+     * @param now 현재 시각 (한국 시간)
+     * @return 발표 시각 (분 · 초는 0)
+     */
+    public static LocalDateTime latestObservation(LocalDateTime now) {
+        return now.minusMinutes(OBSERVATION_AVAILABLE_AFTER_MINUTES).truncatedTo(ChronoUnit.HOURS);
     }
 }

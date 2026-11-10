@@ -88,6 +88,7 @@ rain-butler:
     substitute-radius-meters: 300
     substitute-daily-limit: 10           # 1인 하루 대신 점검 수락 최대 횟수 (수락 뒤 취소 · 놓침 포함)
     nearby-request-list-limit: 30        # 내 요청 목록의 근처(NEARBY) 요청 최대 개수 (가까운 순)
+    nearby-help-radius-meters: 100       # "가능" 응답 · 내 요청 목록에 보여 줄 "근처 도움 필요" 반경 (m). 수락 위치 확인(substitute-radius-meters)과 다른 값
     location-mismatch-meters: 50
     capture-max-age-minutes: 30          # 점검 사진은 찍은 뒤 이 시간 안에 제출해야 한다
     ai-confidence-threshold: 0.7
@@ -118,6 +119,7 @@ rain-butler:
   kma:
     auth-key: ${KMA_AUTH_KEY:}             # 기상청 API허브 인증키. 비어 있으면 예보 수집을 건너뛴다
     base-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst
+    ultra-srt-ncst-url: https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getUltraSrtNcst
     nx: 57                                 # 파일럿 역곡동 격자 (위경도 → 격자 변환으로 확인)
     ny: 125
   scheduling:

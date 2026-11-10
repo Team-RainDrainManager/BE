@@ -7,6 +7,8 @@ import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.request.entity.InspectionRequest;
+import com.rainbutler.domain.request.entity.RequestStatus;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
@@ -14,6 +16,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -134,5 +137,28 @@ public final class DrainSpecifications {
                 cb.equal(adoption.get("status"), AdoptionStatus.ACTIVE),
                 cb.lessThan(adoption.get("nextManagementAt"), now));
         return cb.exists(subquery);
+    }
+
+    /**
+     * 이번 비 예보의 요청이 주어진 상태인 빗물받이로 거릅니다. (지도 대신 점검 상태 필터)
+     *
+     * @param forecastId 이번 비 예보 id (없으면 결과 없음)
+     * @param statuses 요청 상태
+     * @return 조건
+     */
+    public static Specification<Drain> rainRequestStatus(
+            Long forecastId, Collection<RequestStatus> statuses) {
+        return (root, query, cb) -> {
+            if (forecastId == null) {
+                return cb.disjunction();
+            }
+            Subquery<Long> subquery = query.subquery(Long.class);
+            Root<InspectionRequest> request = subquery.from(InspectionRequest.class);
+            subquery.select(request.get("id")).where(
+                    cb.equal(request.get("drain"), root),
+                    cb.equal(request.get("forecast").get("id"), forecastId),
+                    request.get("status").in(statuses));
+            return cb.exists(subquery);
+        };
     }
 }

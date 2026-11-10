@@ -40,8 +40,10 @@ public class RequestController {
             비 예보 점검 요청에 가능 · 불가로 응답합니다. **요청을 받은 입양자 본인**만, **응답 마감 전**에
             한 번 응답할 수 있습니다. (기본 응답 마감: 발송 당일 12:00, 당일 예보는 발송 + 1시간)
 
-            - `ACCEPT` → `ACCEPTED`: 완료 마감(기본 20:00)까지 점검해 주세요.
-            - `DECLINE` → `OPEN`: 대신 점검으로 공개되고 근처 입양자에게 알림이 갑니다. 불이익은 없습니다.
+            - `ACCEPT` → `ACCEPTED`: 완료 마감(기본 20:00)까지 점검해 주세요. 응답에 `completeDeadlineAt`과 함께
+              근처(`nearbyRadiusMeters`, 기본 100m)에서 지금 대신 점검이 필요한 빗물받이 수(`nearbyOpenCount`)를 줍니다.
+              예: "고마워요! 20:00까지 살펴봐 주세요. 근처 100m에 도움이 필요한 빗물받이가 4곳 있어요 [지도에서 보기]"
+            - `DECLINE` → `OPEN`: 대신 점검으로 공개되어 지도에 표시됩니다 (개별 알림 없음). 불이익은 없습니다.
             - 응답하면 연속 무응답 횟수가 초기화됩니다.
             """;
 
@@ -70,6 +72,8 @@ public class RequestController {
               근처만 나오고 `distanceM`은 null입니다. 둘 중 하나만 보내면 400.
             - `remainingMinutes`: 응답 전이면 응답 마감까지, 아니면 완료 마감까지 남은 분 (끝난 요청은 null)
             - `drain.name`: 입양된 빗물받이면 입양 이름, 아니면 null
+            - `nearbyOpenCount`: 내 또랑이 요청(OWNER)이고 진행 중(SENT · ACCEPTED)일 때, 그 빗물받이 근처 100m에서 지금
+              대신 점검이 필요한 빗물받이 수. 그 밖에는 null (응답 없이 바로 점검하러 가는 사람도 볼 수 있게)
             - `state`: 진행 중 `SENT` · `ACCEPTED` · `OPEN` · `CLAIMED` / 끝남 `COMPLETED`(완료) ·
               `MISSED`(마감까지 미완료, 시청 인계) · `EXPIRED`(미입양 빗물받이 대신 점검이 마감까지 안 돼 종료,
               시청 인계 아님)

@@ -144,6 +144,24 @@ class MyRequestListApiTest extends RequestIntegrationTest {
     }
 
     @Test
+    void 진행_중인_내_또랑이_요청에만_근처_도움_개수를_준다() throws Exception {
+        // 내 또랑이(BASE)에서 80m에 공개 요청 1곳 추가 → 100m 안은 이것 하나 (250m 요청은 밖)
+        fixtures.request(forecast,
+                fixtures.drain(RequestFixtures.north(80), RequestFixtures.BASE_LNG, false),
+                null, "OPEN", NOW, NOW.withHour(16));
+
+        list(null, null)
+                .andExpect(jsonPath("$.data[?(@.requestId == " + ownSent + ")].nearbyOpenCount")
+                        .value(contains(1)))
+                .andExpect(jsonPath("$.data[?(@.requestId == " + claimed + ")].nearbyOpenCount")
+                        .value(contains(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.requestId == " + nearMyDrain
+                        + ")].nearbyOpenCount").value(contains(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.requestId == " + ownCompleted
+                        + ")].nearbyOpenCount").value(contains(nullValue())));
+    }
+
+    @Test
     void 근처_요청은_가까운_순으로_최대_30개다() throws Exception {
         // 내 또랑이(기준점)에서 북쪽 100 ~ 135m에 공개 요청 36개 (setUp의 250m 요청 포함 37개)
         List<Long> near = new ArrayList<>();

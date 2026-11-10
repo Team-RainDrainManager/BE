@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .permitAll()
                         // 지도 위 빗물받이 목록은 로그인 전에도 볼 수 있다
                         .requestMatchers(HttpMethod.GET, "/api/v1/drain", "/api/v1/drain/**").permitAll()
+                        // 지도 비 예보 배너는 로그인 전에도 본다 (개인 정보 없음)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/rain-notice").permitAll()
                         // 약관 목록 · 전문은 가입 전에 본다
                         .requestMatchers(HttpMethod.GET, "/api/v1/terms", "/api/v1/terms/**")
                         .permitAll()

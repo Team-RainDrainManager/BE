@@ -1,6 +1,7 @@
 package com.rainbutler.domain.drain.dto.Response;
 
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
+import com.rainbutler.domain.request.dto.RainRequestSummary;
 import java.time.LocalDateTime;
 
 /**
@@ -24,6 +25,7 @@ import java.time.LocalDateTime;
  * @param nextLevelScore 다음 레벨이 되는 누적 점수 (입양 전 0)
  * @param progressPercent 현재 레벨 구간 진행률 (입양 전 0)
  * @param adoption 현재 ACTIVE 입양 (없으면 null)
+ * @param rainRequest 이번 비 대신 점검 요청 (없거나 놓침 · 종료 · 취소면 null)
  */
 public record DrainDetailResponse(
         Long id,
@@ -43,7 +45,8 @@ public record DrainDetailResponse(
         Integer xp,
         Integer nextLevelScore,
         Integer progressPercent,
-        AdoptionResponse adoption
+        AdoptionResponse adoption,
+        RainRequestSummary rainRequest
 ) {
     public record AdoptionResponse(
             Long adoptionId,
