@@ -103,7 +103,7 @@ rain-butler:
     lonely-ignore-count: 3               # 연속 무응답 이 횟수 이상이면 "외로운 또랑이" 표시 (불이익 없음)
     min-remaining-minutes-after-advance: 30  # 비가 앞당겨져 남은 시간이 이보다 적으면 요청 취소 (안전 우선)
     adoption-care-time: "09:00"          # 관리 예정 알림(하루 전) · 미관리 경고(28일) · 자동 파양(35일) 배치 시각
-    inspection-xp: 5                     # 점검 1회 인정 시 지급 경험치 (개인 참여 점수 · 빗물받이 성장)
+    inspection-xp: 20                    # 점검 · 청소 · 대신 점검 1회 인정 시 지급 경험치 (개인 참여 점수 · 빗물받이 성장)
     photo-retention-days: 365            # 점검 사진 보존 기간 (촬영일부터 이 일수가 지나면 사진 URL 미제공)
     report-xp: 5                         # 제보 1건을 승인했을 때 지급하는 경험치
     rest-cooldown-days: 90

@@ -24,6 +24,7 @@ import com.rainbutler.domain.cleaning.repository.CleaningRepository;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainAdoptionStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
@@ -66,6 +67,8 @@ class AdoptionServiceTest {
     @Mock
     private CleaningRepository cleaningRepository;
     @Mock
+    private ReportRepository reportRepository;
+    @Mock
     private UserRepository userRepository;
     @Mock
     private InspectionRequestRepository inspectionRequestRepository;
@@ -75,7 +78,8 @@ class AdoptionServiceTest {
     @BeforeEach
     void setUp() {
         adoptionService = new AdoptionService(adoptionRepository, drainRepository,
-                cleaningRepository, userRepository, inspectionRequestRepository,
+                cleaningRepository, reportRepository, userRepository,
+                inspectionRequestRepository,
                 new ManagementCyclePolicy(TestPolicies.defaults()), CLOCK);
     }
 
@@ -150,6 +154,21 @@ class AdoptionServiceTest {
                 .isEqualTo(ErrorCode.DUPLICATE_RESOURCE);
         verify(adoption, never()).release(any(), any());
         verifyNoInteractions(inspectionRequestRepository);
+    }
+
+    @Test
+    void 입양을_막는_제보가_있는_빗물받이는_입양할_수_없다() {
+        givenRegisterableDrain();
+        given(reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(any(), any()))
+                .willReturn(true);
+
+        assertThatThrownBy(this::register)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DRAIN_ADOPTION_BLOCKED);
+
+        verify(adoptionRepository, never()).save(any());
+        verifyNoInteractions(cleaningRepository);
     }
 
     @Test

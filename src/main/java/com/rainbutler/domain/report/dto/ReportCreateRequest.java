@@ -15,7 +15,8 @@ import jakarta.validation.constraints.Size;
  *   <li>{@code ODOR}: 사진({@code photoKey}) 또는 설명({@code description}) 중 하나 필수</li>
  *   <li>{@code REMOVAL}: 사진 · 설명 모두 필수</li>
  *   <li>{@code LOCATION_FIX}: 사진 · 새 위치({@code newLatitude}, {@code newLongitude}) 필수</li>
- *   <li>{@code BLOCKAGE}: 사진 필수, {@code drainId} 필수</li>
+ *   <li>{@code BLOCKAGE}: 사진 · {@code drainId} 필수. AI가 청소 불가({@code needsReport=true} 또는
+ *       3등급)로 판정해야 접수되고, 접수되면 {@code blocksAdoption=true}로 입양을 막는다</li>
  *   <li>{@code NEW_DRAIN}: 사진 · 촬영 위치 필수, {@code drainId}는 보내지 않음 (새 빗물받이라 대상이 없음)</li>
  * </ul>
  *

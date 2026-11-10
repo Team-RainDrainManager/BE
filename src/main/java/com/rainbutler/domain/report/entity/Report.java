@@ -70,9 +70,20 @@ public class Report extends BaseEntity {
     @Column(nullable = false)
     private ReportStatus status;
 
+    /**
+     * 이 제보가 빗물받이 입양을 막는지 여부입니다.
+     *
+     * <p>AI가 청소할 수 없는 상태({@code needsReport=true} 또는 3등급)로 판정한 막힘 제보만 true입니다.
+     */
+    @Column(nullable = false)
+    private boolean blocksAdoption;
+
     private String adminComment;
 
     private LocalDateTime resolvedAt;
+
+    /** 승인된 제보의 입양 차단을 해제한 시각 (해제 전에는 null) */
+    private LocalDateTime clearedAt;
 
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
@@ -85,7 +96,8 @@ public class Report extends BaseEntity {
             Double latitude,
             Double longitude,
             Double newLatitude,
-            Double newLongitude) {
+            Double newLongitude,
+            boolean blocksAdoption) {
         this.user = user;
         this.drain = drain;
         this.type = type;
@@ -95,6 +107,7 @@ public class Report extends BaseEntity {
         this.longitude = longitude;
         this.newLatitude = newLatitude;
         this.newLongitude = newLongitude;
+        this.blocksAdoption = blocksAdoption;
         this.status = ReportStatus.PENDING;
     }
 
@@ -129,5 +142,24 @@ public class Report extends BaseEntity {
         this.processedBy = admin;
         this.adminComment = comment;
         this.resolvedAt = now;
+    }
+
+    /**
+     * 승인된 제보의 입양 차단을 해제합니다.
+     *
+     * <p>승인 이후 지자체가 막힘을 처리했음을 관리자가 확인했을 때 씁니다. 반려는
+     * {@link #reject}가 상태를 {@code REJECTED}로 바꾸므로 자동으로 차단이 풀립니다.
+     *
+     * @param admin 처리한 관리자 · 시청 관계자
+     * @param comment 해제 코멘트 (없으면 기존 코멘트 유지)
+     * @param now 해제 시각
+     */
+    public void clear(User admin, String comment, LocalDateTime now) {
+        this.status = ReportStatus.CLEARED;
+        this.processedBy = admin;
+        if (comment != null) {
+            this.adminComment = comment;
+        }
+        this.clearedAt = now;
     }
 }

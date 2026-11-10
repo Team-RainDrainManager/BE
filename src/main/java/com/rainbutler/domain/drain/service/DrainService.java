@@ -152,10 +152,9 @@ public class DrainService {
                         AdoptionStatus.ACTIVE
                 )
                 .orElse(null);
-        boolean hasPendingBlockage = reportRepository.existsByDrain_IdAndTypeAndStatus(
-                drainId, ReportType.BLOCKAGE, ReportStatus.PENDING);
+        boolean hasBlockageReport = hasBlockageReport(drainId);
         DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
-                adoption, hasPendingBlockage, LocalDateTime.now(clock));
+                adoption, hasBlockageReport, LocalDateTime.now(clock));
 
         int level = adoption == null ? 0 : adoption.getLevel();
         int xp = adoption == null ? 0 : adoption.getScore();
@@ -276,14 +275,21 @@ public class DrainService {
             address = drainAddressResolver.resolve(request.latitude(), request.longitude());
         }
 
-        // 7. 리마인드(불일치·저확신) 또는 위험(3등급)이면 제보 사유 준비
+        // 7. 청소 불가 판정이면 입양을 막는 제보를 만들고, 아니면 불일치·저확신 검토용 제보를 만든다.
+        boolean uncleanable = assessment.needsReport() || assessment.grade() == 3;
         boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
         boolean lowConfidence =
                 assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();
         boolean riskRemind = mismatched || lowConfidence;
 
         String reportDescription = null;
-        if (riskRemind || isRisk) {
+        boolean blocksAdoption = false;
+        if (uncleanable) {
+            blocksAdoption = true;
+            reportDescription = firstNonBlank(
+                    request.riskDescription(),
+                    "AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 3등급)로 지자체 신고 대상");
+        } else if (riskRemind || isRisk) {
             reportDescription = request.riskDescription();
             if (reportDescription == null || reportDescription.isBlank()) {
                 if (isRisk) {
@@ -299,7 +305,8 @@ public class DrainService {
 
         // 8. 저장만 짧은 트랜잭션으로
         DrainWriter.SavedDrain saved = drainWriter.save(
-                userId, request, photoKey, dirtLevel, isRisk, reportDescription, name, address);
+                userId, request, photoKey, dirtLevel, isRisk, reportDescription, blocksAdoption,
+                name, address);
 
         DrainDisplayStatus displayStatus = saved.riskReportId() == null
                 ? DrainDisplayStatus.AVAILABLE
@@ -320,8 +327,13 @@ public class DrainService {
                 saved.drain().isRisk(),
                 assessment.confidence(),
                 riskRemind,
-                saved.riskReportId()
+                saved.riskReportId(),
+                saved.blocksAdoption()
         );
+    }
+
+    private String firstNonBlank(String value, String fallback) {
+        return StringUtils.hasText(value) ? value.trim() : fallback;
     }
 
     /**
@@ -387,7 +399,7 @@ public class DrainService {
                         Function.identity(),
                         (first, second) -> first));
         Set<Long> blockageDrainIds =
-                new HashSet<>(reportRepository.findPendingBlockageDrainIds(drainIds));
+                new HashSet<>(reportRepository.findBlockageReportedDrainIds(drainIds));
         LocalDateTime now = LocalDateTime.now(clock);
 
         return drains.stream()
@@ -399,15 +411,28 @@ public class DrainService {
                 .toList();
     }
 
+    /**
+     * 지도 · 목록에 막힘 제보로 표시할 제보가 있는지 확인합니다.
+     *
+     * <p>처리 대기 중인 막힘 제보는 모두 표시하고, 승인된 제보는 입양을 막는 제보만 해제 전까지
+     * 표시합니다.
+     */
+    private boolean hasBlockageReport(Long drainId) {
+        return reportRepository.existsByDrain_IdAndTypeAndStatus(
+                        drainId, ReportType.BLOCKAGE, ReportStatus.PENDING)
+                || reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatus(
+                        drainId, ReportStatus.APPROVED);
+    }
+
     private DrainResponse toResponse(
             Drain drain,
             Adoption adoption,
-            boolean hasPendingBlockage,
+            boolean hasBlockageReport,
             LocalDateTime now) {
         int level = adoption == null ? 0 : adoption.getLevel();
         int xp = adoption == null ? 0 : adoption.getScore();
         DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
-                adoption, hasPendingBlockage, now);
+                adoption, hasBlockageReport, now);
 
         return DrainResponse.builder()
                 .id(drain.getId())

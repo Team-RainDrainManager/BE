@@ -77,7 +77,7 @@ class DrainServiceTest {
                 new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 100,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 5, 365, 5, 30);
+                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 20, 365, 5, 30);
         Clock clock = Clock.fixed(
                 LocalDateTime.of(2026, 11, 3, 9, 0)
                         .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
@@ -101,8 +101,9 @@ class DrainServiceTest {
                 .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
                 .isRisk(false)
                 .build();
-        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any()))
-                .willReturn(new DrainWriter.SavedDrain(savedDrain, null));
+        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), anyBoolean(),
+                any(), any()))
+                .willReturn(new DrainWriter.SavedDrain(savedDrain, null, false));
 
         DrainCreateResponse response = drainService.createDrain(USER_ID, request(null));
 
@@ -124,8 +125,9 @@ class DrainServiceTest {
                 .status(com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE)
                 .isRisk(true)
                 .build();
-        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any()))
-                .willReturn(new DrainWriter.SavedDrain(savedDrain, 99L));
+        given(drainWriter.save(any(), any(), any(), anyInt(), anyBoolean(), any(), anyBoolean(),
+                any(), any()))
+                .willReturn(new DrainWriter.SavedDrain(savedDrain, 99L, true));
 
         DrainCreateResponse response = drainService.createDrain(USER_ID, request(true));
 
@@ -154,7 +156,8 @@ class DrainServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.PHOTO_FORBIDDEN);
         verify(drainAiClassifier, never()).assess(anyString());
-        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any());
+        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(),
+                anyBoolean(), any(), any());
     }
 
     @Test
@@ -165,7 +168,8 @@ class DrainServiceTest {
         assertThatThrownBy(() -> drainService.createDrain(USER_ID, request(null)))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.STORAGE_NOT_CONFIGURED);
-        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(), any(), any());
+        verify(drainWriter, never()).save(any(), any(), any(), anyInt(), anyBoolean(), any(),
+                anyBoolean(), any(), any());
     }
 
     @Test
@@ -209,8 +213,8 @@ class DrainServiceTest {
 
         assertThat(response.level()).isEqualTo(2);
         assertThat(response.score()).isEqualTo(100);
-        assertThat(response.nextLevelScore()).isEqualTo(150);
-        assertThat(response.progressPercent()).isEqualTo(50);
+        assertThat(response.nextLevelScore()).isEqualTo(103);
+        assertThat(response.progressPercent()).isEqualTo(94);
     }
 
     @Test

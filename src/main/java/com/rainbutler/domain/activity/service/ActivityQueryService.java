@@ -228,6 +228,7 @@ public class ActivityQueryService {
             case PENDING -> "처리 대기";
             case APPROVED -> "승인 완료";
             case REJECTED -> "반려";
+            case CLEARED -> "처리 완료";
         };
     }
 

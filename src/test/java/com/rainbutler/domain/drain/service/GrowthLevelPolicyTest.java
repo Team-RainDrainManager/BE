@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class GrowthLevelPolicyTest {
 
     /** 만렙(Lv.50)이 되는 최소 누적 점수 */
-    private static final int MAX_LEVEL_SCORE = 203_300;
+    private static final int MAX_LEVEL_SCORE = 5_978;
 
     private final GrowthLevelPolicy policy = new GrowthLevelPolicy();
 
@@ -23,21 +23,25 @@ class GrowthLevelPolicyTest {
     @Test
     void 현재_레벨_구간에서_진행률을_계산한다() {
         assertThat(policy.progressPercent(1, 25)).isEqualTo(50);
-        assertThat(policy.progressPercent(2, 100)).isEqualTo(50);
-        assertThat(policy.nextLevelScore(2, 100)).isEqualTo(150);
+        assertThat(policy.progressPercent(2, 76)).isEqualTo(49);
+        assertThat(policy.nextLevelScore(2, 76)).isEqualTo(103);
     }
 
     @Test
     void 레벨별_구간표를_따른다() {
-        assertThat(policy.nextLevelScore(3, 150)).isEqualTo(300);
-        assertThat(policy.nextLevelScore(4, 300)).isEqualTo(500);
-        assertThat(policy.nextLevelScore(5, 500)).isEqualTo(800);
-        assertThat(policy.nextLevelScore(6, 800)).isEqualTo(1200);
-        assertThat(policy.nextLevelScore(7, 1200)).isEqualTo(1700);
-        assertThat(policy.nextLevelScore(9, 2400)).isEqualTo(3300);
-        assertThat(policy.nextLevelScore(10, 3300)).isEqualTo(4400);
-        assertThat(policy.progressPercent(5, 650)).isEqualTo(50);
-        assertThat(policy.progressPercent(8, 2050)).isEqualTo(50);
+        assertThat(policy.nextLevelScore(1, 0)).isEqualTo(50);
+        assertThat(policy.nextLevelScore(2, 50)).isEqualTo(103);
+        assertThat(policy.nextLevelScore(3, 103)).isEqualTo(159);
+        assertThat(policy.nextLevelScore(4, 159)).isEqualTo(218);
+        assertThat(policy.nextLevelScore(5, 218)).isEqualTo(280);
+        assertThat(policy.nextLevelScore(6, 280)).isEqualTo(345);
+        assertThat(policy.nextLevelScore(7, 345)).isEqualTo(413);
+        assertThat(policy.nextLevelScore(8, 413)).isEqualTo(484);
+        assertThat(policy.nextLevelScore(9, 484)).isEqualTo(558);
+        assertThat(policy.nextLevelScore(10, 558)).isEqualTo(635);
+        assertThat(policy.nextLevelScore(49, 5784)).isEqualTo(MAX_LEVEL_SCORE);
+        assertThat(policy.progressPercent(5, 249)).isEqualTo(50);
+        assertThat(policy.progressPercent(8, 449)).isEqualTo(50);
     }
 
     @Test
@@ -74,8 +78,8 @@ class GrowthLevelPolicyTest {
         assertThat(policy.levelFor(0)).isEqualTo(1);
         assertThat(policy.levelFor(49)).isEqualTo(1);
         assertThat(policy.levelFor(50)).isEqualTo(2);
-        assertThat(policy.levelFor(3300)).isEqualTo(10);
-        assertThat(policy.levelFor(4400)).isEqualTo(11);
+        assertThat(policy.levelFor(3300)).isEqualTo(34);
+        assertThat(policy.levelFor(4400)).isEqualTo(41);
         assertThat(policy.levelFor(MAX_LEVEL_SCORE)).isEqualTo(GrowthLevelPolicy.MAX_LEVEL);
         assertThat(policy.levelFor(MAX_LEVEL_SCORE * 2)).isEqualTo(GrowthLevelPolicy.MAX_LEVEL);
     }

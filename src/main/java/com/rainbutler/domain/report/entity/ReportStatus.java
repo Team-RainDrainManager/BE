@@ -11,5 +11,7 @@ public enum ReportStatus {
     /** 승인 */
     APPROVED,
     /** 반려 */
-    REJECTED
+    REJECTED,
+    /** 승인 후 관리자가 입양 차단을 해제함 */
+    CLEARED
 }

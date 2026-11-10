@@ -108,6 +108,14 @@ public enum ErrorCode {
     // ───────── 제보 ─────────
     REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "제보를 찾을 수 없어요."),
     REPORT_ALREADY_PROCESSED(HttpStatus.CONFLICT, "이미 처리된 제보예요."),
+    REPORT_NOT_UNCLEANABLE(HttpStatus.BAD_REQUEST,
+            "AI 판정 결과 청소가 어려운 상태가 아니어서 제보할 수 없어요."),
+    REPORT_ALREADY_BLOCKED(HttpStatus.CONFLICT, "이미 막힘 제보가 접수된 빗물받이예요."),
+    REPORT_NOT_CLEARABLE(HttpStatus.CONFLICT, "승인된 제보만 입양 차단을 해제할 수 있어요."),
+
+    // ───────── 입양 차단 ─────────
+    DRAIN_ADOPTION_BLOCKED(HttpStatus.CONFLICT,
+            "청소가 어려운 빗물받이라 입양할 수 없어요. 지자체 처리 후 다시 시도해 주세요."),
 
     // ───────── 관리자 검토 ─────────
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "검토할 기록을 찾을 수 없어요."),

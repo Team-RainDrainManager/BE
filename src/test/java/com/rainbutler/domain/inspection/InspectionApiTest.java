@@ -126,13 +126,13 @@ class InspectionApiTest extends IntegrationTestSupport {
                 adoptionId);
         assertThat(toLocalDateTime(adoption.get("last_managed_at"))).isNotNull();
         assertThat(toLocalDateTime(adoption.get("next_management_at"))).isNotNull();
-        assertThat(adoption.get("score")).isEqualTo(5);
+        assertThat(adoption.get("score")).isEqualTo(20);
 
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT point FROM users WHERE id = ?", Integer.class, userId)).isEqualTo(5);
+                "SELECT point FROM users WHERE id = ?", Integer.class, userId)).isEqualTo(20);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT amount FROM point_history WHERE user_id = ? AND source_type = 'INSPECTION'",
-                Integer.class, userId)).isEqualTo(5);
+                Integer.class, userId)).isEqualTo(20);
     }
 
     @Test

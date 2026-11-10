@@ -14,6 +14,8 @@ import com.rainbutler.domain.cleaning.repository.CleaningRepository;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainAdoptionStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.report.entity.ReportStatus;
+import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
@@ -37,9 +39,14 @@ public class AdoptionService {
 
     private static final int MAX_ADOPTION_COUNT = 3;
 
+    /** 입양을 막는 제보 상태 (반려 · 해제되면 풀린다) */
+    private static final List<ReportStatus> BLOCKING_STATUSES =
+            List.of(ReportStatus.PENDING, ReportStatus.APPROVED);
+
     private final AdoptionRepository adoptionRepository;
     private final DrainRepository drainRepository;
     private final CleaningRepository cleaningRepository;
+    private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final InspectionRequestRepository inspectionRequestRepository;
     private final ManagementCyclePolicy managementCyclePolicy;
@@ -60,6 +67,12 @@ public class AdoptionService {
         // 2. 빗물받이 존재 확인
         Drain drain = drainRepository.findById(drainId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DRAIN_NOT_FOUND));
+
+        // 2-1. AI가 청소 불가로 판정한 제보가 남아 있으면 입양할 수 없다
+        if (reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(
+                drainId, BLOCKING_STATUSES)) {
+            throw new BusinessException(ErrorCode.DRAIN_ADOPTION_BLOCKED);
+        }
 
         // 3. 빗물받이 입양 상태 확인
         if (drain.getAdoptionStatus() == DrainAdoptionStatus.ADOPTED) {

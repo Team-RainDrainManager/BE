@@ -143,10 +143,12 @@ public class MyAdoptionQueryService {
                 lastManagedAt.plusDays(policyProperties.adoptionWarningDays()));
         int missedForecastCount = adoption.getIgnoreCount() == null ? 0 : adoption.getIgnoreCount();
         Drain drain = adoption.getDrain();
-        boolean hasPendingBlockage = reportRepository.existsByDrain_IdAndTypeAndStatus(
-                drain.getId(), ReportType.BLOCKAGE, ReportStatus.PENDING);
+        boolean hasBlockageReport = reportRepository.existsByDrain_IdAndTypeAndStatus(
+                        drain.getId(), ReportType.BLOCKAGE, ReportStatus.PENDING)
+                || reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatus(
+                        drain.getId(), ReportStatus.APPROVED);
         DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
-                adoption, hasPendingBlockage, now);
+                adoption, hasBlockageReport, now);
         int level = adoption.getLevel();
         int score = adoption.getScore();
 

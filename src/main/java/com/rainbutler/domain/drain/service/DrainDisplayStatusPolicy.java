@@ -18,13 +18,13 @@ public class DrainDisplayStatusPolicy {
      * 표시 상태를 계산합니다.
      *
      * @param activeAdoption ACTIVE 입양 (없으면 null)
-     * @param hasPendingBlockage 처리 대기 중인 막힘 제보가 있는지
+     * @param hasBlockageReport 표시할 막힘 제보가 있는지 (처리 대기 중이거나, 승인 후 해제 전)
      * @param now 기준 시각
      * @return 표시 상태
      */
     public DrainDisplayStatus resolve(
-            Adoption activeAdoption, boolean hasPendingBlockage, LocalDateTime now) {
-        if (hasPendingBlockage) {
+            Adoption activeAdoption, boolean hasBlockageReport, LocalDateTime now) {
+        if (hasBlockageReport) {
             return DrainDisplayStatus.BLOCKAGE_REPORTED;
         }
         if (activeAdoption == null) {

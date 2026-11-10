@@ -156,15 +156,31 @@ class CleaningServiceTest {
     }
 
     @Test
-    void 등급2는_needsReport가_true여도_막힘_제보로_전환하지_않는다() {
+    void 등급2라도_needsReport면_막힘_제보로_전환하고_청소를_만들지_않는다() {
         given(drainAiClassifier.assess("before-key-url"))
                 .willReturn(new DrainAiClassifier.Assessment(3, false, 0.9, "판정", 2, true));
 
         CleaningStartResponse response = start();
 
-        assertThat(response.blocked()).isFalse();
-        assertThat(response.mustClean()).isTrue();
-        verify(reportRepository, never()).save(any(Report.class));
+        assertThat(response.blocked()).isTrue();
+        assertThat(response.mustClean()).isFalse();
+        assertThat(response.cleaningId()).isNull();
+        verify(cleaningRepository, never()).save(any(Cleaning.class));
+        verify(reportRepository).save(any(Report.class));
+    }
+
+    @Test
+    void 입양을_막는_제보가_있는_빗물받이는_청소를_시작할_수_없다() {
+        given(reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(
+                any(), any())).willReturn(true);
+
+        assertThatThrownBy(this::start)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DRAIN_ADOPTION_BLOCKED);
+
+        verify(drainAiClassifier, never()).assess(anyString());
+        verify(cleaningRepository, never()).save(any(Cleaning.class));
     }
 
     @Test

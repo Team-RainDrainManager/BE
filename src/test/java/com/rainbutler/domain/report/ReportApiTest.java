@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.rainbutler.domain.drain.service.DrainAiClassifier;
 import com.rainbutler.domain.user.entity.Role;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
@@ -60,6 +61,9 @@ class ReportApiTest extends IntegrationTestSupport {
     @MockitoBean
     private StorageService storageService;
 
+    @MockitoBean
+    private DrainAiClassifier drainAiClassifier;
+
     private Long userId;
     private String token;
     private Long drainId;
@@ -78,6 +82,9 @@ class ReportApiTest extends IntegrationTestSupport {
                 .willAnswer(invocation -> invocation.getArgument(1));
         given(storageService.toReadUrl(anyString()))
                 .willAnswer(invocation -> "http://" + invocation.getArgument(0));
+        // 기본값: 막힘 제보 사진은 AI가 청소 불가로 판정한다.
+        given(drainAiClassifier.assess(anyString()))
+                .willReturn(new DrainAiClassifier.Assessment(3, true, 0.9, "판정", 3, true));
     }
 
     @Test
@@ -103,17 +110,87 @@ class ReportApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.latitude").value(LAT))
                 .andExpect(jsonPath("$.data.longitude").value(LNG))
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
+                .andExpect(jsonPath("$.data.blocksAdoption").value(true))
                 .andExpect(jsonPath("$.data.adminComment").value(nullValue()))
                 .andExpect(jsonPath("$.data.createdAt").exists());
 
         Map<String, Object> report = jdbcTemplate.queryForMap(
-                "SELECT type, status, photo_url, latitude, longitude FROM report WHERE id = ?",
+                "SELECT type, status, blocks_adoption, photo_url, latitude, longitude "
+                        + "FROM report WHERE id = ?",
                 reportId);
         assertThat(report.get("type")).isEqualTo("BLOCKAGE");
         assertThat(report.get("status")).isEqualTo("PENDING");
+        assertThat(report.get("blocks_adoption")).isEqualTo(true);
         assertThat(report.get("photo_url")).isEqualTo(photoKey);
         assertThat(((Number) report.get("latitude")).doubleValue()).isEqualTo(LAT);
         assertThat(((Number) report.get("longitude")).doubleValue()).isEqualTo(LNG);
+    }
+
+    @Test
+    void 청소_불가가_아닌_막힘_제보는_거부한다() throws Exception {
+        given(drainAiClassifier.assess(anyString()))
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+
+        create("BLOCKAGE", photoKey, "막혔어요", null, null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("REPORT_NOT_UNCLEANABLE"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM report", Integer.class)).isZero();
+    }
+
+    @Test
+    void 이미_입양을_막는_제보가_있으면_중복_접수하지_않는다() throws Exception {
+        createReport("BLOCKAGE", photoKey, "막혔어요", null, null);
+
+        create("BLOCKAGE", photoKey, "또 막혔어요", null, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REPORT_ALREADY_BLOCKED"));
+    }
+
+    @Test
+    void 승인된_막힘_제보는_관리자가_해제할_때까지_차단을_유지한다() throws Exception {
+        Long reportId = createReport("BLOCKAGE", photoKey, "막혔어요", null, null);
+        String adminToken = privilegedToken(Role.ADMIN);
+
+        approve(reportId, adminToken)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("APPROVED"))
+                .andExpect(jsonPath("$.data.blocksAdoption").value(true));
+
+        // 승인 상태에서는 입양 차단이 유지된다
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT blocks_adoption FROM report WHERE id = ?", Boolean.class, reportId))
+                .isTrue();
+
+        mockMvc.perform(patch("/api/v1/admin/reports/{reportId}/clear", reportId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"adminComment\":\"지자체 처리 완료\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CLEARED"))
+                .andExpect(jsonPath("$.data.adminComment").value("지자체 처리 완료"))
+                .andExpect(jsonPath("$.data.clearedAt").exists());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM report WHERE id = ?", String.class, reportId))
+                .isEqualTo("CLEARED");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT cleared_at FROM report WHERE id = ?", java.sql.Timestamp.class, reportId))
+                .isNotNull();
+    }
+
+    @Test
+    void 승인되지_않은_제보는_입양_차단을_해제할_수_없다() throws Exception {
+        Long reportId = createReport("BLOCKAGE", photoKey, "막혔어요", null, null);
+        String adminToken = privilegedToken(Role.ADMIN);
+
+        mockMvc.perform(patch("/api/v1/admin/reports/{reportId}/clear", reportId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REPORT_NOT_CLEARABLE"));
     }
 
     @Test

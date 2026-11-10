@@ -78,7 +78,9 @@ public class InspectionQueryService {
                 .orElse(null);
         int level = activeAdoption == null ? 0 : activeAdoption.getLevel();
         boolean hasBlockageReport = reportRepository.existsByDrain_IdAndTypeAndStatus(
-                inspection.getDrain().getId(), ReportType.BLOCKAGE, ReportStatus.PENDING);
+                        inspection.getDrain().getId(), ReportType.BLOCKAGE, ReportStatus.PENDING)
+                || reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatus(
+                        inspection.getDrain().getId(), ReportStatus.APPROVED);
         DrainDisplayStatus displayStatus = drainDisplayStatusPolicy.resolve(
                 activeAdoption, hasBlockageReport, LocalDateTime.now(clock));
 

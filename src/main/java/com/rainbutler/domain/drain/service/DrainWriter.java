@@ -34,8 +34,9 @@ public class DrainWriter {
      *
      * @param drain 저장된 빗물받이
      * @param riskReportId 함께 생성된 제보 id (없으면 null)
+     * @param blocksAdoption 생성된 제보가 입양을 막는지
      */
-    public record SavedDrain(Drain drain, Long riskReportId) {
+    public record SavedDrain(Drain drain, Long riskReportId, boolean blocksAdoption) {
     }
 
     /**
@@ -47,6 +48,7 @@ public class DrainWriter {
      * @param dirtLevel AI 판정 더러움 단계
      * @param isRisk 저장할 위험 여부
      * @param reportDescription 제보 사유 (null이면 제보 없음)
+     * @param blocksAdoption 생성할 제보가 입양을 막는지
      * @param name 표시 이름 (null이면 저장 후 {@code 빗물받이 #id}로 채운다)
      * @param address 주소 (없으면 null)
      * @return 저장 결과
@@ -59,6 +61,7 @@ public class DrainWriter {
             int dirtLevel,
             boolean isRisk,
             String reportDescription,
+            boolean blocksAdoption,
             String name,
             String address) {
         User user = userRepository.findById(userId)
@@ -91,9 +94,12 @@ public class DrainWriter {
                     .type(ReportType.BLOCKAGE)
                     .description(reportDescription)
                     .photoUrl(photoKey)
+                    .latitude(request.latitude())
+                    .longitude(request.longitude())
+                    .blocksAdoption(blocksAdoption)
                     .build();
             riskReportId = reportRepository.save(report).getId();
         }
-        return new SavedDrain(saved, riskReportId);
+        return new SavedDrain(saved, riskReportId, blocksAdoption);
     }
 }

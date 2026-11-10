@@ -20,6 +20,7 @@ import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
  * @param aiConfidence AI 확신도 (0~1)
  * @param riskRemind 사용자 체크값과 AI 판정이 다르거나 AI 확신도가 낮아 리마인드가 필요한지
  * @param riskReportId 검토 사유로 생성된 관리자 검토용 제보 id (없으면 null)
+ * @param adoptionBlocked AI가 청소 불가로 판정해 입양이 막혔는지
  */
 public record DrainCreateResponse(
         Long id,
@@ -36,6 +37,7 @@ public record DrainCreateResponse(
         boolean isRisk,
         Double aiConfidence,
         boolean riskRemind,
-        Long riskReportId
+        Long riskReportId,
+        boolean adoptionBlocked
 ) {
 }

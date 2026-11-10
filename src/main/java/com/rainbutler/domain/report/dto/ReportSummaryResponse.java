@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
  * @param drainId 빗물받이 id
  * @param type 제보 종류
  * @param status 처리 상태
+ * @param blocksAdoption 이 제보가 빗물받이 입양을 막는지
  * @param createdAt 제보 생성 시각
  */
 public record ReportSummaryResponse(
@@ -19,6 +20,7 @@ public record ReportSummaryResponse(
         Long drainId,
         ReportType type,
         ReportStatus status,
+        boolean blocksAdoption,
         LocalDateTime createdAt
 ) {
 
@@ -34,6 +36,7 @@ public record ReportSummaryResponse(
                 report.getDrain() == null ? null : report.getDrain().getId(),
                 report.getType(),
                 report.getStatus(),
+                report.isBlocksAdoption(),
                 report.getCreatedAt());
     }
 }

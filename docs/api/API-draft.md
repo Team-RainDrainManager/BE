@@ -132,7 +132,7 @@
 
 | | Method | Path | 화면 | 설명 |
 | --- | --- | --- | --- | --- |
-| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). 승인 후 +5 XP |
+| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). `BLOCKAGE`는 AI 판정 후 청소 불가일 때만 접수. 승인 후 +5 XP |
 | | GET | `/reports/me` | 16 | 내 제보 내역 (최신순) |
 | | GET | `/reports/{id}` | C-5 | 제보 상세. 제보자 본인 · `ADMIN` · `CITY_OFFICIAL`만 조회 |
 | | GET | `/users/me/activities?type=&cursor=&size=` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 (커서 페이지) |
@@ -151,9 +151,15 @@
   - `ODOR`: `photoKey` 또는 `description` 중 하나
 - `latitude` · `longitude`는 제보 촬영 위치다. 보내지 않으면 빗물받이 위치로 채운다. 둘 중 하나만 보내면 400.
 - `photoKey`는 `StorageService.verifyUploaded(..., REPORT)`로 검증한다. (`PHOTO_FORBIDDEN` · `PHOTO_NOT_UPLOADED` 등)
-- 상태: `PENDING` → `APPROVED` | `REJECTED`. 이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
+- `BLOCKAGE`(기존 빗물받이 막힘 제보)는 사진을 AI로 판독한다.
+  - AI 기준 `needsReport=true` 또는 3등급이면 접수하고 `blocksAdoption=true`로 저장한다. 미입양 빗물받이는 관리자가 해제할 때까지 입양할 수 없다.
+  - 기준 미달이면 400 `REPORT_NOT_UNCLEANABLE`, 이미 입양을 막는 제보가 있으면 409 `REPORT_ALREADY_BLOCKED`.
+- 이미 입양된 빗물받이의 막힘 제보도 접수한다. 입양은 유지하고 지도 · 상세에 막힘 제보로 표시만 한다.
+- 상태: `PENDING` → `APPROVED` | `REJECTED`. 승인된 막힘 제보는 관리자가 해제하면 `CLEARED`가 된다.
+  이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
 - 승인 시 `processedBy` · `resolvedAt` · `adminComment`를 남기고 제보자에게 `report-xp`(기본 5)를 지급한다.
-  반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다.
+  반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다. 반려하면 입양 차단은 즉시 풀린다.
+- 승인된 제보의 입양 차단은 `PATCH /admin/reports/{id}/clear`로만 해제한다. 해제 시 `clearedAt`이 기록된다.
 
 ### 활동 내역 규칙
 
@@ -209,7 +215,7 @@
 | ★ | PATCH | `/admin/reviews/{type}/{id}` | `{ decision: APPROVE \| REJECT, reason? }` (type = `INSPECTION` · `MANAGEMENT_LOG` · `CLEANING`) |
 | | GET | `/admin/reports?status=PENDING` | 제보 승인 대기 (status 생략 시 전체, 최신순). `ADMIN` · `CITY_OFFICIAL` |
 | | PATCH | `/admin/reports/{id}` | `{ approved: true\|false, adminComment? }` 승인 · 반려. 반려 시 사유 필수. `ADMIN` · `CITY_OFFICIAL` |
-| | PATCH | `/admin/drains/{id}/clear-blockage` | 막힘 표시 해제 (청소 후 사진이 없을 때) |
+| | PATCH | `/admin/reports/{id}/clear` | `{ adminComment? }` 승인된 막힘 제보의 입양 차단 · 막힘 표시 해제. `ADMIN` · `CITY_OFFICIAL` |
 | | GET | `/admin/export.csv` | 미점검 · 활동 CSV |
 | | GET | `/admin/rewards.csv?period=` | 리워드 대상 명단 |
 | | POST | `/admin/users/{id}/sanctions` | 허위 제보 제재 (7일 · 14일 · 영구) ⚠️ |

@@ -2,15 +2,18 @@ package com.rainbutler.domain.report.service;
 
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.drain.service.DrainAiClassifier;
 import com.rainbutler.domain.point.entity.PointHistory;
 import com.rainbutler.domain.point.entity.PointSourceType;
 import com.rainbutler.domain.point.entity.PointType;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
+import com.rainbutler.domain.report.dto.ReportClearRequest;
 import com.rainbutler.domain.report.dto.ReportCreateRequest;
 import com.rainbutler.domain.report.dto.ReportCreateResponse;
 import com.rainbutler.domain.report.dto.ReportDetailResponse;
 import com.rainbutler.domain.report.dto.ReportReviewRequest;
 import com.rainbutler.domain.report.entity.Report;
+import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
 import com.rainbutler.domain.user.entity.User;
@@ -22,6 +25,7 @@ import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>제보는 접수하면 {@code PENDING}이고, 관리자가 승인하면 {@code APPROVED}가 되면서 경험치를 지급합니다.
  * 반려는 사유를 남기고 경험치를 지급하지 않습니다.
+ *
+ * <p>기존 빗물받이의 막힘 제보는 AI가 청소 불가({@code needsReport=true} 또는 3등급)로 판정해야
+ * 접수됩니다. 이 제보는 {@code blocksAdoption=true}로 저장되어, 반려되면 자동으로 풀리고 승인 후에는
+ * 관리자가 {@link #clear}로 해제할 때까지 빗물받이 입양을 막습니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,9 +49,14 @@ public class ReportService {
     private final UserRepository userRepository;
     private final DrainRepository drainRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final DrainAiClassifier drainAiClassifier;
     private final StorageService storageService;
     private final PolicyProperties policyProperties;
     private final Clock clock;
+
+    /** 입양을 막는 제보 상태 (반려 · 해제되면 풀린다) */
+    private static final List<ReportStatus> BLOCKING_STATUSES =
+            List.of(ReportStatus.PENDING, ReportStatus.APPROVED);
 
     /**
      * 제보를 접수합니다.
@@ -78,6 +91,10 @@ public class ReportService {
             longitude = drain.getLongitude();
         }
 
+        // 기존 빗물받이의 막힘 제보만 AI로 청소 불가 여부를 확인한다.
+        boolean blocksAdoption = request.type() == ReportType.BLOCKAGE
+                && requireUncleanable(drain, photoKey);
+
         Report report = Report.builder()
                 .user(user)
                 .drain(drain)
@@ -88,8 +105,35 @@ public class ReportService {
                 .longitude(longitude)
                 .newLatitude(request.newLatitude())
                 .newLongitude(request.newLongitude())
+                .blocksAdoption(blocksAdoption)
                 .build();
-        return new ReportCreateResponse(reportRepository.save(report).getId());
+        return new ReportCreateResponse(reportRepository.save(report).getId(), blocksAdoption);
+    }
+
+    /**
+     * 막힘 제보 사진을 AI로 판독해 청소할 수 없는 상태인지 확인합니다.
+     *
+     * <p>이미 같은 빗물받이에 입양을 막는 제보가 있으면 중복 접수하지 않습니다. AI 기준은
+     * {@code needsReport=true} 또는 3등급입니다.
+     *
+     * @param drain 대상 빗물받이
+     * @param photoKey 제보 사진 key
+     * @return 입양을 막아야 하면 true
+     * @throws BusinessException 이미 차단 제보가 있으면 (REPORT_ALREADY_BLOCKED), 청소 불가 기준이
+     *     아니면 (REPORT_NOT_UNCLEANABLE)
+     */
+    private boolean requireUncleanable(Drain drain, String photoKey) {
+        if (reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(
+                drain.getId(), BLOCKING_STATUSES)) {
+            throw new BusinessException(ErrorCode.REPORT_ALREADY_BLOCKED);
+        }
+
+        DrainAiClassifier.Assessment assessment =
+                drainAiClassifier.assess(storageService.toReadUrl(photoKey));
+        if (!assessment.needsReport() && assessment.grade() != 3) {
+            throw new BusinessException(ErrorCode.REPORT_NOT_UNCLEANABLE);
+        }
+        return true;
     }
 
     /**
@@ -128,6 +172,35 @@ public class ReportService {
             }
             report.reject(admin, comment, now);
         }
+
+        return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
+    }
+
+    /**
+     * 승인된 제보의 입양 차단을 해제합니다.
+     *
+     * <p>승인된 막힘 제보는 관리자가 해제할 때까지 빗물받이를 입양할 수 없게 합니다. 반려된 제보는
+     * 검토 단계에서 이미 차단이 풀리므로 해제할 필요가 없습니다.
+     *
+     * @param adminId 처리하는 관리자 · 시청 관계자 id
+     * @param reportId 제보 id
+     * @param request 해제 코멘트 (없으면 null)
+     * @return 처리된 제보 상세
+     * @throws BusinessException 사용자 · 제보 없음, 승인 상태가 아니면 (REPORT_NOT_CLEARABLE)
+     */
+    @Transactional
+    public ReportDetailResponse clear(
+            Long adminId, Long reportId, ReportClearRequest request) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+        if (report.getStatus() != ReportStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.REPORT_NOT_CLEARABLE);
+        }
+
+        User admin = userRepository.findById(adminId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        String comment = request == null ? null : trimToNull(request.adminComment());
+        report.clear(admin, comment, LocalDateTime.now(clock));
 
         return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
     }
