@@ -22,6 +22,7 @@ import com.rainbutler.domain.drain.dto.Response.GrowthResponse;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.request.service.RainRequestLookup;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
@@ -68,6 +69,8 @@ class DrainServiceTest {
     private StorageService storageService;
     @Mock
     private DrainAddressResolver drainAddressResolver;
+    @Mock
+    private RainRequestLookup rainRequestLookup;
 
     private DrainService drainService;
 
@@ -77,14 +80,14 @@ class DrainServiceTest {
                 new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 100,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 20, 365, 5, 30, 30);
+                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 20, 365, 5, 30, 30, 100);
         Clock clock = Clock.fixed(
                 LocalDateTime.of(2026, 11, 3, 9, 0)
                         .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
                 java.time.ZoneId.of("Asia/Seoul"));
         drainService = new DrainService(drainRepository, adoptionRepository, reportRepository,
                 drainAiClassifier, drainWriter, policy, storageService, new GrowthLevelPolicy(),
-                new DrainDisplayStatusPolicy(), drainAddressResolver, clock);
+                new DrainDisplayStatusPolicy(), drainAddressResolver, rainRequestLookup, clock);
     }
 
     @Test

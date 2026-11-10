@@ -226,4 +226,53 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "AND r.drain.id IN (SELECT d.id FROM Drain d WHERE d.isRisk = false)")
     int expireUnadoptedOverdue(@Param("inProgress") Collection<RequestStatus> inProgress,
             @Param("now") LocalDateTime now);
+
+    /**
+     * 위경도 사각형 안에서 지금 도움이 필요한(완료 마감 전 OPEN) 빗물받이 위치를 찾습니다. 같은 빗물받이는 한 번만
+     * 나옵니다. 정확한 반경은 호출하는 쪽에서 거릅니다. (근처 도움 필요 개수)
+     *
+     * @param now 현재 시각
+     * @return 빗물받이 id · 위경도
+     */
+    @Query("SELECT DISTINCT new com.rainbutler.domain.request.repository.OpenDrainPoint("
+            + "d.id, d.latitude, d.longitude) FROM InspectionRequest r JOIN r.drain d "
+            + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.OPEN "
+            + "AND r.completeDeadlineAt > :now "
+            + "AND d.latitude BETWEEN :minLat AND :maxLat "
+            + "AND d.longitude BETWEEN :minLng AND :maxLng")
+    List<OpenDrainPoint> findOpenDrainsInBox(@Param("now") LocalDateTime now,
+            @Param("minLat") double minLat, @Param("maxLat") double maxLat,
+            @Param("minLng") double minLng, @Param("maxLng") double maxLng);
+
+    /**
+     * 예보의 요청 수를 상태별로 셉니다. (지도 비 예보 배너의 대신 점검 진행 상황)
+     *
+     * @param forecastId 예보 id
+     * @return [상태, 개수] 목록
+     */
+    @Query("SELECT r.status, COUNT(r) FROM InspectionRequest r WHERE r.forecast.id = :forecastId "
+            + "GROUP BY r.status")
+    List<Object[]> countByStatus(@Param("forecastId") Long forecastId);
+
+    /**
+     * 예보의 진행 중 요청 중 가장 이른 완료 마감을 찾습니다. (지도 비 예보 배너)
+     *
+     * @param forecastId 예보 id
+     * @param inProgress 진행 중 상태
+     * @return 가장 이른 완료 마감 (진행 중 요청이 없으면 null)
+     */
+    @Query("SELECT MIN(r.completeDeadlineAt) FROM InspectionRequest r "
+            + "WHERE r.forecast.id = :forecastId AND r.status IN :inProgress")
+    LocalDateTime findEarliestCompleteDeadline(@Param("forecastId") Long forecastId,
+            @Param("inProgress") Collection<RequestStatus> inProgress);
+
+    /**
+     * 예보의 요청 중 주어진 빗물받이들의 것을 찾습니다. (지도 빗물받이 이번 비 상태, 한 번에 조회)
+     *
+     * @param forecastId 예보 id
+     * @param drainIds 빗물받이 id
+     * @return 요청 목록
+     */
+    List<InspectionRequest> findAllByForecast_IdAndDrain_IdIn(
+            Long forecastId, Collection<Long> drainIds);
 }

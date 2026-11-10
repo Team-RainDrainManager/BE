@@ -18,6 +18,8 @@ import java.util.List;
  * @param remainingMinutes 다음 마감까지 남은 분 (응답 전이면 응답 마감, 아니면 완료 마감. 끝난 요청은 null)
  * @param distanceM 보낸 위치에서 빗물받이까지 거리 (위치를 보내지 않았으면 null)
  * @param availableActions 지금 할 수 있는 행동 (REPLY · INSPECT · CLAIM)
+ * @param nearbyOpenCount 이 빗물받이 근처(기본 100m)에서 지금 대신 점검이 필요한 빗물받이 수. 내 또랑이
+ *     요청(OWNER)이고 진행 중(SENT · ACCEPTED)일 때만, 그 밖에는 null
  */
 public record MyRequestResponse(
         Long requestId,
@@ -29,7 +31,8 @@ public record MyRequestResponse(
         LocalDateTime deadlineAt,
         Long remainingMinutes,
         Integer distanceM,
-        List<Action> availableActions) {
+        List<Action> availableActions,
+        Integer nearbyOpenCount) {
 
     /** 나와의 관계입니다. */
     public enum Role {

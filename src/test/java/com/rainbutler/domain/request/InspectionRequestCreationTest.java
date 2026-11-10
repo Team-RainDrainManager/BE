@@ -87,6 +87,8 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
         assertThat(jdbcTemplate.queryForObject("SELECT status FROM inspection_request "
                 + "WHERE forecast_id = ? AND drain_id = ?", String.class, forecast, neighborDrain))
                 .isEqualTo("SENT");
+        // 근처 입양자에게 대신 점검 개별 알림을 보내지 않는다
+        assertThat(fixtures.notificationCount(neighbor, "SUBSTITUTE_OPEN")).isZero();
     }
 
     @Test

@@ -35,7 +35,7 @@ class RequestDeadlineJobTest extends RequestIntegrationTest {
     }
 
     @Test
-    void 응답_마감까지_무응답이면_대신_점검으로_공개하고_무응답_횟수를_늘린다() {
+    void 응답_마감까지_무응답이면_대신_점검으로_공개하고_무응답_횟수를_늘리고_근처에_알리지_않는다() {
         Long helper = fixtures.user("이웃");
         fixtures.adoption(helper,
                 fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG, false), "이웃몽");
@@ -47,7 +47,7 @@ class RequestDeadlineJobTest extends RequestIntegrationTest {
         assertThat(fixtures.status(request)).isEqualTo("OPEN");
         assertThat(jdbcTemplate.queryForObject("SELECT ignore_count FROM adoption WHERE id = ?",
                 Integer.class, adoption)).isEqualTo(1);
-        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isEqualTo(1);
+        assertThat(fixtures.notificationCount(helper, "SUBSTITUTE_OPEN")).isZero();
     }
 
     @Test

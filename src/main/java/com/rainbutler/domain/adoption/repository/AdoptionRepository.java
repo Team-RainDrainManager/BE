@@ -74,19 +74,6 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
     @Query("SELECT a.id FROM Adoption a WHERE a.status = :status")
     List<Long> findIdsByStatus(@Param("status") AdoptionStatus status);
 
-    /**
-     * 위경도 사각형 안에 있는 빗물받이의 ACTIVE 입양을 빗물받이 · 입양자와 함께 찾습니다. (대신 점검 근처 입양자)
-     *
-     * <p>사각형으로 넓게 거른 결과라 정확한 반경은 호출하는 쪽에서 다시 거릅니다.
-     *
-     * @return 입양 목록
-     */
-    @Query("SELECT a FROM Adoption a JOIN FETCH a.drain d JOIN FETCH a.user "
-            + "WHERE a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE "
-            + "AND d.latitude BETWEEN :minLat AND :maxLat "
-            + "AND d.longitude BETWEEN :minLng AND :maxLng")
-    List<Adoption> findActiveInBox(@Param("minLat") double minLat, @Param("maxLat") double maxLat,
-            @Param("minLng") double minLng, @Param("maxLng") double maxLng);
 
     /**
      * 운영 중 빗물받이의 ACTIVE 입양을 빗물받이 · 입양자와 함께 모두 찾습니다. (비 예보 요청 발송 대상)

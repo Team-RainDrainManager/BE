@@ -2,6 +2,7 @@ package com.rainbutler.domain.drain.dto.Response;
 
 import com.rainbutler.domain.drain.entity.DrainAdoptionStatus;
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
+import com.rainbutler.domain.request.dto.RainRequestSummary;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -34,4 +35,9 @@ public class DrainResponse {
     private Integer level;
     private String levelTitle;
     private Integer xp;
+    /**
+     * 이번 비(오늘 · 내일 진행 중 예보) 대신 점검 요청. 요청이 없거나 놓침 · 종료 · 취소면 null.
+     * 공개 API라 입양자 · 수락자 정보는 없습니다.
+     */
+    private RainRequestSummary rainRequest;
 }
