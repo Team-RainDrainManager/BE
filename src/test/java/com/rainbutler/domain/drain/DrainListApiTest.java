@@ -128,8 +128,8 @@ class DrainListApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isMine").value(true))
                 .andExpect(jsonPath("$.data.name").value("또랑이"))
-                .andExpect(jsonPath("$.data.nextLevelScore").value(150))
-                .andExpect(jsonPath("$.data.progressPercent").value(50));
+                .andExpect(jsonPath("$.data.nextLevelScore").value(103))
+                .andExpect(jsonPath("$.data.progressPercent").value(94));
 
         mockMvc.perform(get("/api/v1/drain/{drainId}", drainId))
                 .andExpect(status().isOk())

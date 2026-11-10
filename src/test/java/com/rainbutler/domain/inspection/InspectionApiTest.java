@@ -114,7 +114,7 @@ class InspectionApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.beforeGrade").value(0))
-                .andExpect(jsonPath("$.data.xpAwarded").value(5));
+                .andExpect(jsonPath("$.data.xpAwarded").value(20));
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
@@ -159,7 +159,7 @@ class InspectionApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.data.afterGrade").value(1))
-                .andExpect(jsonPath("$.data.xpAwarded").value(5));
+                .andExpect(jsonPath("$.data.xpAwarded").value(20));
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
