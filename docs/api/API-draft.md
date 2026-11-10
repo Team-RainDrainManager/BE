@@ -224,7 +224,7 @@
 
 ### 사진 검토 규칙
 
-- 검토 대기(`PENDING`)는 촬영 위치가 기준 거리(기본 50m) 이상 떨어지거나 AI 확신도가 기준(0.7)보다 낮을 때 생긴다.
+- 촬영 위치가 기준 거리(기본 50m)를 넘거나 찍은 지 기준 시간(기본 30분)이 지난 점검 사진은 기록을 남기지 않고 거절한다. 검토 대기(`PENDING`)는 AI 확신도가 기준(0.7)보다 낮을 때 생긴다.
 - `type`
   - `INSPECTION`: 점검 · 청소 기록 (`inspection.status = PENDING`)
   - `MANAGEMENT_LOG`: 입양 후 관리 기록 (`management_log.review_status = PENDING`)

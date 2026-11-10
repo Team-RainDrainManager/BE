@@ -6,7 +6,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * 점검 시작 요청입니다. 점검 전 사진을 내고 AI 판정을 받습니다.
@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * @param beforeKey 점검 전 사진 key
  * @param latitude 촬영 위도
  * @param longitude 촬영 경도
- * @param capturedAt 사진 촬영 시각
+ * @param capturedAt 사진 촬영 시각 (시간대 포함, 예: 2026-11-09T01:00:00Z)
  * @param note 남길 메모 (최대 500자)
  * @param safetyConfirmed 현장 안전 수칙 확인 여부 (필수)
  */
@@ -28,7 +28,7 @@ public record InspectionStartRequest(
         @NotBlank String beforeKey,
         @NotNull @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
         @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude,
-        @NotNull LocalDateTime capturedAt,
+        @NotNull OffsetDateTime capturedAt,
         @Size(max = 500) String note,
         @NotNull Boolean safetyConfirmed
 ) {

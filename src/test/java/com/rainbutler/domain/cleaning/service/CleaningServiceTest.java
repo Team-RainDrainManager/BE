@@ -212,13 +212,29 @@ class CleaningServiceTest {
     @Test
     void 청소_인증에_실패하면_빗물받이_사진을_바꾸지_않는다() {
         given(drainAiClassifier.assess("after-key-url"))
-                .willReturn(assessment(2, 1));
+                .willReturn(assessment(2, 2));
 
         CleaningVerifyResponse response = service.verifyCleaning(
                 USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0));
 
+        assertThat(response.beforeGrade()).isEqualTo(2);
+        assertThat(response.afterGrade()).isEqualTo(2);
         assertThat(response.passed()).isFalse();
         verify(drain, never()).updateLatestPhoto(anyString(), any());
+    }
+
+    @Test
+    void 막힘에서_쌓임으로_좋아지면_청소_인증을_통과한다() {
+        given(cleaning.getDirtLevel()).willReturn(3);
+        given(drainAiClassifier.assess("after-key-url"))
+                .willReturn(assessment(2, 2));
+
+        CleaningVerifyResponse response = service.verifyCleaning(
+                USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0));
+
+        assertThat(response.beforeGrade()).isEqualTo(3);
+        assertThat(response.passed()).isTrue();
+        verify(drain).updateLatestPhoto("after-key", 2);
     }
 
     @Test

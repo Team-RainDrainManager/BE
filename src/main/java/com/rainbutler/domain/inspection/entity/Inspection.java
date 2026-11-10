@@ -74,10 +74,10 @@ public class Inspection extends BaseEntity {
 
     private String afterPhotoKey;
 
-    /** AI가 점검 전 사진으로 판정한 등급 (0~3) */
+    /** AI가 점검 전 사진으로 판정한 등급 (0 괜찮음 · 2 쌓임 · 3 막힘) */
     private Integer beforeGrade;
 
-    /** AI가 점검 후 사진으로 판정한 등급 (0~3) */
+    /** AI가 점검 후 사진으로 판정한 등급 (0 괜찮음 · 2 쌓임 · 3 막힘) */
     private Integer afterGrade;
 
     /** 점검 전 사진 AI 확신도 */

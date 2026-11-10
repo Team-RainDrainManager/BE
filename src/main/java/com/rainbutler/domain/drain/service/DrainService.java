@@ -276,7 +276,8 @@ public class DrainService {
         }
 
         // 7. 청소 불가 판정이면 입양을 막는 제보를 만들고, 아니면 불일치·저확신 검토용 제보를 만든다.
-        boolean uncleanable = assessment.needsReport() || assessment.grade() == 3;
+        boolean uncleanable = assessment.needsReport()
+                || assessment.grade() == DrainAiClassifier.GRADE_BLOCKED;
         boolean mismatched = request.isRisk() != null && request.isRisk() != isRisk;
         boolean lowConfidence =
                 assessment.confidence() < policyProperties.aiConfidenceThreshold().doubleValue();

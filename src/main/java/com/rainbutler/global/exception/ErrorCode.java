@@ -66,6 +66,10 @@ public enum ErrorCode {
     // ───────── 점검 ─────────
     INSPECTION_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 기록을 찾을 수 없어요."),
     INSPECTION_ALREADY_COMPLETED(HttpStatus.CONFLICT, "이미 완료된 점검이에요."),
+    INSPECTION_LOCATION_MISMATCH(HttpStatus.BAD_REQUEST,
+            "촬영 위치가 빗물받이와 너무 멀어요. 빗물받이 앞에서 다시 촬영해 주세요."),
+    INSPECTION_PHOTO_TOO_OLD(HttpStatus.BAD_REQUEST,
+            "찍은 지 오래된 사진이에요. 빗물받이 앞에서 다시 촬영해 주세요."),
 
     // ───────── 청소 ─────────
     CLEANING_LOCATION_MISMATCH(HttpStatus.BAD_REQUEST,

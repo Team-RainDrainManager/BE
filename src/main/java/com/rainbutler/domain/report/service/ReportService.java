@@ -130,7 +130,8 @@ public class ReportService {
 
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
-        if (!assessment.needsReport() && assessment.grade() != 3) {
+        if (!assessment.needsReport()
+                && assessment.grade() != DrainAiClassifier.GRADE_BLOCKED) {
             throw new BusinessException(ErrorCode.REPORT_NOT_UNCLEANABLE);
         }
         return true;

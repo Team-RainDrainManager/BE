@@ -30,6 +30,7 @@ import com.rainbutler.global.util.GeoDistance;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,7 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 점검 · 청소 기록을 제출합니다.
  *
  * <p>점검 전 사진으로 기록을 만들고, 빗물받이가 더러우면 청소 후 사진을 같은 기록에 붙입니다. AI가 점검 전 ·
- * 후 사진을 판정하고, 위치가 너무 멀거나 확신도가 낮으면 관리자 검토 대기로 남깁니다.
+ * 후 사진을 판정하고, 확신도가 낮으면 관리자 검토 대기로 남깁니다. 촬영 위치가 너무 멀거나 찍은 지 오래된 사진은
+ * 기록을 만들지 않고 다시 찍게 합니다.
  *
  * <p>인증을 통과하면 관리 주기 · 빗물받이 최신 사진을 갱신하고 경험치 · 성장 점수를 지급합니다. 비 예보 ·
  * 대신 점검은 연결된 요청을 완료 처리하고 입양의 연속 무응답 횟수를 초기화합니다.
@@ -70,12 +72,16 @@ public class InspectionService {
      * 점검 전 사진으로 점검을 시작합니다.
      *
      * <p>AI 판정이 깨끗하면 바로 점검을 마치고, 더러우면 {@code NEEDS_CLEANING}으로 남겨 청소 후 사진을
-     * 받습니다. 위치 불일치 · 낮은 확신도면 {@code PENDING}으로 관리자 검토를 기다립니다.
+     * 받습니다. 낮은 확신도면 {@code PENDING}으로 관리자 검토를 기다립니다.
+     *
+     * <p>촬영 위치가 정책 거리({@code location-mismatch-meters})를 넘거나 찍은 지 정책 시간
+     * ({@code capture-max-age-minutes})이 지났으면 AI 판정 전에 거절해, 기록이 남지 않아 바로 다시 찍을 수 있습니다.
      *
      * @param userId 점검하는 사용자 id
      * @param request 점검 시작 요청
      * @return 점검 기록 id · 상태 · AI 판정 · 지급 경험치
-     * @throws BusinessException 안전 확인 누락 · 권한 없음 · 제재 중 · 요청 없음/종료 · 사진 중복 등
+     * @throws BusinessException 안전 확인 누락 · 권한 없음 · 제재 중 · 요청 없음/종료 · 위치 불일치 · 오래된 사진 ·
+     *     사진 중복 등
      */
     @Transactional
     public InspectionSubmitResponse start(Long userId, InspectionStartRequest request) {
@@ -86,6 +92,12 @@ public class InspectionService {
         requireEligible(userId, drain.getId(), request.requestId());
         InspectionContext context =
                 resolveContext(userId, drain, request.kind(), request.requestId());
+        LocalDateTime capturedAt = requireRecentCapture(request.capturedAt());
+        int distanceM = distanceMeters(
+                request.latitude(), request.longitude(), drain);
+        if (distanceM > policyProperties.locationMismatchMeters()) {
+            throw new BusinessException(ErrorCode.INSPECTION_LOCATION_MISMATCH);
+        }
 
         String beforeKey = storageService.verifyUploaded(
                 userId, request.beforeKey(), UploadPurpose.BEFORE);
@@ -93,9 +105,7 @@ public class InspectionService {
 
         DrainAiClassifier.Assessment before =
                 drainAiClassifier.assess(storageService.toReadUrl(beforeKey));
-        int distanceM = distanceMeters(
-                request.latitude(), request.longitude(), drain);
-        boolean reviewRequired = reviewRequired(before.confidence(), null, distanceM);
+        boolean reviewRequired = reviewRequired(before.confidence(), null);
 
         Inspection inspection = Inspection.builder()
                 .user(context.user())
@@ -107,7 +117,7 @@ public class InspectionService {
                 .beforeGrade(before.grade())
                 .aiConfidence(BigDecimal.valueOf(before.confidence()))
                 .distanceM(distanceM)
-                .capturedAt(request.capturedAt())
+                .capturedAt(capturedAt)
                 .note(request.note())
                 .build();
 
@@ -162,8 +172,7 @@ public class InspectionService {
                 drainAiClassifier.assess(storageService.toReadUrl(afterKey));
         boolean improved = after.grade() < inspection.getBeforeGrade();
         boolean reviewRequired = reviewRequired(
-                inspection.getAiConfidence().doubleValue(), after.confidence(),
-                inspection.getDistanceM());
+                inspection.getAiConfidence().doubleValue(), after.confidence());
 
         if (!improved) {
             inspection.retryCleaning(afterKey, after.grade(), after.confidence());
@@ -412,16 +421,32 @@ public class InspectionService {
                 latitude, longitude, drain.getLatitude(), drain.getLongitude()));
     }
 
-    private boolean reviewRequired(double beforeConfidence, Double afterConfidence, int distanceM) {
+    private boolean reviewRequired(double beforeConfidence, Double afterConfidence) {
         double threshold = policyProperties.aiConfidenceThreshold().doubleValue();
-        return distanceM > policyProperties.locationMismatchMeters()
-                || beforeConfidence < threshold
+        return beforeConfidence < threshold
                 || (afterConfidence != null && afterConfidence < threshold);
     }
 
-    /** AI 등급(0~3)을 빗물받이 더러움 단계(1~3)로 바꿉니다. */
+    /**
+     * 찍은 지 오래된 사진을 거절하고, 촬영 시각을 서버 시간대(한국 시간)로 바꿉니다.
+     *
+     * @param capturedAt 앱이 보낸 촬영 시각
+     * @return 서버 시간대의 촬영 시각
+     * @throws BusinessException 정책 시간({@code capture-max-age-minutes})이 지났으면
+     */
+    private LocalDateTime requireRecentCapture(OffsetDateTime capturedAt) {
+        LocalDateTime local = capturedAt.atZoneSameInstant(clock.getZone()).toLocalDateTime();
+        LocalDateTime oldest = LocalDateTime.now(clock)
+                .minusMinutes(policyProperties.captureMaxAgeMinutes());
+        if (local.isBefore(oldest)) {
+            throw new BusinessException(ErrorCode.INSPECTION_PHOTO_TOO_OLD);
+        }
+        return local;
+    }
+
+    /** AI 등급을 빗물받이 더러움 단계(1~3)로 바꿉니다. */
     private int dirtLevel(int grade) {
-        return Math.min(Math.max(grade, 0) + 1, 3);
+        return DrainAiClassifier.toDirtLevel(grade);
     }
 
     private String description(InspectionKind kind) {

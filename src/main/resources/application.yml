@@ -89,6 +89,7 @@ rain-butler:
     substitute-daily-limit: 10           # 1인 하루 대신 점검 수락 최대 횟수 (수락 뒤 취소 · 놓침 포함)
     nearby-request-list-limit: 30        # 내 요청 목록의 근처(NEARBY) 요청 최대 개수 (가까운 순)
     location-mismatch-meters: 50
+    capture-max-age-minutes: 30          # 점검 사진은 찍은 뒤 이 시간 안에 제출해야 한다
     ai-confidence-threshold: 0.7
     rain-notice-time: "06:00"            # 내일 비 예보 요청 일괄 발송 시각
     rain-reply-deadline-time: "12:00"    # 응답 마감 (기존 20:00 → 12:00)
