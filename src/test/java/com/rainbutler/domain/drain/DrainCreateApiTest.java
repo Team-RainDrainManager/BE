@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.rainbutler.domain.drain.service.DrainAiClassifier;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.security.JwtTokenProvider;
@@ -49,6 +50,9 @@ class DrainCreateApiTest extends IntegrationTestSupport {
     @MockitoBean
     private StorageService storageService;
 
+    @MockitoBean
+    private DrainAiClassifier drainAiClassifier;
+
     private Long userId;
     private String token;
     private String photoKey;
@@ -65,6 +69,8 @@ class DrainCreateApiTest extends IntegrationTestSupport {
                 .willAnswer(invocation -> invocation.getArgument(1));
         given(storageService.toReadUrl(anyString()))
                 .willAnswer(invocation -> "http://" + invocation.getArgument(0));
+        given(drainAiClassifier.assess(anyString()))
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
     }
 
     @Test
@@ -91,6 +97,36 @@ class DrainCreateApiTest extends IntegrationTestSupport {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM drain WHERE registered_by = ? AND photo_url = ?",
                 Integer.class, userId, photoKey)).isEqualTo(1);
+    }
+
+    @Test
+    void AI가_청소_불가로_판정하면_등록하되_입양을_막는다() throws Exception {
+        given(drainAiClassifier.assess(anyString()))
+                .willReturn(new DrainAiClassifier.Assessment(3, true, 0.9, "덮개 안쪽 막힘", 3, true));
+
+        mockMvc.perform(post("/api/v1/drain")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "latitude": 37.5,
+                                  "longitude": 126.7,
+                                  "photoKey": "%s",
+                                  "isRisk": false
+                                }
+                                """.formatted(photoKey)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.displayStatus").value("BLOCKAGE_REPORTED"))
+                .andExpect(jsonPath("$.data.adoptionBlocked").value(true))
+                .andExpect(jsonPath("$.data.riskReportId").exists());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM drain WHERE registered_by = ? AND photo_url = ?",
+                Integer.class, userId, photoKey)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT blocks_adoption FROM report WHERE photo_url = ?",
+                Boolean.class, photoKey)).isTrue();
     }
 
     @Test

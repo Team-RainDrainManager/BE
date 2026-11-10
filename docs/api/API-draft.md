@@ -50,7 +50,7 @@
 | ★ | GET | `/drains?swLat&swLng&neLat&neLng&status=` | 02 | 지도 영역 안 빗물받이 + 상태 색(미입양·정상·점검 지연·막힘 제보) + 레벨 |
 | | GET | `/drains/list?status=&page=` | 02 | "50개 목록" 탭 |
 | ★ | GET | `/drains/{id}` | 03, 06 | 상세: 상태, 사진, 최근 점검, 성장(Lv·XP), 입양 여부, 내가 입양했는지 |
-| | GET | `/drains/{id}/growth` | 10 | 성장 도감: Lv(1~10) · 점수 · 다음 레벨 점수 · 진행률. 입양 귀속(집사 변경 시 초기화) |
+| | GET | `/drains/{id}/growth` | 10 | 성장 도감: Lv(1~50) · 점수 · 다음 레벨 점수 · 진행률. 입양 귀속(집사 변경 시 초기화) |
 | | POST | `/admin/drains` | - | 현장 조사 등록 (좌표, 사진, `isRisk`) |
 | | POST | `/drains/{id}/adoptions` | 04 | `{ cleaningId, nickname, safetyAgreed }` → 인증 통과한 청소로 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED`. 위치 불일치·검토 대기·검토 반려 청소는 거부 ⚠️ |
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
@@ -132,7 +132,7 @@
 
 | | Method | Path | 화면 | 설명 |
 | --- | --- | --- | --- | --- |
-| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). 승인 후 +5 XP |
+| | POST | `/reports` | 14, 15 | `{ drainId, type, photoKey?, description?, latitude?, longitude?, newLatitude?, newLongitude? }` → 접수(`PENDING`). `BLOCKAGE`는 AI 판정 후 청소 불가일 때만 접수. 승인 후 +5 XP |
 | | GET | `/reports/me` | 16 | 내 제보 내역 (최신순) |
 | | GET | `/reports/{id}` | C-5 | 제보 상세. 제보자 본인 · `ADMIN` · `CITY_OFFICIAL`만 조회 |
 | | GET | `/users/me/activities?type=&cursor=&size=` | 17 | 점검 기록 · 제보 기록 · 경험치 내역 (커서 페이지) |
@@ -151,9 +151,15 @@
   - `ODOR`: `photoKey` 또는 `description` 중 하나
 - `latitude` · `longitude`는 제보 촬영 위치다. 보내지 않으면 빗물받이 위치로 채운다. 둘 중 하나만 보내면 400.
 - `photoKey`는 `StorageService.verifyUploaded(..., REPORT)`로 검증한다. (`PHOTO_FORBIDDEN` · `PHOTO_NOT_UPLOADED` 등)
-- 상태: `PENDING` → `APPROVED` | `REJECTED`. 이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
+- `BLOCKAGE`(기존 빗물받이 막힘 제보)는 사진을 AI로 판독한다.
+  - AI 기준 막힘(3등급) 또는 `needsReport=true`이면 접수하고 `blocksAdoption=true`로 저장한다. 미입양 빗물받이는 관리자가 해제할 때까지 입양할 수 없다.
+  - 기준 미달이면 400 `REPORT_NOT_UNCLEANABLE`, 이미 입양을 막는 제보가 있으면 409 `REPORT_ALREADY_BLOCKED`.
+- 이미 입양된 빗물받이의 막힘 제보도 접수한다. 입양은 유지하고 지도 · 상세에 막힘 제보로 표시만 한다.
+- 상태: `PENDING` → `APPROVED` | `REJECTED`. 승인된 막힘 제보는 관리자가 해제하면 `CLEARED`가 된다.
+  이미 처리된 제보를 다시 처리하면 409 `REPORT_ALREADY_PROCESSED`.
 - 승인 시 `processedBy` · `resolvedAt` · `adminComment`를 남기고 제보자에게 `report-xp`(기본 5)를 지급한다.
-  반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다.
+  반려는 `adminComment`(사유)가 필수이고 경험치를 지급하지 않는다. 반려하면 입양 차단은 즉시 풀린다.
+- 승인된 제보의 입양 차단은 `PATCH /admin/reports/{id}/clear`로만 해제한다. 해제 시 `clearedAt`이 기록된다.
 
 ### 활동 내역 규칙
 
@@ -209,7 +215,7 @@
 | ★ | PATCH | `/admin/reviews/{type}/{id}` | `{ decision: APPROVE \| REJECT, reason? }` (type = `INSPECTION` · `MANAGEMENT_LOG` · `CLEANING`) |
 | | GET | `/admin/reports?status=PENDING` | 제보 승인 대기 (status 생략 시 전체, 최신순). `ADMIN` · `CITY_OFFICIAL` |
 | | PATCH | `/admin/reports/{id}` | `{ approved: true\|false, adminComment? }` 승인 · 반려. 반려 시 사유 필수. `ADMIN` · `CITY_OFFICIAL` |
-| | PATCH | `/admin/drains/{id}/clear-blockage` | 막힘 표시 해제 (청소 후 사진이 없을 때) |
+| | PATCH | `/admin/reports/{id}/clear` | `{ adminComment? }` 승인된 막힘 제보의 입양 차단 · 막힘 표시 해제. `ADMIN` · `CITY_OFFICIAL` |
 | | GET | `/admin/export.csv` | 미점검 · 활동 CSV |
 | | GET | `/admin/rewards.csv?period=` | 리워드 대상 명단 |
 | | POST | `/admin/users/{id}/sanctions` | 허위 제보 제재 (7일 · 14일 · 영구) ⚠️ |
@@ -238,10 +244,10 @@
 ## ⚠️ 피그마 ↔ ERD 불일치 (결정 필요)
 
 1. **입양 조건**: 피그마는 이름 + 안전 수칙 체크만 하면 바로 입양된다. ERD는 입양 전 청소 인증(`adoption.cleaning_id`)이 필수다.
-2. **성장 레벨 위치**: ~~피그마는 "집사가 바뀌어도 성장 기록은 이어져요", "빗물받이별 Lv.0~50, 50 XP마다 1단계"다.~~ **확정: ERD대로 입양(`adoption.level/score`)에 귀속하고, 집사가 바뀌면 초기화한다. 레벨은 Lv.1~10, 구간표는 0 · 50 · 150 · 300 · 500 · 800 · 1,200 · 1,700 · 2,400 · 3,300P.**
+2. **성장 레벨 위치**: ~~피그마는 "집사가 바뀌어도 성장 기록은 이어져요", "빗물받이별 Lv.0~50, 50 XP마다 1단계"다.~~ **확정: ERD대로 입양(`adoption.level/score`)에 귀속하고, 집사가 바뀌면 초기화한다. 레벨은 Lv.1~50이고, 만렙까지 누적 5,978P다. 구간표는 50P에서 시작해 레벨마다 3P씩 더 필요하다.**
 3. **단체 기능**: 피그마에는 20번 단체 운영 화면, 단체 구역 배정, 단체별 순위가 있다. ERD에는 단체 테이블이 없다. 구역별 순위도 구역 테이블이 없다.
 4. **예보 시간 규칙**: 피그마는 "요청 24시간 전 · 무응답 6시간 후 공개 · 마감 비 3시간 전"으로, 옛 기획안 기준이다. 확정 규칙은 전날 06시 알림 · 20시 공개다.
 5. **더러움 단계**: 피그마는 "0단계"(청소 후 깨끗)를 쓴다. ERD는 1~3단계다.
-6. **XP 규칙**: 피그마는 정기 점검 +5 XP(빗물받이별 하루 1회), 제보 승인 +5 XP다. 개인 참여 점수와 빗물받이 XP가 따로 있다.
-7. **ERD에 없는 기능**: 점검 쉬기(90일 1회), 야간 수신 동의, 허위 제보 제재, 막힘 표시 해제 상태. 겨울(12~2월) 28일 주기는 서버가 자동 적용한다.
+6. **XP 규칙**: 피그마는 정기 점검 +5 XP(빗물받이별 하루 1회), 제보 승인 +5 XP다. **확정: 점검 · 청소 · 대신 점검 인정 시 +20 XP(빗물받이별 하루 1회), 제보 승인 +5 XP.** 개인 참여 점수와 빗물받이 XP가 따로 있다.
+7. **ERD에 없는 기능**: 점검 쉬기(90일 1회), 야간 수신 동의, 허위 제보 제재, 막힘 표시 해제 상태(`report.status = CLEARED`로 추가). 겨울(12~2월) 28일 주기는 서버가 자동 적용한다.
 8. **도구함**: ERD에는 있지만 피그마에 화면이 없다.

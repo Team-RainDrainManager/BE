@@ -381,9 +381,11 @@ Table report {
   longitude "double precision" [note: '제보 촬영 위치 경도']
   new_latitude "double precision" [note: 'LOCATION_FIX 제보의 새 위치']
   new_longitude "double precision"
-  status varchar [not null, note: 'PENDING / APPROVED / REJECTED']
+  status varchar [not null, note: 'PENDING / APPROVED / REJECTED / CLEARED']
+  blocks_adoption boolean [not null, default: false, note: 'AI 청소 불가 판정으로 입양을 막는 제보인지']
   admin_comment varchar
   resolved_at timestamp
+  cleared_at timestamp [note: '승인된 제보의 입양 차단 해제 시각 (해제 전 null)']
   created_at timestamp [not null]
   updated_at timestamp [not null]
   deleted_at timestamp
@@ -391,6 +393,7 @@ Table report {
   indexes {
     (user_id, created_at) [name: 'ix_report_user_created']
     (status, created_at) [name: 'ix_report_status_created']
+    (drain_id, blocks_adoption, status) [name: 'ix_report_drain_blocking']
   }
 }
 

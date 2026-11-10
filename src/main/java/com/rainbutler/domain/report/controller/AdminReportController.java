@@ -1,5 +1,6 @@
 package com.rainbutler.domain.report.controller;
 
+import com.rainbutler.domain.report.dto.ReportClearRequest;
 import com.rainbutler.domain.report.dto.ReportDetailResponse;
 import com.rainbutler.domain.report.dto.ReportListResponse;
 import com.rainbutler.domain.report.dto.ReportReviewRequest;
@@ -58,5 +59,20 @@ public class AdminReportController {
             @Valid @RequestBody ReportReviewRequest request
     ) {
         return ApiResponse.ok(reportService.review(userId, reportId, request));
+    }
+
+    @Operation(summary = "제보 입양 차단 해제 (관리자)", description = "승인된 막힘 제보의 입양 차단을 해제합니다. "
+            + "해제하면 빗물받이를 다시 입양할 수 있고 지도에서 막힘 표시도 사라집니다. "
+            + "승인 상태가 아닌 제보는 해제할 수 없습니다. ADMIN · CITY_OFFICIAL만 쓸 수 있습니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.INVALID_INPUT, ErrorCode.USER_NOT_FOUND, ErrorCode.REPORT_NOT_FOUND,
+            ErrorCode.REPORT_NOT_CLEARABLE, ErrorCode.FORBIDDEN})
+    @PatchMapping("/{reportId}/clear")
+    public ApiResponse<ReportDetailResponse> clear(
+            @LoginUserId Long userId,
+            @PathVariable Long reportId,
+            @Valid @RequestBody(required = false) ReportClearRequest request
+    ) {
+        return ApiResponse.ok(reportService.clear(userId, reportId, request));
     }
 }

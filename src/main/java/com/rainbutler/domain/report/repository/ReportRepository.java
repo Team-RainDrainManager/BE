@@ -4,6 +4,7 @@ import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,15 +27,42 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     boolean existsByDrain_IdAndTypeAndStatus(Long drainId, ReportType type, ReportStatus status);
 
     /**
-     * 여러 빗물받이 중 처리 대기 중인 막힘 제보가 있는 빗물받이 id를 찾습니다. (지도 · 목록)
+     * 이 빗물받이의 입양을 막는 제보가 있는지 확인합니다.
+     *
+     * <p>AI가 청소 불가로 판정한 막힘 제보가 처리 대기({@code PENDING}) 또는 승인({@code APPROVED})
+     * 상태면 입양할 수 없습니다. 반려({@code REJECTED}) · 해제({@code CLEARED})되면 풀립니다.
+     *
+     * @param drainId 빗물받이 id
+     * @param statuses 차단 상태로 볼 제보 상태
+     * @return 존재 여부
+     */
+    boolean existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(
+            Long drainId, Collection<ReportStatus> statuses);
+
+    /**
+     * 이 빗물받이에 승인됐지만 아직 해제되지 않은 입양 차단 제보가 있는지 확인합니다.
+     *
+     * @param drainId 빗물받이 id
+     * @param status 처리 상태
+     * @return 존재 여부
+     */
+    boolean existsByDrain_IdAndBlocksAdoptionTrueAndStatus(Long drainId, ReportStatus status);
+
+    /**
+     * 여러 빗물받이 중 화면에 막힘 제보로 표시할 빗물받이 id를 찾습니다. (지도 · 목록)
+     *
+     * <p>처리 대기 중인 막힘 제보는 모두 표시하고, 승인된 제보는 입양을 막는 제보만 관리자가 해제할
+     * 때까지 계속 표시합니다.
      *
      * @param drainIds 빗물받이 id 목록
      * @return 막힘 제보가 있는 빗물받이 id 목록
      */
     @Query("SELECT DISTINCT r.drain.id FROM Report r WHERE r.drain.id IN :drainIds "
             + "AND r.type = com.rainbutler.domain.report.entity.ReportType.BLOCKAGE "
-            + "AND r.status = com.rainbutler.domain.report.entity.ReportStatus.PENDING")
-    List<Long> findPendingBlockageDrainIds(@Param("drainIds") List<Long> drainIds);
+            + "AND (r.status = com.rainbutler.domain.report.entity.ReportStatus.PENDING "
+            + "     OR (r.blocksAdoption = true "
+            + "         AND r.status = com.rainbutler.domain.report.entity.ReportStatus.APPROVED))")
+    List<Long> findBlockageReportedDrainIds(@Param("drainIds") List<Long> drainIds);
 
     /**
      * 사용자별 제보 목록을 최신순으로 조회합니다.

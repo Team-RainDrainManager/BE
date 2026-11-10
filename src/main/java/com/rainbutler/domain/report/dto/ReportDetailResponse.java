@@ -18,8 +18,10 @@ import java.time.LocalDateTime;
  * @param newLatitude 새 위치 위도 (LOCATION_FIX인 경우)
  * @param newLongitude 새 위치 경도 (LOCATION_FIX인 경우)
  * @param status 처리 상태
+ * @param blocksAdoption 이 제보가 빗물받이 입양을 막는지
  * @param adminComment 관리자 코멘트
  * @param resolvedAt 처리 완료 시각
+ * @param clearedAt 입양 차단 해제 시각 (해제 전에는 null)
  * @param createdAt 제보 생성 시각
  */
 public record ReportDetailResponse(
@@ -33,8 +35,10 @@ public record ReportDetailResponse(
         Double newLatitude,
         Double newLongitude,
         ReportStatus status,
+        boolean blocksAdoption,
         String adminComment,
         LocalDateTime resolvedAt,
+        LocalDateTime clearedAt,
         LocalDateTime createdAt
 ) {
 
@@ -57,8 +61,10 @@ public record ReportDetailResponse(
                 report.getNewLatitude(),
                 report.getNewLongitude(),
                 report.getStatus(),
+                report.isBlocksAdoption(),
                 report.getAdminComment(),
                 report.getResolvedAt(),
+                report.getClearedAt(),
                 report.getCreatedAt());
     }
 }

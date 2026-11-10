@@ -28,6 +28,7 @@ import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import com.rainbutler.global.util.GeoDistance;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,10 @@ import java.time.LocalDateTime;
 public class CleaningService {
 
     private static final int MAX_ADOPTION_COUNT = 3;
+
+    /** 입양을 막는 제보 상태 (반려 · 해제되면 풀린다) */
+    private static final List<ReportStatus> BLOCKING_STATUSES =
+            List.of(ReportStatus.PENDING, ReportStatus.APPROVED);
 
     private final CleaningRepository cleaningRepository;
     private final DrainRepository drainRepository;
@@ -60,7 +65,7 @@ public class CleaningService {
      * <ul>
      *   <li>괜찮음(0) → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
      *   <li>쌓임(2) · 막힘(3) → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
-     *   <li>막힘(3)·needsReport=true → 입양 불가, BLOCKAGE 제보로 전환</li>
+     *   <li>needsReport=true 또는 막힘(3) → 입양 불가, 입양을 막는 BLOCKAGE 제보로 전환</li>
      * </ul>
      *
      * @throws BusinessException 빗물받이가 없거나, 이미 입양됐거나, 입양 한도를 넘었거나, 촬영 위치가
@@ -75,6 +80,12 @@ public class CleaningService {
         // 2. 빗물받이 입양 상태 확인
         if (drain.getAdoptionStatus() == DrainAdoptionStatus.ADOPTED) {
             throw new BusinessException(ErrorCode.DRAIN_ALREADY_ADOPTED);
+        }
+
+        // 2-1. AI가 청소 불가로 판정한 제보가 남아 있으면 입양 청소를 시작할 수 없다
+        if (reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(
+                drainId, BLOCKING_STATUSES)) {
+            throw new BusinessException(ErrorCode.DRAIN_ADOPTION_BLOCKED);
         }
 
         // 3. 사용자 입양 수 제한 확인
@@ -98,20 +109,22 @@ public class CleaningService {
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
 
-        // 8. 3등급·needsReport=true면 입양 불가, BLOCKAGE 제보로 전환
-        boolean blocked = assessment.grade() == 3 && assessment.needsReport();
+        // 8. 막힘(3등급) 또는 needsReport=true면 입양 불가, BLOCKAGE 제보로 전환
+        boolean blocked = assessment.needsReport()
+                || assessment.grade() == DrainAiClassifier.GRADE_BLOCKED;
         if (blocked) {
-            // BLOCKAGE 제보 생성
+            // BLOCKAGE 제보 생성 (관리자가 해제할 때까지 입양 차단)
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
             Report report = Report.builder()
                     .user(user)
                     .drain(drain)
                     .type(ReportType.BLOCKAGE)
-                    .description("AI 판정: 덮개 안쪽 막힘(3등급)으로 지자체 신고 대상")
+                    .description("AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 막힘(3등급))로 지자체 신고 대상")
                     .photoUrl(photoKey)
                     .latitude(request.latitude())
                     .longitude(request.longitude())
+                    .blocksAdoption(true)
                     .build();
             reportRepository.save(report);
 
@@ -145,7 +158,7 @@ public class CleaningService {
         cleaning.setDirtConfidence(BigDecimal.valueOf(assessment.confidence()));
         cleaning.setStatus(CleaningStatus.IN_PROGRESS);
 
-        // 이미 깨끗한 빗물받이(0등급)는 청소 인증 없이 바로 입양할 수 있게 한다
+        // 이미 깨끗한 빗물받이(괜찮음 0)는 청소 인증 없이 바로 입양할 수 있게 한다
         boolean alreadyClean = assessment.grade() == 0;
         if (alreadyClean) {
             cleaning.setStatus(CleaningStatus.COMPLETED);
@@ -155,7 +168,7 @@ public class CleaningService {
 
         Cleaning saved = cleaningRepository.save(cleaning);
 
-        // 10. 응답 (0등급은 청소 불필요, 1등급 이상은 청소 후 사진 인증이 필요하다)
+        // 10. 응답 (괜찮음(0)은 청소 불필요, 쌓임(2)·막힘(3)은 청소 후 사진 인증이 필요하다)
         boolean mustClean = !alreadyClean;
         return new CleaningStartResponse(
                 saved.getId(),

@@ -86,28 +86,32 @@ public final class DrainSpecifications {
         }
 
         return (root, query, cb) -> {
-            Predicate hasPendingBlockage = hasPendingBlockage(root, query, cb);
+            Predicate hasBlockageReport = hasBlockageReport(root, query, cb);
             Predicate hasActiveAdoption = hasActiveAdoption(root, query, cb);
             Predicate isDelayed = hasDelayedAdoption(root, query, cb, now);
 
             return switch (status) {
-                case BLOCKAGE_REPORTED -> hasPendingBlockage;
-                case AVAILABLE -> cb.and(cb.not(hasPendingBlockage), cb.not(hasActiveAdoption));
-                case MANAGEMENT_DELAYED -> cb.and(cb.not(hasPendingBlockage), isDelayed);
+                case BLOCKAGE_REPORTED -> hasBlockageReport;
+                case AVAILABLE -> cb.and(cb.not(hasBlockageReport), cb.not(hasActiveAdoption));
+                case MANAGEMENT_DELAYED -> cb.and(cb.not(hasBlockageReport), isDelayed);
                 case NORMAL -> cb.and(
-                        cb.not(hasPendingBlockage), hasActiveAdoption, cb.not(isDelayed));
+                        cb.not(hasBlockageReport), hasActiveAdoption, cb.not(isDelayed));
             };
         };
     }
 
-    private static Predicate hasPendingBlockage(
+    private static Predicate hasBlockageReport(
             Root<Drain> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
         Subquery<Long> subquery = query.subquery(Long.class);
         Root<Report> report = subquery.from(Report.class);
         subquery.select(report.get("id")).where(
                 cb.equal(report.get("drain"), root),
                 cb.equal(report.get("type"), ReportType.BLOCKAGE),
-                cb.equal(report.get("status"), ReportStatus.PENDING));
+                cb.or(
+                        cb.equal(report.get("status"), ReportStatus.PENDING),
+                        cb.and(
+                                cb.isTrue(report.get("blocksAdoption")),
+                                cb.equal(report.get("status"), ReportStatus.APPROVED))));
         return cb.exists(subquery);
     }
 

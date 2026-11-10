@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 class DrainGrowthApiTest extends IntegrationTestSupport {
 
     /** 만렙(Lv.50)이 되는 최소 누적 점수 */
-    private static final int MAX_LEVEL_SCORE = 203_300;
+    private static final int MAX_LEVEL_SCORE = 5_978;
 
     @Autowired
     private MockMvc mockMvc;
@@ -68,19 +68,19 @@ class DrainGrowthApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.level").value(2))
                 .andExpect(jsonPath("$.data.score").value(100))
-                .andExpect(jsonPath("$.data.nextLevelScore").value(150))
-                .andExpect(jsonPath("$.data.progressPercent").value(50));
+                .andExpect(jsonPath("$.data.nextLevelScore").value(103))
+                .andExpect(jsonPath("$.data.progressPercent").value(94));
     }
 
     @Test
     void 만렙이_아니면_다음_레벨_점수를_구간표에서_준다() throws Exception {
         Long drainId = drain();
-        adoption(drainId, 10, 3300);
+        adoption(drainId, 10, 558);
 
         growth(drainId)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.level").value(10))
-                .andExpect(jsonPath("$.data.nextLevelScore").value(4400))
+                .andExpect(jsonPath("$.data.nextLevelScore").value(635))
                 .andExpect(jsonPath("$.data.progressPercent").value(0));
     }
 
