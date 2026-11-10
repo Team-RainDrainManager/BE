@@ -73,7 +73,8 @@ public class Report extends BaseEntity {
     /**
      * 이 제보가 빗물받이 입양을 막는지 여부입니다.
      *
-     * <p>AI가 청소할 수 없는 상태({@code needsReport=true} 또는 3등급)로 판정한 막힘 제보만 true입니다.
+     * <p>AI가 청소할 수 없는 상태(막힘(3등급) 또는 {@code needsReport=true})로 판정한 막힘 제보만
+     * true입니다.
      */
     @Column(nullable = false)
     private boolean blocksAdoption;

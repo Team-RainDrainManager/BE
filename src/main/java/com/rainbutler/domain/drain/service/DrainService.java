@@ -230,8 +230,9 @@ public class DrainService {
      * 빗물받이를 생성합니다. (관리자 직접 등록 + 일반 사용자 제보 등록 공통)
      *
      * <p>트랜잭션을 열지 않고 검증·AI 판정을 끝낸 뒤, 저장은 짧은 트랜잭션({@code DrainWriter})에
-     * 맡깁니다. 상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. 3등급(위험)이면 지자체 신고용
-     * 제보(BLOCKAGE, PENDING)를 만듭니다. 아래 경우 리마인드({@code riskRemind=true})도 함께 띄웁니다.
+     * 맡깁니다. 상태는 항상 ACTIVE(바로 지도 노출)로 만듭니다. AI가 청소 불가(막힘(3등급) 또는
+     * {@code needsReport=true})로 판정하면 지자체 신고용 제보(BLOCKAGE, PENDING)를 만들어 입양을
+     * 막습니다. 아래 경우 리마인드({@code riskRemind=true})도 함께 띄웁니다.
      * <ul>
      *   <li>사용자가 체크한 위험값이 AI 판정과 다름</li>
      *   <li>AI 확신도가 기준({@code policy.ai-confidence-threshold}) 미만</li>
@@ -289,12 +290,12 @@ public class DrainService {
             blocksAdoption = true;
             reportDescription = firstNonBlank(
                     request.riskDescription(),
-                    "AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 3등급)로 지자체 신고 대상");
+                    "AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 막힘(3등급))로 지자체 신고 대상");
         } else if (riskRemind || isRisk) {
             reportDescription = request.riskDescription();
             if (reportDescription == null || reportDescription.isBlank()) {
                 if (isRisk) {
-                    reportDescription = "AI 판정 위험(3등급)으로 지자체 신고 대상";
+                    reportDescription = "AI 판정 위험(막힘(3등급))으로 지자체 신고 대상";
                 } else if (mismatched) {
                     reportDescription = "사용자 체크(위험=" + request.isRisk() + ")와 AI 판정(위험="
                             + isRisk + ")이 달라 관리자 확인 필요";

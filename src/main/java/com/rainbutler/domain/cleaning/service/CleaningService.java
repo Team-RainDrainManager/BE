@@ -109,7 +109,7 @@ public class CleaningService {
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
 
-        // 8. needsReport=true 또는 3등급이면 입양 불가, BLOCKAGE 제보로 전환
+        // 8. 막힘(3등급) 또는 needsReport=true면 입양 불가, BLOCKAGE 제보로 전환
         boolean blocked = assessment.needsReport()
                 || assessment.grade() == DrainAiClassifier.GRADE_BLOCKED;
         if (blocked) {
@@ -120,7 +120,7 @@ public class CleaningService {
                     .user(user)
                     .drain(drain)
                     .type(ReportType.BLOCKAGE)
-                    .description("AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 3등급)로 지자체 신고 대상")
+                    .description("AI 판정: 청소가 어려운 상태(덮개 안쪽 막힘 또는 막힘(3등급))로 지자체 신고 대상")
                     .photoUrl(photoKey)
                     .latitude(request.latitude())
                     .longitude(request.longitude())
@@ -158,7 +158,7 @@ public class CleaningService {
         cleaning.setDirtConfidence(BigDecimal.valueOf(assessment.confidence()));
         cleaning.setStatus(CleaningStatus.IN_PROGRESS);
 
-        // 이미 깨끗한 빗물받이(0등급)는 청소 인증 없이 바로 입양할 수 있게 한다
+        // 이미 깨끗한 빗물받이(괜찮음 0)는 청소 인증 없이 바로 입양할 수 있게 한다
         boolean alreadyClean = assessment.grade() == 0;
         if (alreadyClean) {
             cleaning.setStatus(CleaningStatus.COMPLETED);
@@ -168,7 +168,7 @@ public class CleaningService {
 
         Cleaning saved = cleaningRepository.save(cleaning);
 
-        // 10. 응답 (0등급은 청소 불필요, 1등급 이상은 청소 후 사진 인증이 필요하다)
+        // 10. 응답 (괜찮음(0)은 청소 불필요, 쌓임(2)·막힘(3)은 청소 후 사진 인증이 필요하다)
         boolean mustClean = !alreadyClean;
         return new CleaningStartResponse(
                 saved.getId(),

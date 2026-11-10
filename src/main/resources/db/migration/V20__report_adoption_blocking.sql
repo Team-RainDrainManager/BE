@@ -7,6 +7,7 @@ ALTER TABLE "report" ADD COLUMN "cleared_at" timestamp;
 
 COMMENT ON COLUMN "report"."blocks_adoption" IS 'AI 청소 불가 판정으로 입양을 막는 제보인지';
 COMMENT ON COLUMN "report"."cleared_at" IS '승인된 제보의 입양 차단 해제 시각';
+COMMENT ON COLUMN "report"."status" IS 'PENDING / APPROVED / REJECTED / CLEARED';
 
 -- 빗물받이별 입양 차단 · 막힘 표시 조회용
 CREATE INDEX ix_report_drain_blocking

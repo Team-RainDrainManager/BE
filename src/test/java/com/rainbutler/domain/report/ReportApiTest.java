@@ -194,6 +194,20 @@ class ReportApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 승인된_제보라도_입양을_막는_막힘_제보가_아니면_해제할_수_없다() throws Exception {
+        Long reportId = createReport("ODOR", null, "냄새가 심해요", null, null);
+        String adminToken = privilegedToken(Role.ADMIN);
+        approve(reportId, adminToken).andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/admin/reports/{reportId}/clear", reportId)
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("REPORT_NOT_CLEARABLE"));
+    }
+
+    @Test
     void 악취_제보는_사진_없이_설명만으로_접수한다() throws Exception {
         Long reportId = createReport("ODOR", null, "하수구 냄새가 심해요", null, null);
 
