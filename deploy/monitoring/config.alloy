@@ -41,10 +41,12 @@ prometheus.scrape "app" {
 
 // 서버 자원. 호스트의 /proc · /sys · / 를 컨테이너에 읽기 전용으로 마운트해 읽는다
 prometheus.exporter.unix "host" {
-	procfs_path    = "/host/proc"
-	sysfs_path     = "/host/sys"
-	rootfs_path    = "/host/root"
-	set_collectors = ["cpu", "meminfo", "filesystem", "loadavg", "netdev", "diskstats"]
+	procfs_path = "/host/proc"
+	sysfs_path  = "/host/sys"
+	rootfs_path = "/host/root"
+	// uname: Node Exporter Full 대시보드(1860)가 node_uname_info로 Job · Nodename · Instance 변수를 채운다
+	// time · stat: 업타임 · 부팅 시각, vmstat: 메모리 상세(페이지 폴트 · 스왑 입출력)
+	set_collectors = ["cpu", "meminfo", "filesystem", "loadavg", "netdev", "diskstats", "uname", "time", "stat", "vmstat"]
 
 	filesystem {
 		mount_points_exclude = "^/(dev|proc|run|sys|var/lib/docker/.+)($|/)"
@@ -66,6 +68,13 @@ prometheus.relabel "host" {
 	rule {
 		target_label = "instance"
 		replacement  = "rain-butler-ec2"
+	}
+
+	// exporter가 만든 target에 자체 job 라벨(integrations/unix)이 붙어 scrape의 job_name이 적용되지 않는다.
+	// 대시보드 1860 · up{job="node"}가 쓰는 job="node"로 고정한다
+	rule {
+		target_label = "job"
+		replacement  = "node"
 	}
 }
 
