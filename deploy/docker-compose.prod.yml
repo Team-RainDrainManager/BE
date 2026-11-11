@@ -40,5 +40,31 @@ services:
       retries: 5
     logging: *default-logging
 
+  # 모니터링 수집기: 앱 지표 · 서버 자원 · 앱/Nginx 로그 → Grafana Cloud (설정: monitoring/config.alloy)
+  # DB는 RDS라 수집하지 않는다. 접속 정보는 .env의 GRAFANA_* (값이 없어도 컨테이너는 뜨고 전송만 실패)
+  alloy:
+    image: grafana/alloy:v1.21.3
+    container_name: rain-butler-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    env_file: .env
+    ports:
+      - "127.0.0.1:12345:12345"   # Alloy UI는 서버 안 디버깅용. 외부에는 안 열림
+    volumes:
+      - ./monitoring/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log/nginx:/var/log/nginx:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    mem_limit: 256m
+    logging: *default-logging
+
 volumes:
   rain-butler-db-data:
+  alloy-data:

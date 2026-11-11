@@ -49,7 +49,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, prometheus   # prometheus는 서버 안 Grafana Alloy만 수집 (Nginx가 /actuator 외부 차단)
+  metrics:
+    tags:
+      application: rain-butler
+      env: ${APP_ENV:local}           # 운영 .env는 APP_ENV=prod
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true    # Grafana에서 API별 p95 · p99 지연을 계산할 수 있게
+      slo:
+        http.server.requests: 100ms, 300ms, 1s, 3s
 
 rain-butler:
   jwt:

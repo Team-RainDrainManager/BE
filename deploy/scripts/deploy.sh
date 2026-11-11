@@ -8,6 +8,9 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/rain-butler}"
 COMPOSE_FILE="docker-compose.prod.yml"
 APP_CONTAINER="rain-butler"
+ALLOY_CONTAINER="rain-butler-alloy"
+ALLOY_CONFIG="monitoring/config.alloy"
+ALLOY_HASH_FILE=".alloy_config_hash"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8080/actuator/health}"
 HEALTH_TIMEOUT=120
 HEALTH_INTERVAL=3
@@ -47,14 +50,39 @@ if [[ -f .current_tag ]]; then
 fi
 log "현재 태그: ${PREV_TAG:-없음} → 새 태그: $NEW_TAG"
 
-# RDS 이전 후(DB_MODE=rds)에는 멈춰 둔 db 컨테이너를 다시 켜지 않도록 app만 올린다
-SERVICES=()
+# 앱 배포 대상. RDS 이전 후(DB_MODE=rds)에는 멈춰 둔 db 컨테이너를 다시 켜지 않도록 app만 올린다
+# 모니터링(alloy)은 앱 배포가 끝난 뒤 따로 올린다 (모니터링 장애가 배포를 막지 않게)
+SERVICES=(app db)
 if [[ "$DB_MODE" == "rds" ]]; then
     SERVICES=(app)
 fi
 
 compose_up() {
     IMAGE_TAG="$1" docker compose -f "$COMPOSE_FILE" up -d "${SERVICES[@]}"
+}
+
+# 모니터링 수집기(Grafana Alloy)를 올린다. 실패해도 경고만 남기고 배포는 성공으로 둔다
+ensure_alloy() {
+    if [[ ! -f "$ALLOY_CONFIG" ]]; then
+        log "경고: ${ALLOY_CONFIG}이 없어 Alloy를 건너뜀"
+        return 0
+    fi
+    if ! IMAGE_TAG="$1" docker compose -f "$COMPOSE_FILE" up -d alloy; then
+        log "경고: Alloy 실행 실패 (앱 배포는 성공)"
+        return 0
+    fi
+    # compose up은 설정 파일 내용 변경을 모르므로, 해시가 바뀌면 재시작해 새 설정을 읽게 한다
+    local new_hash old_hash
+    new_hash="$(sha256sum "$ALLOY_CONFIG" | cut -d' ' -f1)"
+    old_hash="$(cat "$ALLOY_HASH_FILE" 2>/dev/null || true)"
+    if [[ "$new_hash" != "$old_hash" ]]; then
+        if docker restart "$ALLOY_CONTAINER" > /dev/null; then
+            log "Alloy 설정 변경 반영 (재시작)"
+            echo "$new_hash" > "$ALLOY_HASH_FILE"
+        else
+            log "경고: Alloy 재시작 실패 (앱 배포는 성공)"
+        fi
+    fi
 }
 
 # ───────── 4. 이미지 받기 · 실행 ─────────
@@ -94,6 +122,9 @@ if [[ -n "$PREV_TAG" && "$PREV_TAG" != "$NEW_TAG" ]]; then
     echo "$PREV_TAG" > .previous_tag
 fi
 echo "$NEW_TAG" > .current_tag
+
+log "모니터링(Alloy) 확인"
+ensure_alloy "$NEW_TAG"
 
 log "사용하지 않는 이미지 정리"
 docker image prune -f > /dev/null || true

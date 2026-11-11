@@ -16,6 +16,9 @@ springdoc:
 logging:
   level:
     root: info
+  structured:
+    format:
+      console: ecs   # 운영 로그는 JSON 한 줄 (Grafana Loki에서 requestId · level로 검색). 로컬 · 테스트는 사람이 읽는 형식
 
 server:
   forward-headers-strategy: native   # Nginx 뒤에서 https · 클라이언트 IP 인식

@@ -1,0 +1,179 @@
+// 빗물받이 집사 운영 서버 수집 설정 (Grafana Alloy). CD가 /opt/rain-butler/monitoring/에 복사한다.
+//
+// 지표: 앱(/actuator/prometheus) · 서버 자원(node) → Grafana Cloud Prometheus (remote_write)
+// 로그: 앱 컨테이너(rain-butler) · Nginx 접근/에러 로그 → Grafana Cloud Loki
+// 접속 정보는 서버 .env의 GRAFANA_* 환경변수에서 읽는다 (이 파일에 값을 쓰지 않는다).
+// 공통 라벨: env="prod", instance="rain-butler-ec2"
+
+logging {
+	level  = "warn"
+	format = "logfmt"
+}
+
+// ───────── 지표 ─────────
+
+prometheus.remote_write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GRAFANA_PROM_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_PROM_USER")
+			password = sys.env("GRAFANA_CLOUD_TOKEN")
+		}
+	}
+
+	external_labels = {
+		env = "prod",
+	}
+}
+
+// 앱 지표. compose 같은 네트워크라 서비스 이름(app)으로 접근한다
+prometheus.scrape "app" {
+	targets = [{
+		__address__ = "app:8080",
+		instance    = "rain-butler-ec2",
+	}]
+	job_name        = "rain-butler"
+	metrics_path    = "/actuator/prometheus"
+	scrape_interval = "15s"
+	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// 서버 자원. 호스트의 /proc · /sys · / 를 컨테이너에 읽기 전용으로 마운트해 읽는다
+prometheus.exporter.unix "host" {
+	procfs_path    = "/host/proc"
+	sysfs_path     = "/host/sys"
+	rootfs_path    = "/host/root"
+	set_collectors = ["cpu", "meminfo", "filesystem", "loadavg", "netdev", "diskstats"]
+
+	filesystem {
+		mount_points_exclude = "^/(dev|proc|run|sys|var/lib/docker/.+)($|/)"
+		fs_types_exclude     = "^(autofs|devtmpfs|nsfs|overlay|proc|squashfs|sysfs|tmpfs)$"
+	}
+}
+
+prometheus.scrape "host" {
+	targets         = prometheus.exporter.unix.host.targets
+	job_name        = "node"
+	scrape_interval = "15s"
+	forward_to      = [prometheus.relabel.host.receiver]
+}
+
+// 서버 자원 지표의 instance를 앱 지표와 같은 값으로 맞춘다
+prometheus.relabel "host" {
+	forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+	rule {
+		target_label = "instance"
+		replacement  = "rain-butler-ec2"
+	}
+}
+
+// ───────── 로그 ─────────
+
+loki.write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GRAFANA_LOKI_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_LOKI_USER")
+			password = sys.env("GRAFANA_CLOUD_TOKEN")
+		}
+	}
+
+	external_labels = {
+		env      = "prod",
+		instance = "rain-butler-ec2",
+	}
+}
+
+// 앱 컨테이너 로그. DB는 RDS라 수집하지 않는다
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "app_logs" {
+	targets = discovery.docker.containers.targets
+
+	// 컨테이너 이름이 정확히 rain-butler인 것만 (rain-butler-alloy 등 제외)
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/rain-butler"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		target_label = "service"
+		replacement  = "app"
+	}
+}
+
+loki.source.docker "app" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.app_logs.output
+	forward_to = [loki.process.app.receiver]
+}
+
+// 앱 로그는 ECS JSON 한 줄. level만 라벨로 올린다
+// (requestId · userId는 값 종류가 많아 라벨로 만들면 비용이 크게 늘어난다 → LogQL | json 으로 검색)
+loki.process "app" {
+	stage.json {
+		expressions = {
+			level = "log.level",
+		}
+	}
+
+	stage.labels {
+		values = {
+			level = "",
+		}
+	}
+
+	forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// Nginx 접근 · 에러 로그 (호스트 /var/log/nginx 읽기 전용 마운트)
+local.file_match "nginx" {
+	path_targets = [
+		{
+			__path__ = "/var/log/nginx/access.log",
+			job      = "nginx",
+			log_type = "access",
+		},
+		{
+			__path__ = "/var/log/nginx/error.log",
+			job      = "nginx",
+			log_type = "error",
+		},
+	]
+}
+
+loki.source.file "nginx" {
+	targets    = local.file_match.nginx.targets
+	forward_to = [loki.process.nginx.receiver]
+}
+
+// 접근 로그(기본 combined 형식)에서 상태 코드를 꺼내 구조화 메타데이터로 붙인다 (라벨 아님)
+loki.process "nginx" {
+	stage.match {
+		selector = "{log_type=\"access\"}"
+
+		stage.regex {
+			expression = "^\\S+ \\S+ \\S+ \\[[^\\]]+\\] \"[^\"]*\" (?P<status>\\d{3}) "
+		}
+
+		stage.structured_metadata {
+			values = {
+				status = "",
+			}
+		}
+	}
+
+	forward_to = [loki.write.grafana_cloud.receiver]
+}

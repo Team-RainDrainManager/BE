@@ -1,5 +1,6 @@
 package com.rainbutler.global.security;
 
+import com.rainbutler.global.logging.AuthenticatedUserMdcFilter;
 import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -55,6 +57,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/health", "/actuator/health").permitAll()
+                        // 운영 지표는 서버 안의 Grafana Alloy만 수집한다. Nginx가 /actuator 전체를 deny all로 막고
+                        // 앱 포트 8080은 127.0.0.1에만 열려 있어 외부에서는 닿지 않는다
+                        .requestMatchers(HttpMethod.GET, "/actuator/prometheus").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
                         // 지도 위 빗물받이 목록은 로그인 전에도 볼 수 있다
@@ -67,6 +72,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "CITY_OFFICIAL")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
+                // JWT 인증 직후 사용자 id를 로그(MDC · 접근 로그)에 남긴다
+                .addFilterAfter(
+                        new AuthenticatedUserMdcFilter(), BearerTokenAuthenticationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
                         .authenticationEntryPoint(authenticationEntryPoint)
