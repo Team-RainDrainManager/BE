@@ -62,6 +62,7 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/host/root:ro,rslave
+      - /run/udev:/run/udev:ro   # diskstats의 디스크 장치 정보 (없으면 "Failed to open directory ... udev" 경고)
     mem_limit: 256m
     logging: *default-logging
 
