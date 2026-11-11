@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/health", "/actuator/health").permitAll()
+                        // 운영 지표는 서버 안의 Grafana Alloy만 수집한다. Nginx가 /actuator 전체를 deny all로 막고
+                        // 앱 포트 8080은 127.0.0.1에만 열려 있어 외부에서는 닿지 않는다
+                        .requestMatchers(HttpMethod.GET, "/actuator/prometheus").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
                         // 지도 위 빗물받이 목록은 로그인 전에도 볼 수 있다

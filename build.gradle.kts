@@ -28,6 +28,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	// 운영 지표를 Prometheus 형식으로 노출 (/actuator/prometheus → 서버의 Grafana Alloy가 수집). 버전은 Boot BOM
+	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0")
 
 	// Security
