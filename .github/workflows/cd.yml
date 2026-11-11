@@ -86,6 +86,17 @@ jobs:
           target: /opt/rain-butler
           strip_components: 1
 
+      - name: 모니터링(Alloy) 설정 복사
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: deploy/monitoring/config.alloy
+          target: /opt/rain-butler
+          # deploy/ 만 떼어 /opt/rain-butler/monitoring/config.alloy 로 둔다
+          strip_components: 1
+
       - name: 배포 · 백업 스크립트 복사
         uses: appleboy/scp-action@v1
         with:
