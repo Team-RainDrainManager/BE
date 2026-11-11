@@ -34,6 +34,9 @@ import org.springframework.stereotype.Component;
  * 배치는 내일 비에는 1번 규칙, 오늘 비에는 06:00 기준 2번 규칙을 씁니다.
  * <br>예: 23:15에 내일 15시 비 → 다음 날 06:00에 2번 규칙(응답 07:00, 완료 14:00)으로 발송.
  * 단, 21:00 이후에 알게 된 오늘 밤 비는 완료 마감(21:00)이 이미 지나 보내지 않습니다.
+ *
+ * <h3>4. 시연용 가상 예보</h3>
+ * 운영자가 직접 보낸 예보라 시각과 관계없이 2번 규칙으로 바로 보냅니다. (오늘 · 내일 비만. 모레 이후는 1번과 같음)
  */
 @Component
 @RequiredArgsConstructor
@@ -57,6 +60,10 @@ public class RequestSchedulePolicy {
         if (rainDate.isAfter(today.plusDays(1))) {
             // 모레 이후 비는 그 전날 06:00 배치가 보낸다
             return RequestSchedule.atNotice();
+        }
+        if (forecast.isSimulated()) {
+            // 시연용 가상 예보는 운영자가 직접 보낸 것이라 밤에도 06:00 배치를 기다리지 않고 바로 보낸다
+            return sameDay(forecast.getRainStartAt(), now);
         }
         boolean beforeNotice = now.toLocalTime().isBefore(policy.rainNoticeTime());
         if (rainDate.equals(today.plusDays(1)) && beforeNotice) {

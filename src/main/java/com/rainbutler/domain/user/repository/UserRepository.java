@@ -2,8 +2,10 @@ package com.rainbutler.domain.user.repository;
 
 import com.rainbutler.domain.user.entity.Provider;
 import com.rainbutler.domain.user.entity.User;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * User 엔티티 저장소입니다.
@@ -36,4 +38,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 사용자
      */
     Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
+
+    /**
+     * 온보딩을 마치고 알림을 켜 둔 사용자 id를 모두 찾습니다. (탈퇴 회원 제외)
+     *
+     * @return 알림을 받을 수 있는 사용자 id
+     */
+    @Query("SELECT u.id FROM User u "
+            + "WHERE u.onboardingCompletedAt IS NOT NULL AND u.notificationEnabled = true")
+    List<Long> findNotifiableUserIds();
 }

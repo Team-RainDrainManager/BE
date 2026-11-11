@@ -10,6 +10,7 @@ import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
+import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.util.KoreanJosa;
@@ -17,6 +18,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +46,7 @@ public class InspectionRequestService {
     private final InspectionRequestRepository inspectionRequestRepository;
     private final RainForecastRepository rainForecastRepository;
     private final AdoptionRepository adoptionRepository;
+    private final UserRepository userRepository;
     private final PushService pushService;
     private final RequestNotifier requestNotifier;
     private final Clock clock;
@@ -67,6 +70,7 @@ public class InspectionRequestService {
         boolean tomorrow = forecast.getRainDate().isAfter(today);
 
         int created = 0;
+        Set<Long> notifiedUserIds = new HashSet<>();
         for (Adoption adoption : adoptionRepository.findAllActiveOnActiveDrains()) {
             if (!blocked.add(adoption.getDrain().getId())) {
                 continue;
@@ -75,6 +79,7 @@ public class InspectionRequestService {
                     newRequest(forecast, adoption.getDrain(), adoption, RequestStatus.SENT,
                             schedule));
             notifyAdopter(request, adoption, tomorrow, today);
+            notifiedUserIds.add(adoption.getUser().getId());
             created++;
         }
 
@@ -92,7 +97,37 @@ public class InspectionRequestService {
         log.info("[비 예보 요청] 예보 id={} 요청 {}건 생성 (입양자 {} · 미입양 대신 점검 {}, 미입양 저장 {}ms)",
                 forecastId, created, created - opened.size(), opened.size(),
                 System.currentTimeMillis() - startedAt);
+        // 시연용 가상 예보는 입양하지 않은 사용자에게도 비 소식을 알려, 대신 점검에 참여할 수 있게 한다.
+        // 실제 예보는 지금처럼 입양자에게만 알린다 (대신 점검은 지도에서 자발 참여)
+        if (forecast.isSimulated() && !opened.isEmpty()) {
+            int noticed = notifyOthers(notifiedUserIds, tomorrow);
+            log.info("[비 예보 요청] 예보 id={} 가상 예보 비 소식 알림 {}명", forecastId, noticed);
+        }
         return created;
+    }
+
+    /**
+     * 입양자 알림을 받지 않은 사용자에게 비 소식을 알립니다. 특정 요청에 묶이지 않은 알림이라 요청 id는 없습니다.
+     *
+     * @param alreadyNotified 이미 입양자 알림을 받은 사용자 id
+     * @param tomorrow 내일 비인지 (아니면 오늘 비)
+     * @return 알린 사용자 수
+     */
+    private int notifyOthers(Set<Long> alreadyNotified, boolean tomorrow) {
+        NotificationType type =
+                tomorrow ? NotificationType.RAIN_TOMORROW : NotificationType.RAIN_TODAY;
+        String title = tomorrow ? "내일 비 소식이 있어요 ☔" : "오늘 비 소식이 있어요 ☔";
+        String body = "가까운 빗물받이를 대신 점검해 줄 수 있어요. "
+                + "알림 탭에서 내 위치 주변 요청을 확인해 주세요.";
+        int noticed = 0;
+        for (Long userId : userRepository.findNotifiableUserIds()) {
+            if (alreadyNotified.contains(userId)) {
+                continue;
+            }
+            pushService.notify(userId, type, title, body, null, null, null);
+            noticed++;
+        }
+        return noticed;
     }
 
     /**

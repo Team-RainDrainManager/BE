@@ -110,14 +110,37 @@ class RequestSchedulePolicyTest {
                 .isEqualTo(Type.SKIP);
     }
 
+    @Test
+    void 시연용_가상_예보는_밤에도_바로_보낸다() {
+        // 22:30에 내일 15시 비: 실제 예보는 06:00 배치, 가상 예보는 즉시 (완료 내일 14:00, 응답 23:30)
+        assertThat(policy.plan(rain("2026-11-02T15:00"), at("2026-11-01T22:30")).type())
+                .isEqualTo(Type.SEND_AT_NOTICE);
+        RequestSchedule simulated =
+                policy.plan(rain("2026-11-02T15:00", true), at("2026-11-01T22:30"));
+        assertThat(simulated.type()).isEqualTo(Type.SEND_NOW);
+        assertThat(simulated.completeDeadlineAt()).isEqualTo(at("2026-11-02T14:00"));
+        assertThat(simulated.replyDeadlineAt()).isEqualTo(at("2026-11-01T23:30"));
+
+        // 05:15에 내일 비도 가상 예보는 바로 보낸다
+        assertThat(policy.plan(rain("2026-11-02T15:00", true), at("2026-11-01T05:15")).type())
+                .isEqualTo(Type.SEND_NOW);
+        // 모레 이후 비는 가상 예보도 그 전날 06:00 배치가 보낸다
+        assertThat(policy.plan(rain("2026-11-03T15:00", true), at("2026-11-01T14:00")).type())
+                .isEqualTo(Type.SEND_AT_NOTICE);
+    }
+
     private static RainForecast rain(String rainStartAt) {
+        return rain(rainStartAt, false);
+    }
+
+    private static RainForecast rain(String rainStartAt, boolean simulated) {
         LocalDateTime start = LocalDateTime.parse(rainStartAt);
         return RainForecast.builder()
                 .rainDate(start.toLocalDate())
                 .rainStartAt(start)
                 .pop(80)
                 .pcpMm(BigDecimal.TEN)
-                .isSimulated(false)
+                .isSimulated(simulated)
                 .build();
     }
 

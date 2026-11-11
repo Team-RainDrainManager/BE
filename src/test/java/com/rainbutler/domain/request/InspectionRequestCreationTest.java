@@ -208,4 +208,37 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
         assertThat(cancelled.createdCount()).isZero();
         assertThat(cancelled.cancelledCount()).isEqualTo(2);
     }
+
+    @Test
+    void 가상_예보는_밤에도_바로_보내고_입양하지_않은_사용자에게도_비_소식을_알린다() {
+        now(LocalDateTime.of(2027, 5, 10, 22, 30));
+        Long owner = fixtures.user("집사");
+        Long visitor = fixtures.user("방문객");
+        fixtures.adoption(owner,
+                fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false), "또랑이");
+        fixtures.drain(RequestFixtures.north(30), RequestFixtures.BASE_LNG, false);
+
+        var confirmed = forecastSimulationService.simulate(
+                80, BigDecimal.TEN, LocalDateTime.of(2027, 5, 11, 15, 0));
+
+        // 밤 10시 30분이지만 06:00 배치를 기다리지 않는다
+        assertThat(confirmed.createdCount()).isEqualTo(2);
+        // 입양자는 점검 요청 알림 1건만, 입양하지 않은 사용자는 비 소식 알림 1건
+        assertThat(fixtures.notificationCount(owner, "RAIN_TOMORROW")).isEqualTo(1);
+        assertThat(fixtures.lastNotification(visitor, "RAIN_TOMORROW")).isEqualTo(
+                "내일 비 소식이 있어요 ☔ | 가까운 빗물받이를 대신 점검해 줄 수 있어요. "
+                        + "알림 탭에서 내 위치 주변 요청을 확인해 주세요.");
+    }
+
+    @Test
+    void 실제_예보는_입양하지_않은_사용자에게_알리지_않는다() {
+        now(NOTICE);
+        Long visitor = fixtures.user("방문객");
+        fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false);
+        Long forecast = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false);
+
+        inspectionRequestService.createForForecast(forecast, schedulePolicy.noticeSchedule(NOTICE));
+
+        assertThat(fixtures.notificationCount(visitor, "RAIN_TOMORROW")).isZero();
+    }
 }
