@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -123,6 +124,38 @@ public class ForecastService {
                     "비 시작 시각은 지금부터 " + policy.sameDayMinLeadHours() + "시간 뒤 이후여야 해요.");
         }
         return apply(rainStartAt.toLocalDate(), pop, mm, rainStartAt, true);
+    }
+
+    /**
+     * 진행 중인 가상 예보 id를 찾습니다. (관리자 가상 예보 일괄 취소)
+     *
+     * @return 가상 예보 id
+     */
+    @Transactional(readOnly = true)
+    public List<Long> findActiveSimulatedIds() {
+        return rainForecastRepository.findAllActiveSimulated().stream()
+                .map(RainForecast::getId)
+                .toList();
+    }
+
+    /**
+     * 진행 중인 가상 예보를 모두 취소합니다. 실제 기상청 예보는 건드리지 않습니다.
+     *
+     * <p>기준 미달 취소와 같은 {@link ForecastCancelledEvent}를 발행하므로, 커밋 뒤 진행 중 점검 요청이 취소되고
+     * 입양자 · 대신 점검 수락자에게 "비 예보가 취소됐어요" 알림이 갑니다.
+     *
+     * @return 취소한 가상 예보 id
+     */
+    @Transactional
+    public List<Long> cancelAllSimulated() {
+        List<RainForecast> forecasts = rainForecastRepository.findAllActiveSimulated();
+        for (RainForecast forecast : forecasts) {
+            forecast.cancel();
+            log.info("[비 예보] 관리자가 가상 예보 취소 id={} {}", forecast.getId(),
+                    forecast.getRainDate());
+            eventPublisher.publishEvent(new ForecastCancelledEvent(forecast.getId()));
+        }
+        return forecasts.stream().map(RainForecast::getId).toList();
     }
 
     private ForecastApplyResult cancel(RainForecast forecast) {

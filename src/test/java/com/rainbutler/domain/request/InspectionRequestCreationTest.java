@@ -208,4 +208,42 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
         assertThat(cancelled.createdCount()).isZero();
         assertThat(cancelled.cancelledCount()).isEqualTo(2);
     }
+
+    @Test
+    void 가상_예보_일괄_취소는_가상_예보와_요청만_취소하고_취소_알림을_보낸다() {
+        now(LocalDateTime.of(2027, 5, 10, 10, 0));
+        Long owner = fixtures.user("집사");
+        fixtures.adoption(owner,
+                fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false), "또랑이");
+        fixtures.drain(RequestFixtures.north(30), RequestFixtures.BASE_LNG, false);
+        // 실제 예보와 그 요청은 건드리지 않아야 한다
+        Long real = fixtures.forecast(TOMORROW, TOMORROW.atTime(9, 0), false);
+        Long realDrain = fixtures.drain(RequestFixtures.north(60), RequestFixtures.BASE_LNG,
+                false);
+        Long realRequest = fixtures.request(real, realDrain, null, "OPEN",
+                LocalDateTime.of(2027, 5, 10, 12, 0), LocalDateTime.of(2027, 5, 10, 20, 0));
+        var simulated = forecastSimulationService.simulate(
+                80, BigDecimal.TEN, LocalDateTime.of(2027, 5, 11, 15, 0));
+        assertThat(simulated.createdCount()).isEqualTo(2);
+
+        var result = forecastSimulationService.cancelAll();
+
+        assertThat(result.cancelledForecastCount()).isEqualTo(1);
+        assertThat(result.cancelledRequestCount()).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM rain_forecast WHERE id = ?",
+                String.class, simulated.forecastId())).isEqualTo("CANCELLED");
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM inspection_request "
+                + "WHERE forecast_id = ? AND status <> 'CANCELLED'", Integer.class,
+                simulated.forecastId())).isZero();
+        assertThat(fixtures.lastNotification(owner, "REQUEST_CANCELLED"))
+                .startsWith("비 예보가 취소됐어요");
+        assertThat(jdbcTemplate.queryForObject("SELECT status FROM rain_forecast WHERE id = ?",
+                String.class, real)).isEqualTo("ACTIVE");
+        assertThat(fixtures.status(realRequest)).isEqualTo("OPEN");
+
+        var again = forecastSimulationService.cancelAll();
+        assertThat(again.cancelledForecastCount()).isZero();
+        assertThat(again.cancelledRequestCount()).isZero();
+    }
 }
+

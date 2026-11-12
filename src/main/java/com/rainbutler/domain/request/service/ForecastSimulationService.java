@@ -1,6 +1,7 @@
 package com.rainbutler.domain.request.service;
 
 import com.rainbutler.domain.forecast.dto.ForecastSimulateResponse;
+import com.rainbutler.domain.forecast.dto.SimulatedForecastCancelResponse;
 import com.rainbutler.domain.forecast.service.ForecastApplyResult;
 import com.rainbutler.domain.forecast.service.ForecastApplyResult.Applied;
 import com.rainbutler.domain.forecast.service.ForecastService;
@@ -8,6 +9,7 @@ import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -40,5 +42,27 @@ public class ForecastSimulationService {
                 ? inspectionRequestRepository.countByForecast_IdAndStatus(
                         result.forecastId(), RequestStatus.CANCELLED) : 0;
         return ForecastSimulateResponse.of(result, (int) created, (int) cancelled);
+    }
+
+    /**
+     * 진행 중인 가상 예보를 모두 취소합니다. 함께 취소된 요청에는 "비 예보가 취소됐어요" 알림이 갑니다.
+     *
+     * <p>취소 전후의 취소 요청 수 차이로 이번에 취소된 요청 수를 셉니다 (전에 다른 이유로 취소된 요청은 빼고).
+     *
+     * @return 취소한 가상 예보 수와 요청 수
+     */
+    public SimulatedForecastCancelResponse cancelAll() {
+        List<Long> forecastIds = forecastService.findActiveSimulatedIds();
+        long before = countCancelled(forecastIds);
+        List<Long> cancelled = forecastService.cancelAllSimulated();
+        long after = countCancelled(forecastIds);
+        return new SimulatedForecastCancelResponse(cancelled.size(), (int) (after - before));
+    }
+
+    private long countCancelled(List<Long> forecastIds) {
+        return forecastIds.stream()
+                .mapToLong(id -> inspectionRequestRepository.countByForecast_IdAndStatus(
+                        id, RequestStatus.CANCELLED))
+                .sum();
     }
 }

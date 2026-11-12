@@ -2,6 +2,7 @@ package com.rainbutler.domain.forecast.controller;
 
 import com.rainbutler.domain.forecast.dto.ForecastSimulateRequest;
 import com.rainbutler.domain.forecast.dto.ForecastSimulateResponse;
+import com.rainbutler.domain.forecast.dto.SimulatedForecastCancelResponse;
 import com.rainbutler.domain.request.service.ForecastSimulationService;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
@@ -40,6 +41,17 @@ public class ForecastAdminController {
             - `cancelledCount`: 예보 취소로 취소된 점검 요청 수
             """;
 
+    private static final String CANCEL_SIMULATED = """
+            진행 중인 **가상 예보를 모두 취소**합니다. **ADMIN만** 쓸 수 있습니다 (CITY_OFFICIAL은 403).
+            푸시 테스트 등으로 만든 가상 예보를 날짜를 몰라도 한 번에 정리할 때 씁니다.
+
+            - 실제 기상청 예보는 건드리지 않습니다.
+            - 실제 예보가 취소될 때와 같이 진행 중 점검 요청이 취소되고, 입양자 · 대신 점검 수락자에게
+              **"비 예보가 취소됐어요" 알림(REQUEST_CANCELLED)**이 갑니다. 완료 · 놓침 · 종료된 요청은 그대로입니다.
+            - 응답: `cancelledForecastCount` 취소한 가상 예보 수, `cancelledRequestCount` 함께 취소된 요청 수
+            - 취소한 뒤 바로 새 가상 예보를 만들 수 있습니다.
+            """;
+
     private final ForecastSimulationService forecastSimulationService;
 
     /**
@@ -54,5 +66,17 @@ public class ForecastAdminController {
             @Valid @RequestBody ForecastSimulateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(forecastSimulationService.simulate(
                 request.pop(), request.mm(), request.rainStartAt())));
+    }
+
+    /**
+     * 진행 중인 가상 예보를 모두 취소합니다.
+     */
+    @Operation(summary = "가상 예보 일괄 취소 (시연 · 테스트용)", description = CANCEL_SIMULATED)
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.FORBIDDEN})
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/simulated/cancel")
+    public ResponseEntity<ApiResponse<SimulatedForecastCancelResponse>> cancelSimulated() {
+        return ResponseEntity.ok(ApiResponse.ok(forecastSimulationService.cancelAll()));
     }
 }

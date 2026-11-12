@@ -96,6 +96,30 @@ class ForecastAdminApiTest extends IntegrationTestSupport {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void 관리자는_가상_예보를_일괄_취소하고_시청_관계자는_403이다() throws Exception {
+        simulate(Role.ADMIN, 80, "12.5", "2032-06-05T15:00:00")
+                .andExpect(jsonPath("$.data.applied").value("CONFIRMED"));
+
+        cancelSimulated(Role.CITY_OFFICIAL).andExpect(status().isForbidden());
+        cancelSimulated(Role.USER).andExpect(status().isForbidden());
+        cancelSimulated(Role.ADMIN)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.cancelledForecastCount").value(1))
+                .andExpect(jsonPath("$.data.cancelledRequestCount").value(0));
+        cancelSimulated(Role.ADMIN)
+                .andExpect(jsonPath("$.data.cancelledForecastCount").value(0));
+        // 취소 뒤 같은 날짜로 바로 다시 만들 수 있다
+        simulate(Role.ADMIN, 80, "12.5", "2032-06-05T15:00:00")
+                .andExpect(jsonPath("$.data.applied").value("CONFIRMED"));
+    }
+
+    private ResultActions cancelSimulated(Role role) throws Exception {
+        return mockMvc.perform(post("/api/v1/admin/forecasts/simulated/cancel")
+                .header("Authorization",
+                        "Bearer " + jwtTokenProvider.createAccessToken(1L, role)));
+    }
+
     private ResultActions simulate(Role role, int pop, String mm, String rainStartAt)
             throws Exception {
         String token = jwtTokenProvider.createAccessToken(1L, role);
