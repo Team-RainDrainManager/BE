@@ -13,7 +13,9 @@ public enum UploadPurpose {
     /** 청소 · 점검 후 사진 */
     AFTER,
     /** 제보 사진 */
-    REPORT;
+    REPORT,
+    /** 마이페이지 프로필 사진 */
+    PROFILE;
 
     /**
      * S3 key에 들어가는 경로 이름입니다.

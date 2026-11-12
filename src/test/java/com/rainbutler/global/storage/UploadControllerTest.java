@@ -53,6 +53,16 @@ class UploadControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 프로필_사진_용도면_profile_경로로_key를_준다() throws Exception {
+        request("{\"purpose\":\"PROFILE\",\"contentType\":\"image/jpeg\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.key").value(
+                        matchesPattern("test/profile/7/[0-9a-f-]{36}\\.jpg")))
+                .andExpect(jsonPath("$.data.uploadUrl").value(
+                        startsWith("https://test-bucket.s3.")));
+    }
+
+    @Test
     void 정상이면_key와_업로드_URL과_헤더를_준다() throws Exception {
         request("{\"purpose\":\"REPORT\",\"contentType\":\"image/webp\"}")
                 .andExpect(status().isOk())

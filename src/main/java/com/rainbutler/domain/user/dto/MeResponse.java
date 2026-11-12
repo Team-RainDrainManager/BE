@@ -45,12 +45,22 @@ public record MeResponse(
 
     /**
      * 사용자 엔티티와 상태 정보로 응답을 만듭니다.
+     *
+     * @param user 사용자
+     * @param profileImage 프로필 사진 조회 URL (카카오 URL 또는 업로드한 사진의 조회 URL)
+     * @param participationScore 참여 점수
+     * @param adoptionCount 입양 중인 빗물받이 수
+     * @param sanction 제재 상태
+     * @param pause 점검 쉬기 상태
+     * @param inspectionCount 인정된 점검 수
+     * @param volunteerMinutes 봉사 시간 (분)
+     * @return 내 정보 응답
      */
-    public static MeResponse of(User user, long participationScore, long adoptionCount,
-            SanctionSummary sanction, PauseSummary pause, long inspectionCount,
+    public static MeResponse of(User user, String profileImage, long participationScore,
+            long adoptionCount, SanctionSummary sanction, PauseSummary pause, long inspectionCount,
             long volunteerMinutes) {
         return new MeResponse(user.getId(), user.getNickname(), user.getEmail(),
-                user.getProfileImage(), user.getRole(), user.getProvider(), user.getPoint(),
+                profileImage, user.getRole(), user.getProvider(), user.getPoint(),
                 user.getLevel(), user.isOnboardingCompleted(), user.isIdentityVerified(),
                 participationScore, adoptionCount, sanction, pause, inspectionCount,
                 volunteerMinutes);

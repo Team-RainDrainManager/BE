@@ -20,6 +20,7 @@ import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.storage.StorageService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -52,13 +53,18 @@ class LeaderboardQueryServiceTest {
     private LeaderboardRepository leaderboardRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private StorageService storageService;
 
     private LeaderboardQueryService service;
     private User me;
 
     @BeforeEach
     void setUp() {
-        service = new LeaderboardQueryService(leaderboardRepository, userRepository, CLOCK);
+        service = new LeaderboardQueryService(leaderboardRepository, userRepository,
+                storageService, CLOCK);
+        lenient().when(storageService.toReadUrl(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         me = User.local(UUID.randomUUID() + "@test.com", "{noop}x", "나");
         ReflectionTestUtils.setField(me, "id", ME);
         ReflectionTestUtils.setField(me, "profileImage", "https://image/me.png");
@@ -126,6 +132,24 @@ class LeaderboardQueryServiceTest {
         assertThat(response.rankings()).hasSize(1);
         assertThat(response.me().rank()).isNull();
         assertThat(response.me().score()).isEqualTo(-2L);
+    }
+
+    @Test
+    void 프로필_사진_key는_조회_URL로_바꿔_내려준다() {
+        given(storageService.toReadUrl("test/profile/2/uuid.jpg"))
+                .willReturn("https://s3/read/test/profile/2/uuid.jpg");
+        given(storageService.toReadUrl("https://image/me.png"))
+                .willReturn("https://image/me.png");
+        given(leaderboardRepository.findWeeklyScores(any(), any()))
+                .willReturn(List.of(
+                        new LeaderboardEntry(2L, "둘", "test/profile/2/uuid.jpg", 20L),
+                        entry(ME, "나", 5L)));
+
+        LeaderboardResponse response = service.findRankings(ME, "WEEKLY", 20);
+
+        assertThat(response.rankings().get(0).profileImage())
+                .isEqualTo("https://s3/read/test/profile/2/uuid.jpg");
+        assertThat(response.me().profileImage()).isEqualTo("https://image/me.png");
     }
 
     @Test

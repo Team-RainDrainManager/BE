@@ -161,6 +161,18 @@ public class User extends BaseEntity {
     }
 
     /**
+     * 프로필 사진을 바꿉니다.
+     *
+     * <p>업로드한 사진은 S3 key를 저장하고 응답에서 조회 URL로 바꿉니다. {@code null}이면 기본
+     * 프로필로 되돌립니다.
+     *
+     * @param profileImage 프로필 사진 key (없으면 null)
+     */
+    public void changeProfileImage(String profileImage) {
+        this.profileImage = profileImage;
+    }
+
+    /**
      * 참여 점수를 더합니다. ({@code point_history} 적립과 같은 트랜잭션에서 호출)
      *
      * @param amount 더할 점수

@@ -5,6 +5,8 @@ import com.rainbutler.domain.user.dto.IdentityVerifyResponse;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
+import com.rainbutler.domain.user.dto.ProfileImageUpdateRequest;
+import com.rainbutler.domain.user.dto.ProfileImageUpdateResponse;
 import com.rainbutler.domain.user.service.UserService;
 import com.rainbutler.domain.user.service.WithdrawalService;
 import com.rainbutler.global.exception.ErrorCode;
@@ -72,6 +74,35 @@ public class UserController {
     public ResponseEntity<ApiResponse<NicknameUpdateResponse>> updateNickname(
             @LoginUserId Long userId, @Valid @RequestBody NicknameUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(userService.updateNickname(userId, request)));
+    }
+
+    /**
+     * 마이페이지 프로필 사진을 등록 · 변경합니다.
+     */
+    @Operation(summary = "프로필 사진 변경",
+            description = "`POST /uploads/presigned-url`(purpose=PROFILE)로 사진을 올린 뒤 받은 key를 "
+                    + "보냅니다. 기존 사진이 있으면 교체하고, 응답에는 조회 URL을 내려줍니다.")
+    @ApiErrorCodes({ErrorCode.INVALID_INPUT, ErrorCode.INVALID_PHOTO_KEY, ErrorCode.PHOTO_FORBIDDEN,
+            ErrorCode.PHOTO_NOT_UPLOADED, ErrorCode.UNSUPPORTED_IMAGE_TYPE, ErrorCode.PHOTO_TOO_LARGE,
+            ErrorCode.STORAGE_ERROR, ErrorCode.STORAGE_NOT_CONFIGURED, ErrorCode.UNAUTHORIZED,
+            ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN, ErrorCode.USER_NOT_FOUND})
+    @PatchMapping("/me/profile-image")
+    public ResponseEntity<ApiResponse<ProfileImageUpdateResponse>> updateProfileImage(
+            @LoginUserId Long userId, @Valid @RequestBody ProfileImageUpdateRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.updateProfileImage(userId, request)));
+    }
+
+    /**
+     * 프로필 사진을 삭제하고 기본 프로필로 되돌립니다.
+     */
+    @Operation(summary = "프로필 사진 삭제",
+            description = "프로필 사진을 지우고 기본 프로필로 되돌립니다. 이미 없어도 성공합니다.")
+    @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
+            ErrorCode.USER_NOT_FOUND})
+    @DeleteMapping("/me/profile-image")
+    public ResponseEntity<ApiResponse<ProfileImageUpdateResponse>> deleteProfileImage(
+            @LoginUserId Long userId) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.deleteProfileImage(userId)));
     }
 
     /**
