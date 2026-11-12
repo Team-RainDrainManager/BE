@@ -49,4 +49,13 @@ public interface RainForecastRepository extends JpaRepository<RainForecast, Long
             + "AND f.rainStartAt > :now")
     LocalDateTime findEarliestActiveRainStartAfter(
             @Param("simulated") boolean simulated, @Param("now") LocalDateTime now);
+
+    /**
+     * 진행 중(ACTIVE)인 가상 예보를 모두 찾습니다. (관리자 가상 예보 일괄 취소)
+     *
+     * @return 가상 예보 목록
+     */
+    @Query("SELECT f FROM RainForecast f WHERE f.isSimulated = true "
+            + "AND f.status = com.rainbutler.domain.forecast.entity.ForecastStatus.ACTIVE")
+    List<RainForecast> findAllActiveSimulated();
 }
