@@ -25,8 +25,9 @@
 | | POST | `/auth/refresh` | - | 토큰 재발급 |
 | | POST | `/auth/logout` | 16 | 로그아웃 |
 | ★ | POST | `/auth/demo` | 01 | 시연 계정 로그인 (카카오 없이). 운영에서는 끔 |
-| | GET | `/users/me` | 16 | 닉네임, 참여 점수, 입양 수, 점검 수, 봉사 시간 |
+| | GET | `/users/me` | 16 | 닉네임, 프로필 사진, 참여 점수, 입양 수, 점검 수, 봉사 시간 |
 | | PATCH | `/users/me` | 16 | 닉네임 수정 |
+| | PATCH · DELETE | `/users/me/profile-image` | 16 | 프로필 사진 등록·교체(`{ photoKey }`) · 기본 프로필로 되돌리기 |
 | ★ | PUT | `/users/me/location` | 13 | 활동 위치 갱신 (대신 점검 300m 판정용) |
 | | GET · PATCH | `/users/me/settings` | 19 | 앱 알림, 야간 수신(06시 발송) 동의. 관리 주기는 14일, 겨울(12~2월)은 서버가 28일 자동 적용 |
 | | POST | `/users/me/rest` | 05, 19 | 점검 쉬기 신청 (90일에 한 번) ⚠️ |
@@ -36,7 +37,7 @@
 
 | | Method | Path | 화면 | 설명 |
 | --- | --- | --- | --- | --- |
-| ★ | POST | `/photos/upload-url` | 07, 08, 14 | `{ purpose, sha256 }` → `{ uploadUrl, photoKey }`. 해시 중복이면 `DUPLICATE_PHOTO` |
+| ★ | POST | `/uploads/presigned-url` | 07, 08, 14, 16 | `{ purpose, contentType }` → `{ key, uploadUrl, headers, expiresAt }`. purpose는 `DRAIN` · `BEFORE` · `AFTER` · `REPORT` · `PROFILE` |
 | ★ | GET | `/notifications` | 11 | 알림함 목록 + 미확인 수 |
 | | PATCH | `/notifications/{id}/read` | 11 | 읽음 |
 | | PATCH | `/notifications/read-all` | 11 | 모두 읽음 |
@@ -140,6 +141,16 @@
 | | GET | `/users/me/certificate` | 16 | 활동 확인서 PDF 다운로드 (실명 등록 + 인정 점검 1건 이상 필요) |
 | | GET | `/leaderboard?type=WEEKLY\|TOTAL&limit=` | 18 | 주간 · 누적 참여 점수 순위 (구역 · 단체는 준비 중) |
 | | GET | `/leaderboard/me?type=WEEKLY\|TOTAL` | 18 | 내 리더보드 순위 |
+
+### 프로필 사진 규칙
+
+- `POST /uploads/presigned-url`에 `purpose: "PROFILE"`로 업로드 URL을 받아 S3에 올린 뒤, 받은 `key`를
+  `PATCH /users/me/profile-image`의 `photoKey`로 보낸다.
+- `StorageService.verifyUploaded(..., PROFILE)`로 key 형식 · 소유자 · 업로드 여부 · 타입 · 크기를 검증한다.
+  다른 사람 사진은 403 `PHOTO_FORBIDDEN`, 프로필 용도가 아닌 key는 400 `INVALID_PHOTO_KEY`.
+- DB(`users.profile_image`)에는 key를 저장하고 응답 · `/users/me` · 리더보드에서는 조회 URL로 바꿔 내려준다.
+  카카오 로그인으로 받은 `http...` URL은 그대로 통과한다.
+- `DELETE /users/me/profile-image`는 사진을 지우고 기본 프로필로 되돌린다. 이미 없어도 성공한다.
 
 ### 제보 규칙
 

@@ -10,6 +10,7 @@ import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.storage.StorageService;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -47,6 +48,7 @@ public class LeaderboardQueryService {
 
     private final LeaderboardRepository leaderboardRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
     private final Clock clock;
 
     /**
@@ -78,7 +80,7 @@ public class LeaderboardQueryService {
                 myRank == null ? null : myRank.rank(),
                 me.getId(),
                 me.getNickname(),
-                me.getProfileImage(),
+                storageService.toReadUrl(me.getProfileImage()),
                 rankings.scoreOf(userId),
                 true);
 
@@ -155,7 +157,7 @@ public class LeaderboardQueryService {
                 ranked.rank(),
                 entry.userId(),
                 entry.nickname(),
-                entry.profileImage(),
+                storageService.toReadUrl(entry.profileImage()),
                 entry.score(),
                 isMe);
     }

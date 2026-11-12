@@ -13,12 +13,16 @@ import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.dto.NicknameUpdateRequest;
 import com.rainbutler.domain.user.dto.NicknameUpdateResponse;
 import com.rainbutler.domain.user.dto.PauseStatusResponse;
+import com.rainbutler.domain.user.dto.ProfileImageUpdateRequest;
+import com.rainbutler.domain.user.dto.ProfileImageUpdateResponse;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.ActivityStatsRepository;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.storage.StorageService;
+import com.rainbutler.global.storage.UploadPurpose;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +46,7 @@ public class UserService {
     private final SanctionService sanctionService;
     private final PauseService pauseService;
     private final ActivityStatsRepository activityStatsRepository;
+    private final StorageService storageService;
     private final PolicyProperties policyProperties;
     private final Clock clock;
 
@@ -86,8 +91,9 @@ public class UserService {
         long volunteerMinutes = (personalPoints + drainPoints)
                 / policyProperties.volunteerPointsPerHour() * 60;
 
-        return MeResponse.of(user, participationScore, adoptionCount, sanction, pause,
-                inspectionCount, volunteerMinutes);
+        return MeResponse.of(user, storageService.toReadUrl(user.getProfileImage()),
+                participationScore, adoptionCount, sanction, pause, inspectionCount,
+                volunteerMinutes);
     }
 
     /**
@@ -131,5 +137,45 @@ public class UserService {
         // 수정 시각(Auditing)이 응답에 담기도록 먼저 반영한다
         userRepository.flush();
         return NicknameUpdateResponse.from(user);
+    }
+
+    /**
+     * 마이페이지 프로필 사진을 등록 · 변경합니다.
+     *
+     * <p>프론트는 {@code POST /api/v1/uploads/presigned-url}(purpose=PROFILE)로 사진을 S3에 올린 뒤
+     * 받은 key를 보냅니다. DB에는 key를 저장하고 응답에서는 조회 URL로 바꿉니다.
+     *
+     * @param userId 로그인 사용자 id
+     * @param request 업로드한 프로필 사진 key
+     * @return 바뀐 프로필 사진 조회 URL과 수정 시각
+     * @throws BusinessException 사용자가 없거나(USER_NOT_FOUND), 사진 검증에 실패했을 때
+     */
+    @Transactional
+    public ProfileImageUpdateResponse updateProfileImage(
+            Long userId, ProfileImageUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        String photoKey = storageService.verifyUploaded(
+                userId, request.photoKey(), UploadPurpose.PROFILE);
+        user.changeProfileImage(photoKey);
+        // 수정 시각(Auditing)이 응답에 담기도록 먼저 반영한다
+        userRepository.flush();
+        return ProfileImageUpdateResponse.of(user, storageService.toReadUrl(photoKey));
+    }
+
+    /**
+     * 프로필 사진을 삭제하고 기본 프로필로 되돌립니다.
+     *
+     * @param userId 로그인 사용자 id
+     * @return 프로필 사진이 null인 응답과 수정 시각
+     * @throws BusinessException 사용자가 없을 때 (USER_NOT_FOUND)
+     */
+    @Transactional
+    public ProfileImageUpdateResponse deleteProfileImage(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.changeProfileImage(null);
+        userRepository.flush();
+        return ProfileImageUpdateResponse.of(user, null);
     }
 }
