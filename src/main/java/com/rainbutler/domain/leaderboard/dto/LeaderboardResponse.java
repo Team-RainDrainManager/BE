@@ -9,7 +9,7 @@ import java.util.List;
  *
  * @param type 집계 기간 (WEEKLY · TOTAL)
  * @param periodStart 집계 시작 시각 (TOTAL이면 null)
- * @param totalParticipants 순위에 든 전체 사용자 수 (점수 0 이하 제외)
+ * @param totalParticipants 순위에 든 전체 사용자 수 (음수 점수 제외)
  * @param rankings 상위 순위
  * @param me 로그인한 사용자의 순위 (순위권 밖이어도 내려간다)
  */

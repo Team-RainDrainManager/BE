@@ -73,6 +73,8 @@ class LeaderboardApiTest extends IntegrationTestSupport {
         point(c, 5, "EARN", NOW.minusHours(3));
         point(c, 100, "EARN", LAST_WEEK);
         point(d, 2, "EARN", NOW.minusHours(2));
+        // 포인트 이력이 없는 0점 사용자도 순위에 포함된다
+        fixtures.user("이");
         point(d, 3, "REVOKE", NOW.minusHours(2));
         point(admin, 50, "EARN", NOW.minusHours(1));
 
@@ -80,11 +82,11 @@ class LeaderboardApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.type").value("WEEKLY"))
                 .andExpect(jsonPath("$.data.periodStart").value("2026-11-02T00:00:00"))
-                .andExpect(jsonPath("$.data.totalParticipants").value(3))
+                .andExpect(jsonPath("$.data.totalParticipants").value(4))
                 .andExpect(jsonPath("$.data.rankings[*].nickname")
-                        .value(contains("에이", "비", "씨")))
-                .andExpect(jsonPath("$.data.rankings[*].rank").value(contains(1, 1, 3)))
-                .andExpect(jsonPath("$.data.rankings[*].score").value(contains(10, 10, 5)))
+                        .value(contains("에이", "비", "씨", "이")))
+                .andExpect(jsonPath("$.data.rankings[*].rank").value(contains(1, 1, 3, 4)))
+                .andExpect(jsonPath("$.data.rankings[*].score").value(contains(10, 10, 5, 0)))
                 .andExpect(jsonPath("$.data.rankings[0].isMe").value(true))
                 .andExpect(jsonPath("$.data.rankings[1].isMe").value(false))
                 .andExpect(jsonPath("$.data.me.rank").value(1))
@@ -138,14 +140,16 @@ class LeaderboardApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 점수가_없으면_rank가_null이다() throws Exception {
+    void 포인트_이력이_없어도_0점으로_순위에_나온다() throws Exception {
         Long me = fixtures.user("나");
 
         list(token(me), "type", "WEEKLY")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.rankings").isEmpty())
-                .andExpect(jsonPath("$.data.totalParticipants").value(0))
-                .andExpect(jsonPath("$.data.me.rank").value(nullValue()))
+                .andExpect(jsonPath("$.data.rankings[0].nickname").value("나"))
+                .andExpect(jsonPath("$.data.rankings[0].rank").value(1))
+                .andExpect(jsonPath("$.data.rankings[0].score").value(0))
+                .andExpect(jsonPath("$.data.totalParticipants").value(1))
+                .andExpect(jsonPath("$.data.me.rank").value(1))
                 .andExpect(jsonPath("$.data.me.score").value(0))
                 .andExpect(jsonPath("$.data.me.nickname").value("나"));
     }

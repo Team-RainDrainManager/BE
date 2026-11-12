@@ -109,14 +109,18 @@ class LeaderboardQueryServiceTest {
     }
 
     @Test
-    void 점수가_0이면_순위에서_빠지고_me_rank는_null이다() {
+    void 포인트_이력이_없는_0점도_순위에_들어간다() {
         given(leaderboardRepository.findWeeklyScores(any(), any()))
-                .willReturn(List.of(entry(2L, "둘", 10L)));
+                .willReturn(List.of(entry(2L, "둘", 10L), entry(ME, "나", 0L)));
 
         LeaderboardResponse response = service.findRankings(ME, "WEEKLY", 20);
 
-        assertThat(response.rankings()).hasSize(1);
-        assertThat(response.me().rank()).isNull();
+        assertThat(response.rankings()).hasSize(2);
+        assertThat(response.rankings()).extracting(LeaderboardRowResponse::nickname)
+                .containsExactly("둘", "나");
+        assertThat(response.rankings()).extracting(LeaderboardRowResponse::rank)
+                .containsExactly(1, 2);
+        assertThat(response.me().rank()).isEqualTo(2);
         assertThat(response.me().score()).isZero();
         assertThat(response.me().nickname()).isEqualTo("나");
         assertThat(response.me().isMe()).isTrue();

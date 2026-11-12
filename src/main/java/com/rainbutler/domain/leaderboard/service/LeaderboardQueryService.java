@@ -29,9 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 리더보드(주간 · 누적 참여 점수 순위)를 조회합니다.
  *
- * <p>점수는 {@code point_history}의 적립 합에서 회수 합을 뺀 값입니다. 점수가 0 이하인 사용자와
- * 관리자 · 시청 관계자는 순위에서 뺍니다. 동점이면 같은 순위를 주고 다음 순위를 건너뜁니다.
- * (예: 1, 1, 3)
+ * <p>점수는 {@code point_history}의 적립 합에서 회수 합을 뺀 값입니다. 포인트 이력이 없는 사용자는
+ * 0점으로 순위에 넣고, 점수가 음수인 사용자와 관리자 · 시청 관계자는 순위에서 뺍니다. 동점이면 같은
+ * 순위를 주고 다음 순위를 건너뜁니다. (예: 1, 1, 3)
  *
  * <p>주간은 월요일 00:00부터 현재까지입니다. 구역 · 단체 순위는 구역 · 단체 테이블이 정해지기
  * 전까지 지원하지 않습니다.
@@ -122,7 +122,7 @@ public class LeaderboardQueryService {
     /**
      * 점수 내림차순으로 정렬하고 동점은 같은 순위로 묶습니다.
      *
-     * <p>순위에는 점수가 0보다 큰 사용자만 넣지만, 내 점수는 0 이하도 그대로 보여 줄 수 있도록
+     * <p>순위에는 점수가 0 이상인 사용자만 넣지만, 내 점수는 음수도 그대로 보여 줄 수 있도록
      * 모든 집계 결과를 함께 보관합니다.
      */
     private Rankings rank(List<LeaderboardEntry> scores) {
@@ -132,7 +132,7 @@ public class LeaderboardQueryService {
                         LeaderboardEntry::userId, LeaderboardEntry::score, (first, second) -> first));
 
         List<LeaderboardEntry> sorted = scores.stream()
-                .filter(entry -> entry.score() != null && entry.score() > 0)
+                .filter(entry -> entry.score() != null && entry.score() >= 0)
                 .sorted(Comparator.comparing(LeaderboardEntry::score).reversed()
                         .thenComparing(LeaderboardEntry::userId))
                 .toList();
