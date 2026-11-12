@@ -3,6 +3,7 @@ package com.rainbutler.domain.inspection.dto;
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.global.entity.ReviewStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 /**
@@ -54,9 +55,13 @@ public record InspectionDetailResponse(
     /**
      * 점검 대상 빗물받이입니다.
      *
+     * <p>{@code DrainResponse}라는 이름이 빗물받이 목록 DTO와 겹쳐 Swagger 컴포넌트가 덮어써지지
+     * 않도록 문서 스키마 이름을 따로 둡니다.
+     *
      * @param drainId 빗물받이 id
      * @param name 화면에 보여줄 이름 (입양 당시 별명, 없으면 빗물받이 id 표기)
      */
+    @Schema(name = "InspectionDrainResponse", description = "점검 대상 빗물받이 요약")
     public record DrainResponse(Long drainId, String name) {
     }
 }
