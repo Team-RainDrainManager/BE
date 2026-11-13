@@ -50,24 +50,51 @@ public interface ManagementLogRepository extends JpaRepository<ManagementLog, Lo
     List<ManagementLog> findPendingReviews(Pageable pageable);
 
     /**
-     * 같은 사용자가 같은 빗물받이를 하루에 이미 인정받았는지 셉니다. (경험치 하루 1회)
+     * 한 주기 안에서 경험치를 받은 관리 점검 수를 셉니다. (리워드 10 · 5 판정용)
+     *
+     * <p>경험치 이력이 남은 기록만 셉니다. 하루 1회 제한으로 0점이 된 기록은 다음 점검이 첫 점검
+     * 대우를 받도록 세지 않습니다.
      *
      * @param userId 사용자 id
      * @param drainId 빗물받이 id
-     * @param excludeId 지금 지급할 기록 id (자기 자신 제외)
-     * @param from 하루 시작
-     * @param to 다음 날 시작
-     * @return 같은 날 인정된 다른 관리 기록 수
+     * @param from 주기 시작 (포함)
+     * @param to 주기 끝 (제외)
+     * @return 경험치를 받은 점검 수
      */
     @Query("SELECT COUNT(m) FROM ManagementLog m WHERE m.adoption.user.id = :userId "
             + "AND m.adoption.drain.id = :drainId "
-            + "AND m.id <> :excludeId "
+            + "AND m.actionType = com.rainbutler.domain.adoption.entity.ManagementActionType.INSPECTION "
             + "AND m.status = com.rainbutler.domain.adoption.entity.ManagementStatus.VERIFIED "
-            + "AND m.managedAt >= :from AND m.managedAt < :to")
-    long countVerifiedOnDay(
+            + "AND m.managedAt >= :from AND m.managedAt < :to "
+            + "AND EXISTS (SELECT p.id FROM PointHistory p "
+            + "     WHERE p.sourceType = com.rainbutler.domain.point.entity.PointSourceType.MANAGEMENT "
+            + "     AND p.sourceId = m.id)")
+    long countVisitRewards(
             @Param("userId") Long userId,
             @Param("drainId") Long drainId,
-            @Param("excludeId") Long excludeId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * 한 주기 안에서 경험치를 받은 관리 청소 수를 셉니다. (리워드 30 · 10 · 20 판정용)
+     *
+     * @param userId 사용자 id
+     * @param drainId 빗물받이 id
+     * @param from 주기 시작 (포함)
+     * @param to 주기 끝 (제외)
+     * @return 경험치를 받은 청소 수
+     */
+    @Query("SELECT COUNT(m) FROM ManagementLog m WHERE m.adoption.user.id = :userId "
+            + "AND m.adoption.drain.id = :drainId "
+            + "AND m.actionType = com.rainbutler.domain.adoption.entity.ManagementActionType.CLEANING "
+            + "AND m.status = com.rainbutler.domain.adoption.entity.ManagementStatus.VERIFIED "
+            + "AND m.managedAt >= :from AND m.managedAt < :to "
+            + "AND EXISTS (SELECT p.id FROM PointHistory p "
+            + "     WHERE p.sourceType = com.rainbutler.domain.point.entity.PointSourceType.MANAGEMENT "
+            + "     AND p.sourceId = m.id)")
+    long countCleaningRewards(
+            @Param("userId") Long userId,
+            @Param("drainId") Long drainId,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to);
 }

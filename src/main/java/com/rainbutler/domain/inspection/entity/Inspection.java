@@ -74,10 +74,10 @@ public class Inspection extends BaseEntity {
 
     private String afterPhotoKey;
 
-    /** AI가 점검 전 사진으로 판정한 등급 (0 괜찮음 · 2 쌓임 · 3 막힘) */
+    /** AI가 점검 전 사진으로 판정한 등급 (1 괜찮음 · 2 쌓임 · 3 막힘) */
     private Integer beforeGrade;
 
-    /** AI가 점검 후 사진으로 판정한 등급 (0 괜찮음 · 2 쌓임 · 3 막힘) */
+    /** AI가 점검 후 사진으로 판정한 등급 (1 괜찮음 · 2 쌓임 · 3 막힘) */
     private Integer afterGrade;
 
     /** 점검 전 사진 AI 확신도 */
@@ -158,7 +158,7 @@ public class Inspection extends BaseEntity {
      * 청소 후 사진을 붙이지만 아직 인증을 통과하지 못했습니다. (다시 청소하고 재시도)
      *
      * @param afterPhotoKey 청소 후 사진 key
-     * @param afterGrade AI가 판정한 청소 후 등급 (0~3)
+     * @param afterGrade AI가 판정한 청소 후 등급 (1~3)
      * @param afterConfidence AI 확신도
      */
     public void retryCleaning(String afterPhotoKey, int afterGrade, double afterConfidence) {
@@ -170,7 +170,7 @@ public class Inspection extends BaseEntity {
      * 청소 후 등급이 좋아져 청소 인증을 통과했습니다.
      *
      * @param afterPhotoKey 청소 후 사진 key
-     * @param afterGrade AI가 판정한 청소 후 등급 (0~3)
+     * @param afterGrade AI가 판정한 청소 후 등급 (1~3)
      * @param afterConfidence AI 확신도
      */
     public void completeCleaning(String afterPhotoKey, int afterGrade, double afterConfidence) {
@@ -182,7 +182,7 @@ public class Inspection extends BaseEntity {
      * 청소 후 등급은 좋아졌지만 위치 불일치 · 낮은 확신도라 관리자 검토가 필요합니다.
      *
      * @param afterPhotoKey 청소 후 사진 key
-     * @param afterGrade AI가 판정한 청소 후 등급 (0~3)
+     * @param afterGrade AI가 판정한 청소 후 등급 (1~3)
      * @param afterConfidence AI 확신도
      */
     public void requireReviewAfterCleaning(

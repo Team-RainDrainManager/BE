@@ -72,16 +72,16 @@ class PauseServiceTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 신청하면_14일_쉬고_입양_다음_관리일이_쉬기_종료_뒤로_미뤄진다() throws Exception {
-        Long soon = saveAdoption(T0.minusDays(20), T0.plusDays(3));
-        Long later = saveAdoption(T0.minusDays(20), T0.plusDays(20));
+    void 신청하면_14일_쉬지만_다음_관리_예정일은_그대로_둔다() throws Exception {
+        Long first = saveAdoption(T0.minusDays(20), T0.plusDays(3));
+        Long second = saveAdoption(T0.minusDays(20), T0.plusDays(20));
 
         apply().andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.pauseUntil").value("2026-11-01T10:00:00"));
 
-        assertThat(nextManagementAt(soon)).isEqualTo(T0.plusDays(14));
-        // 이미 더 늦은 예정일은 그대로 둔다
-        assertThat(nextManagementAt(later)).isEqualTo(T0.plusDays(20));
+        // 쉬기는 제재만 보류한다. 입양일 기준 주기는 계속 흐르므로 예정일을 밀지 않는다.
+        assertThat(nextManagementAt(first)).isEqualTo(T0.plusDays(3));
+        assertThat(nextManagementAt(second)).isEqualTo(T0.plusDays(20));
         getStatus().andExpect(jsonPath("$.data.canApply").value(false))
                 .andExpect(jsonPath("$.data.reason").value("ALREADY_ACTIVE"))
                 .andExpect(jsonPath("$.data.activeUntil").value("2026-11-01T10:00:00"));

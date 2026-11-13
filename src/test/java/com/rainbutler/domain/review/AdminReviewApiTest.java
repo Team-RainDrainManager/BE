@@ -128,7 +128,7 @@ class AdminReviewApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.type").value("INSPECTION"))
                 .andExpect(jsonPath("$.data.reviewStatus").value("APPROVED"))
-                .andExpect(jsonPath("$.data.xpAwarded").value(policyProperties.inspectionXp()));
+                .andExpect(jsonPath("$.data.xpAwarded").value(policyProperties.firstCleaningXp()));
 
         assertThat(text("SELECT status FROM inspection WHERE id = ?", inspectionId))
                 .isEqualTo("COMPLETED");
@@ -139,7 +139,7 @@ class AdminReviewApiTest extends IntegrationTestSupport {
         assertThat(count("SELECT count(*) FROM point_history WHERE user_id = ? "
                 + "AND source_type = 'INSPECTION'", userId)).isEqualTo(1);
         assertThat(number("SELECT point FROM users WHERE id = ?", userId))
-                .isEqualTo(policyProperties.inspectionXp());
+                .isEqualTo(policyProperties.firstCleaningXp());
     }
 
     @Test
@@ -279,7 +279,7 @@ class AdminReviewApiTest extends IntegrationTestSupport {
                         + "dirt_confidence, after_photo_url, after_grade, attempt_no, status, "
                         + "review_status, latitude, longitude, location_mismatch, started_at, "
                         + "completed_at, created_at, updated_at) "
-                        + "VALUES (?, ?, 'ADOPTION', 'clean-before', 2, 0.90, 'clean-after', 0, 1, "
+                        + "VALUES (?, ?, 'ADOPTION', 'clean-before', 2, 0.90, 'clean-after', 1, 1, "
                         + "?, ?, 37.5, 127.0, false, ?, ?, ?, ?) RETURNING id",
                 Long.class, ownerId, drainId, status, reviewStatus,
                 Timestamp.valueOf(createdAt), Timestamp.valueOf(createdAt),

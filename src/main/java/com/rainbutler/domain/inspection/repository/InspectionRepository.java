@@ -81,18 +81,41 @@ public interface InspectionRepository extends JpaRepository<Inspection, Long> {
             Pageable pageable);
 
     /**
-     * 같은 사용자가 같은 빗물받이에서 기간 안에 경험치를 받은 점검 수를 셉니다. (빗물받이별 하루 1회)
+     * 한 주기 안에서 경험치를 받은 점검(청소 불필요) 수를 셉니다. (리워드 10 · 5 판정용)
+     *
+     * <p>경험치를 받지 못한 점검(하루 1회 제한 등)은 세지 않습니다. 그래야 다음 점검이 그 주기의
+     * 첫 점검 대우를 받습니다.
      *
      * @param userId 사용자 id
      * @param drainId 빗물받이 id
-     * @param from 시작 (포함)
-     * @param to 끝 (제외)
+     * @param from 주기 시작 (포함)
+     * @param to 주기 끝 (제외)
      * @return 경험치를 받은 점검 수
      */
     @Query("SELECT COUNT(i) FROM Inspection i WHERE i.user.id = :userId "
             + "AND i.drain.id = :drainId AND i.xpAwarded > 0 "
+            + "AND i.beforeGrade <= 1 "
             + "AND i.createdAt >= :from AND i.createdAt < :to")
-    long countRewardedBetween(
+    long countVisitRewards(
+            @Param("userId") Long userId,
+            @Param("drainId") Long drainId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * 한 주기 안에서 경험치를 받은 청소 수를 셉니다. (리워드 30 · 10 · 20 판정용)
+     *
+     * @param userId 사용자 id
+     * @param drainId 빗물받이 id
+     * @param from 주기 시작 (포함)
+     * @param to 주기 끝 (제외)
+     * @return 경험치를 받은 청소 수
+     */
+    @Query("SELECT COUNT(i) FROM Inspection i WHERE i.user.id = :userId "
+            + "AND i.drain.id = :drainId AND i.xpAwarded > 0 "
+            + "AND i.beforeGrade >= 2 "
+            + "AND i.createdAt >= :from AND i.createdAt < :to")
+    long countCleaningRewards(
             @Param("userId") Long userId,
             @Param("drainId") Long drainId,
             @Param("from") LocalDateTime from,

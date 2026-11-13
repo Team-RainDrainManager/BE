@@ -25,6 +25,32 @@ public interface PointHistoryRepository extends JpaRepository<PointHistory, Long
     boolean existsBySourceTypeAndSourceId(PointSourceType sourceType, Long sourceId);
 
     /**
+     * 같은 사용자가 같은 빗물받이에서 그날 이미 점검 · 청소 점수를 받았는지 셉니다. (빗물받이별 하루 1회)
+     *
+     * <p>점검 경로와 관리 기록 경로가 같은 제한을 공유하도록 실제 적립 이력을 기준으로 셉니다.
+     *
+     * @param userId 사용자 id
+     * @param drainId 빗물받이 id
+     * @param from 하루 시작 (포함)
+     * @param to 다음 날 시작 (제외)
+     * @return 그날 받은 점검 · 청소 점수 건수
+     */
+    @Query("SELECT COUNT(p) FROM PointHistory p WHERE p.user.id = :userId "
+            + "AND p.type = com.rainbutler.domain.point.entity.PointType.EARN "
+            + "AND p.createdAt >= :from AND p.createdAt < :to "
+            + "AND ((p.sourceType = com.rainbutler.domain.point.entity.PointSourceType.INSPECTION "
+            + "      AND p.sourceId IN (SELECT i.id FROM Inspection i "
+            + "          WHERE i.user.id = :userId AND i.drain.id = :drainId)) "
+            + "  OR (p.sourceType = com.rainbutler.domain.point.entity.PointSourceType.MANAGEMENT "
+            + "      AND p.sourceId IN (SELECT m.id FROM ManagementLog m "
+            + "          WHERE m.adoption.user.id = :userId AND m.adoption.drain.id = :drainId)))")
+    long countDrainRewardsOnDay(
+            @Param("userId") Long userId,
+            @Param("drainId") Long drainId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
      * 참여 점수: 적립(EARN) 합 − 회수(REVOKE) 합입니다. 이력이 없으면 0입니다.
      *
      * <p>회수 금액을 양수로 적든 음수로 적든 같은 결과가 나오도록 절댓값으로 더하고 뺍니다.

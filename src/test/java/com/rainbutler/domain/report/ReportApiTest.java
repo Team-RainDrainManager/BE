@@ -129,7 +129,7 @@ class ReportApiTest extends IntegrationTestSupport {
     @Test
     void 청소_불가가_아닌_막힘_제보는_거부한다() throws Exception {
         given(drainAiClassifier.assess(anyString()))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 1, false));
 
         create("BLOCKAGE", photoKey, "막혔어요", null, null)
                 .andExpect(status().isBadRequest())

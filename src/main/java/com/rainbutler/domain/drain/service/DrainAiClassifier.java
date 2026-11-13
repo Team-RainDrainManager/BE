@@ -42,10 +42,10 @@ public class DrainAiClassifier {
     private static final long RETRY_WAIT_MILLIS = 5000;
 
     /** 괜찮음. 치울 필요 없음. 덮개와 주변 둘 다 20% 이하 */
-    public static final int GRADE_OK = 0;
+    public static final int GRADE_OK = 1;
     /** 쌓임. 치워야 함. 더 심한 쪽이 20% 넘고 66% 미만 */
     public static final int GRADE_PILED = 2;
-    /** 막힘. 더 심한 쪽이 66% 이상. 값 1은 옛 기준 '조금 쌓임'으로 예전 기록에만 남아 있다 */
+    /** 막힘. 더 심한 쪽이 66% 이상 */
     public static final int GRADE_BLOCKED = 3;
 
     private static final int OK_MAX_PERCENT = 20;
@@ -75,7 +75,7 @@ public class DrainAiClassifier {
      * @param risk 위험 빗물받이 여부 (막힘일 때만 true, 지자체 신고 대상)
      * @param confidence AI 확신도 (0~1)
      * @param reason 판정 이유 한 문장
-     * @param grade 촬영기 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+     * @param grade 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
      * @param needsReport 덮개 안쪽 막힘 신고 필요 여부
      */
     public record Assessment(
@@ -96,7 +96,7 @@ public class DrainAiClassifier {
     public Assessment assess(String photoUrl) {
         if (!properties.isConfigured()) {
             // 키 없으면 목 테스트용 기본값 (확신도 1.0이라 검토 제보가 생기지 않는다)
-            return new Assessment(1, false, 1.0, "AI 미설정 기본값", 0, false);
+            return new Assessment(1, false, 1.0, "AI 미설정 기본값", GRADE_OK, false);
         }
         byte[] image = downloadPhoto(photoUrl);
         GeminiGrade grade = gradePhoto(image);
@@ -121,7 +121,7 @@ public class DrainAiClassifier {
      * @param name AI가 답한 등급 이름
      * @param gratePercent 덮개를 가린 비율 (없으면 null)
      * @param aroundPercent 주변을 덮은 비율 (없으면 null)
-     * @return 촬영기 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+     * @return 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
      * @throws BusinessException 이름도 비율도 읽을 수 없으면
      */
     static int gradeFromAnswer(String name, Integer gratePercent, Integer aroundPercent) {
@@ -152,9 +152,9 @@ public class DrainAiClassifier {
     /**
      * 촬영기 등급을 우리 더러움 단계(1~3)로 바꿉니다.
      *
-     * <p>괜찮음은 1단계, 쌓임은 2단계, 막힘은 3단계입니다. 옛 기준 1등급(조금 쌓임)은 2단계로 봅니다.
+     * <p>등급과 더러움 단계를 같은 1~3으로 맞춰, 화면에 보이는 숫자와 저장값이 같습니다.
      *
-     * @param grade 촬영기 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+     * @param grade 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
      * @return 더러움 단계 (1~3)
      */
     public static int toDirtLevel(int grade) {
@@ -165,10 +165,20 @@ public class DrainAiClassifier {
     }
 
     /**
+     * 청소 없이 점검만 해도 되는 등급인지 확인합니다. (괜찮음)
+     *
+     * @param grade 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
+     * @return 괜찮음이면 true
+     */
+    public static boolean isClean(int grade) {
+        return grade <= GRADE_OK;
+    }
+
+    /**
      * 더러움 단계를 촬영기 등급으로 되돌립니다. 입양 청소는 더러움 단계만 저장하므로 청소 인증 때 씁니다.
      *
      * @param dirtLevel 더러움 단계 (1~3)
-     * @return 촬영기 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+     * @return 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
      */
     public static int gradeOfDirtLevel(int dirtLevel) {
         if (dirtLevel <= 1) {
@@ -180,7 +190,7 @@ public class DrainAiClassifier {
     /**
      * 위험 여부를 정합니다. (막힘일 때만 위험 → 지자체 신고 대상)
      *
-     * @param grade 촬영기 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+     * @param grade 촬영기 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
      * @return 위험 여부
      */
     static boolean toRisk(int grade) {

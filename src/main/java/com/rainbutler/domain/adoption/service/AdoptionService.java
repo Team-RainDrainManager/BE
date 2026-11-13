@@ -121,9 +121,9 @@ public class AdoptionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 10. 입양 생성 (level=1, score=0 시작)
+        // 10. 입양 생성 (level=1, score=0 시작). 다음 관리 예정일은 입양일 + 2주 고정이다.
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime nextManagementAt = managementCyclePolicy.nextManagementAt(now);
+        LocalDateTime nextManagementAt = managementCyclePolicy.nextManagementAt(now, now);
 
         Adoption adoption = Adoption.builder()
                 .user(user)
@@ -133,7 +133,7 @@ public class AdoptionService {
                 .adoptedAt(now)
                 .build();
 
-        // 입양 시점을 첫 관리로 본다 (다음 관리 예정일은 계절 주기를 따른다)
+        // 입양 시점을 첫 관리로 본다 (다음 관리 예정일은 입양일 기준 14일 주기의 끝)
         adoption.recordManagement(now, nextManagementAt);
 
         Adoption saved = adoptionRepository.save(adoption);

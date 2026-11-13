@@ -70,7 +70,7 @@ class DrainCreateApiTest extends IntegrationTestSupport {
         given(storageService.toReadUrl(anyString()))
                 .willAnswer(invocation -> "http://" + invocation.getArgument(0));
         given(drainAiClassifier.assess(anyString()))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 1, false));
     }
 
     @Test
