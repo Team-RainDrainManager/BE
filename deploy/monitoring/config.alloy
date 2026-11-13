@@ -33,10 +33,24 @@ prometheus.scrape "app" {
 		__address__ = "app:8080",
 		instance    = "rain-butler-ec2",
 	}]
-	job_name        = "rain-butler"
-	metrics_path    = "/actuator/prometheus"
-	scrape_interval = "15s"
-	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+	job_name     = "rain-butler"
+	metrics_path = "/actuator/prometheus"
+	// Grafana Cloud 무료 한도가 분당 1회(1 DPM) 기준이라 60초. 줄이면 사용량이 배로 늘어남
+	scrape_interval = "60s"
+	forward_to      = [prometheus.relabel.app.receiver]
+}
+
+// 앱 지표 중 대시보드(빗물받이 집사 운영 · JVM 4701)에서 쓰지 않는 것은 보내지 않는다 (Grafana Cloud 무료 한도)
+// 남기는 것: http_server_requests_seconds_* · jvm_memory · jvm_gc_pause · jvm_threads · process/system cpu ·
+// uptime · hikaricp_connections_* · executor_(active|queued|completed) · http_client_requests_seconds_*
+prometheus.relabel "app" {
+	forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+	rule {
+		source_labels = ["__name__"]
+		regex         = "spring_security_.*|spring_data_repository_.*|tomcat_.*|jdbc_connections_.*|jvm_classes_.*|jvm_buffer_.*|jvm_compilation_.*|jvm_info|disk_(free|total)_bytes|application_(ready|started)_time_seconds|executor_pool_.*|executor_queue_remaining_tasks|logback_events_total|jvm_gc_(overhead|concurrent_phase_time_seconds_.*)|process_files_.*|http_server_requests_active_seconds_.*"
+		action        = "drop"
+	}
 }
 
 // 서버 자원. 호스트의 /proc · /sys · / 를 컨테이너에 읽기 전용으로 마운트해 읽는다
@@ -55,9 +69,10 @@ prometheus.exporter.unix "host" {
 }
 
 prometheus.scrape "host" {
-	targets         = prometheus.exporter.unix.host.targets
-	job_name        = "node"
-	scrape_interval = "15s"
+	targets  = prometheus.exporter.unix.host.targets
+	job_name = "node"
+	// Grafana Cloud 무료 한도가 분당 1회(1 DPM) 기준이라 60초. 줄이면 사용량이 배로 늘어남
+	scrape_interval = "60s"
 	forward_to      = [prometheus.relabel.host.receiver]
 }
 
@@ -75,6 +90,22 @@ prometheus.relabel "host" {
 	rule {
 		target_label = "job"
 		replacement  = "node"
+	}
+
+	// 가상 네트워크 장치(루프백 · 컨테이너 veth · 브리지)는 보내지 않는다 (Grafana Cloud 무료 한도)
+	rule {
+		source_labels = ["__name__", "device"]
+		separator     = "@"
+		regex         = "node_network_.*@(lo|veth.*|br-.*|docker.*)"
+		action        = "drop"
+	}
+
+	// 루프 · 램 디스크(snap 등)는 보내지 않는다
+	rule {
+		source_labels = ["__name__", "device"]
+		separator     = "@"
+		regex         = "node_disk_.*@(loop.*|ram.*)"
+		action        = "drop"
 	}
 }
 

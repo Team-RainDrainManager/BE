@@ -55,10 +55,10 @@ management:
       application: rain-butler
       env: ${APP_ENV:local}           # 운영 .env는 APP_ENV=prod
     distribution:
-      percentiles-histogram:
-        http.server.requests: true    # Grafana에서 API별 p95 · p99 지연을 계산할 수 있게
+      # percentiles-histogram은 버킷을 약 70개씩 만들어 Grafana Cloud 무료 한도를 넘긴다.
+      # SLO 버킷 6개만 남겨 p95 · p99는 근사값으로 계산한다 (histogram_quantile 그대로 동작)
       slo:
-        http.server.requests: 100ms, 300ms, 1s, 3s
+        http.server.requests: 50ms, 100ms, 300ms, 500ms, 1s, 3s
 
 rain-butler:
   jwt:

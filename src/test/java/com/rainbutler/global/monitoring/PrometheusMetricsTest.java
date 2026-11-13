@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rainbutler.support.IntegrationTestSupport;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -35,6 +36,23 @@ class PrometheusMetricsTest extends IntegrationTestSupport {
                 .contains("env=\"local\"")
                 .contains("jvm_memory_used_bytes")
                 .contains("hikaricp_connections");
+    }
+
+    @Test
+    void 요청_지연_버킷은_SLO_6개와_Inf만_있다() throws Exception {
+        mockMvc.perform(get("/api/v1/terms")).andExpect(status().isOk());
+
+        String body = mockMvc.perform(get("/actuator/prometheus"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Grafana Cloud 무료 한도 때문에 percentiles-histogram(약 70개) 대신 SLO 버킷만 쓴다
+        List<String> buckets = body.lines()
+                .filter(line -> line.startsWith("http_server_requests_seconds_bucket")
+                        && line.contains("uri=\"/api/v1/terms\""))
+                .map(line -> line.replaceAll(".*le=\"([^\"]+)\".*", "$1"))
+                .toList();
+        assertThat(buckets).containsExactlyInAnyOrder(
+                "0.05", "0.1", "0.3", "0.5", "1.0", "3.0", "+Inf");
     }
 
     @Test
