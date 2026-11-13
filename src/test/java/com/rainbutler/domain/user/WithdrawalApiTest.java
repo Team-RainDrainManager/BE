@@ -83,7 +83,7 @@ class WithdrawalApiTest extends IntegrationTestSupport {
         forecastId = jdbcTemplate.queryForObject("INSERT INTO rain_forecast (rain_date, "
                 + "rain_start_at, pop, pcp_mm, status, is_simulated, created_at, updated_at) "
                 + "VALUES (current_date + 1, now() + interval '1 day', 80, 5.0, 'ACTIVE', false, "
-                + "now(), now()) ON CONFLICT (rain_date, is_simulated) "
+                + "now(), now()) ON CONFLICT (rain_date, grid_nx, grid_ny, is_simulated) "
                 + "WHERE status = 'ACTIVE' AND deleted_at IS NULL "
                 + "DO UPDATE SET updated_at = now() RETURNING id", Long.class);
     }

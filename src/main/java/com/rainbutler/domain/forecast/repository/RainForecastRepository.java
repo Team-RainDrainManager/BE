@@ -15,20 +15,24 @@ import org.springframework.data.repository.query.Param;
 public interface RainForecastRepository extends JpaRepository<RainForecast, Long> {
 
     /**
-     * 그 날짜의 진행 중(ACTIVE) 예보를 찾습니다. 실제 · 가상 예보는 따로 하나씩입니다 (부분 유니크 인덱스).
+     * 그 날짜 · 격자의 진행 중(ACTIVE) 예보를 찾습니다. 실제 · 가상 예보는 따로 하나씩입니다 (부분 유니크 인덱스).
      *
      * @param rainDate 비 오는 날
+     * @param gridNx 격자 X
+     * @param gridNy 격자 Y
      * @param simulated 가상 예보 여부
      * @return 진행 중 예보
      */
     @Query("SELECT f FROM RainForecast f WHERE f.rainDate = :rainDate "
+            + "AND f.gridNx = :gridNx AND f.gridNy = :gridNy "
             + "AND f.isSimulated = :simulated "
             + "AND f.status = com.rainbutler.domain.forecast.entity.ForecastStatus.ACTIVE")
-    Optional<RainForecast> findActive(
-            @Param("rainDate") LocalDate rainDate, @Param("simulated") boolean simulated);
+    Optional<RainForecast> findActive(@Param("rainDate") LocalDate rainDate,
+            @Param("gridNx") int gridNx, @Param("gridNy") int gridNy,
+            @Param("simulated") boolean simulated);
 
     /**
-     * 그 날짜의 진행 중(ACTIVE) 예보를 실제 · 가상 모두 찾습니다. (06:00 일괄 발송)
+     * 그 날짜의 진행 중(ACTIVE) 예보를 모든 격자 · 실제 · 가상 모두 찾습니다. (06:00 일괄 발송)
      *
      * @param rainDate 비 오는 날
      * @return 예보 목록
@@ -38,17 +42,35 @@ public interface RainForecastRepository extends JpaRepository<RainForecast, Long
     List<RainForecast> findAllActiveByRainDate(@Param("rainDate") LocalDate rainDate);
 
     /**
-     * 진행 중 예보 중 지금 이후 가장 이른 비 시작 시각을 찾습니다. (마감 당기기 기준)
+     * 그 날짜 · 격자의 진행 중(ACTIVE) 예보를 실제 · 가상 모두 찾습니다. (배너 · 지도)
      *
+     * @param rainDate 비 오는 날
+     * @param gridNx 격자 X
+     * @param gridNy 격자 Y
+     * @return 예보 목록
+     */
+    @Query("SELECT f FROM RainForecast f WHERE f.rainDate = :rainDate "
+            + "AND f.gridNx = :gridNx AND f.gridNy = :gridNy "
+            + "AND f.status = com.rainbutler.domain.forecast.entity.ForecastStatus.ACTIVE")
+    List<RainForecast> findAllActiveByRainDateAndGrid(@Param("rainDate") LocalDate rainDate,
+            @Param("gridNx") int gridNx, @Param("gridNy") int gridNy);
+
+    /**
+     * 한 격자의 진행 중 예보 중 지금 이후 가장 이른 비 시작 시각을 찾습니다. (마감 당기기 기준)
+     *
+     * @param gridNx 격자 X
+     * @param gridNy 격자 Y
      * @param simulated 가상 예보 여부
      * @param now 현재 시각
      * @return 가장 이른 비 시작 (없으면 null)
      */
     @Query("SELECT MIN(f.rainStartAt) FROM RainForecast f WHERE f.isSimulated = :simulated "
+            + "AND f.gridNx = :gridNx AND f.gridNy = :gridNy "
             + "AND f.status = com.rainbutler.domain.forecast.entity.ForecastStatus.ACTIVE "
             + "AND f.rainStartAt > :now")
-    LocalDateTime findEarliestActiveRainStartAfter(
-            @Param("simulated") boolean simulated, @Param("now") LocalDateTime now);
+    LocalDateTime findEarliestActiveRainStartAfter(@Param("gridNx") int gridNx,
+            @Param("gridNy") int gridNy, @Param("simulated") boolean simulated,
+            @Param("now") LocalDateTime now);
 
     /**
      * 진행 중(ACTIVE)인 가상 예보를 모두 찾습니다. (관리자 가상 예보 일괄 취소)

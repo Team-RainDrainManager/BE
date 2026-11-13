@@ -117,7 +117,7 @@ class DeadlineAdvanceTest extends RequestIntegrationTest {
     }
 
     private void confirm(LocalDate date, LocalDateTime rainStartAt) {
-        forecastService.apply(date, 80, BigDecimal.TEN, rainStartAt, false);
+        forecastService.apply(RequestFixtures.GRID, date, 80, BigDecimal.TEN, rainStartAt, false);
     }
 
     private LocalDateTime deadline(Long request, String column) {

@@ -55,6 +55,14 @@ public class RainForecast extends BaseEntity {
     @Column(nullable = false)
     private boolean isSimulated;
 
+    /** 기상청 단기예보 격자 X */
+    @Column(nullable = false)
+    private Integer gridNx;
+
+    /** 기상청 단기예보 격자 Y */
+    @Column(nullable = false)
+    private Integer gridNy;
+
     /** 마지막으로 기상청 값을 반영한 시각 */
     private LocalDateTime fetchedAt;
 
@@ -66,13 +74,17 @@ public class RainForecast extends BaseEntity {
             Integer pop,
             BigDecimal pcpMm,
             boolean isSimulated,
-            LocalDateTime fetchedAt) {
+            LocalDateTime fetchedAt,
+            Integer gridNx,
+            Integer gridNy) {
         this.rainDate = rainDate;
         this.rainStartAt = rainStartAt;
         this.pop = pop;
         this.pcpMm = pcpMm;
         this.isSimulated = isSimulated;
         this.fetchedAt = fetchedAt;
+        this.gridNx = gridNx;
+        this.gridNy = gridNy;
         this.status = ForecastStatus.ACTIVE;
     }
 

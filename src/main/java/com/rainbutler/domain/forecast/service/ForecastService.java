@@ -9,6 +9,7 @@ import com.rainbutler.domain.forecast.service.ForecastApplyResult.Applied;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -24,7 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 비 예보를 확정 · 갱신 · 취소합니다. (기상청 수집 배치와 가상 예보 API가 함께 씁니다)
+ * 격자별 비 예보를 확정 · 갱신 · 취소합니다. (기상청 수집 배치와 가상 예보 API가 함께 씁니다)
  *
  * <p>기준: 강수확률 최댓값 ≥ {@code rain-pop-threshold} <b>그리고</b> 강수량 합계 ≥ {@code rain-mm-threshold}.
  * 확정 · 비 시작 앞당김 · 취소 때 이벤트를 발행하고, 점검 요청은 이벤트를 받는 쪽이 처리합니다.
@@ -45,7 +46,7 @@ public class ForecastService {
     private final Clock clock;
 
     /**
-     * 하루치 예보 값을 반영합니다.
+     * 한 격자의 하루치 예보 값을 반영합니다.
      *
      * <ul>
      *   <li>기준 충족 + 진행 중 예보 없음 → 새 예보 확정 ({@link ForecastConfirmedEvent})</li>
@@ -55,6 +56,7 @@ public class ForecastService {
      *   <li>기준 미달 + 진행 중 예보 없음 → 무시</li>
      * </ul>
      *
+     * @param grid 기상청 격자
      * @param date 비 오는 날
      * @param maxPop 강수확률 최댓값 (%)
      * @param totalMm 강수량 합계 (mm)
@@ -63,9 +65,10 @@ public class ForecastService {
      * @return 반영 결과
      */
     @Transactional
-    public ForecastApplyResult apply(LocalDate date, int maxPop, BigDecimal totalMm,
+    public ForecastApplyResult apply(Grid grid, LocalDate date, int maxPop, BigDecimal totalMm,
             LocalDateTime firstRainAt, boolean simulated) {
-        Optional<RainForecast> active = rainForecastRepository.findActive(date, simulated);
+        Optional<RainForecast> active =
+                rainForecastRepository.findActive(date, grid.nx(), grid.ny(), simulated);
         if (!meetsThreshold(maxPop, totalMm)) {
             return active.map(this::cancel)
                     .orElseGet(() -> new ForecastApplyResult(Applied.IGNORED, null));
@@ -87,9 +90,12 @@ public class ForecastService {
                     .pcpMm(mm)
                     .isSimulated(simulated)
                     .fetchedAt(fetchedAt)
+                    .gridNx(grid.nx())
+                    .gridNy(grid.ny())
                     .build());
-            log.info("[비 예보] 확정 id={} {} 비 시작 {} ({}%, {}mm, 가상={})",
-                    forecast.getId(), date, rainStartAt, maxPop, mm, simulated);
+            log.info("[비 예보] 확정 id={} 격자 {},{} {} 비 시작 {} ({}%, {}mm, 가상={})",
+                    forecast.getId(), grid.nx(), grid.ny(), date, rainStartAt, maxPop, mm,
+                    simulated);
             eventPublisher.publishEvent(new ForecastConfirmedEvent(forecast.getId(), simulated));
             return new ForecastApplyResult(Applied.CONFIRMED, forecast.getId());
         }
@@ -109,6 +115,7 @@ public class ForecastService {
     /**
      * 시연용 가상 예보를 적용합니다. 비 시작 날짜의 가상 예보로 {@link #apply}와 같은 기준을 씁니다.
      *
+     * @param grid 기상청 격자
      * @param pop 강수확률 최댓값 (%)
      * @param mm 강수량 합계 (mm)
      * @param rainStartAt 비 시작 시각 (지금 + 당일 예보 최소 남은 시간 이후)
@@ -116,14 +123,15 @@ public class ForecastService {
      * @throws BusinessException 비 시작이 너무 가까움 (INVALID_INPUT)
      */
     @Transactional
-    public ForecastApplyResult simulate(int pop, BigDecimal mm, LocalDateTime rainStartAt) {
+    public ForecastApplyResult simulate(Grid grid, int pop, BigDecimal mm,
+            LocalDateTime rainStartAt) {
         LocalDateTime earliest =
                 LocalDateTime.now(clock).plusHours(policy.sameDayMinLeadHours());
         if (rainStartAt.isBefore(earliest)) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
                     "비 시작 시각은 지금부터 " + policy.sameDayMinLeadHours() + "시간 뒤 이후여야 해요.");
         }
-        return apply(rainStartAt.toLocalDate(), pop, mm, rainStartAt, true);
+        return apply(grid, rainStartAt.toLocalDate(), pop, mm, rainStartAt, true);
     }
 
     /**

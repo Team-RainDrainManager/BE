@@ -3,6 +3,7 @@ package com.rainbutler.domain.request.job;
 import com.rainbutler.domain.forecast.entity.RainForecast;
 import com.rainbutler.domain.forecast.repository.RainForecastRepository;
 import com.rainbutler.domain.request.service.InspectionRequestService;
+import com.rainbutler.domain.request.service.RainNoticeBatch;
 import com.rainbutler.domain.request.service.RequestSchedule;
 import com.rainbutler.domain.request.service.RequestSchedulePolicy;
 import com.rainbutler.global.scheduling.SchedulingProperties;
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Component;
  *   <li>내일 비 (실제 · 가상 각각): 기본 일정으로 발송 (응답 마감 12:00, 완료 마감 20:00)</li>
  *   <li>오늘 비: 밤사이 알게 돼 보내지 못한 예보를 당일 규칙으로 발송 (이미 보낸 빗물받이는 건너뜀)</li>
  * </ul>
+ * 예보는 격자마다 따로 있고, 예보마다 그 격자의 빗물받이에만 요청을 만듭니다. 같은 사용자에게 가는 알림은
+ * {@link RainNoticeBatch}로 이번 실행 끝에 1개로 묶어 보냅니다.
  */
 @Slf4j
 @Component
@@ -31,6 +34,7 @@ public class RainNoticeJob {
     private final RainForecastRepository rainForecastRepository;
     private final RequestSchedulePolicy schedulePolicy;
     private final InspectionRequestService inspectionRequestService;
+    private final RainNoticeBatch rainNoticeBatch;
     private final SchedulingProperties schedulingProperties;
     private final Clock clock;
 
@@ -52,6 +56,10 @@ public class RainNoticeJob {
      * @return 만든 요청 수
      */
     public int run() {
+        return rainNoticeBatch.run(this::sendAll);
+    }
+
+    private int sendAll() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
         int created = 0;

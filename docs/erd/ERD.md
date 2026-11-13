@@ -59,7 +59,10 @@
   시청 인계(`MISSED`) 아님. 종료 시각은 `missed_at`을 같이 쓴다
 - V22: 현재 날씨 `current_weather` (기상청 초단기실황 1행, 인프라 테이블 · 엔티티 없음, 시연용 강제 비 종료 시각 포함)
 - V24: 앱 버그 신고 `bug_report` (제목 · 내용, 빗물받이 제보와 별개, 스크린샷 key 최대 3개는 `photo_keys` 한 컬럼, 관리자 메모는 신고자에게 비공개)
-- `erd.png`는 V2 ~ V24 반영 전 그림이다 (`erd.dbml`이 기준)
+- V25: 빗물받이별 날씨 — `drain.grid_nx/grid_ny`(기상청 격자, null이면 기본 격자) · `region_name`(행정동),
+  `rain_forecast.grid_nx/grid_ny`(기존 예보는 역곡 57 · 125, 진행 중 예보 유니크에 격자 추가),
+  `current_weather`를 1행 → 격자별 행(PK `grid_nx, grid_ny`)으로
+- `erd.png`는 V2 ~ V25 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 

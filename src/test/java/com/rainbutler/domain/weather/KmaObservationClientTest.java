@@ -10,6 +10,7 @@ import com.rainbutler.domain.forecast.client.KmaProperties;
 import com.rainbutler.domain.forecast.client.KmaRequestExecutor;
 import com.rainbutler.domain.weather.client.KmaObservationClient;
 import com.rainbutler.domain.weather.client.Observation;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,7 @@ import org.springframework.web.client.RestClient;
  */
 class KmaObservationClientTest {
 
+    private static final Grid GRID = new Grid(57, 125);
     private static final String NCST_URL = "https://kma.test/getUltraSrtNcst";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 6, 15, 45);
 
@@ -45,7 +47,7 @@ class KmaObservationClientTest {
                         "kma/ultra-srt-ncst-real-20261106-1500.json")
                         .getContentAsString(StandardCharsets.UTF_8), MediaType.APPLICATION_JSON));
 
-        Observation observation = client(builder, "test-key").fetch(NOW).orElseThrow();
+        Observation observation = client(builder, "test-key").fetch(GRID, NOW).orElseThrow();
 
         assertThat(observation.pty()).isZero();
         assertThat(observation.rn1Mm()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -66,7 +68,7 @@ class KmaObservationClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
 
-        Optional<Observation> result = client(builder, "").fetch(NOW);
+        Optional<Observation> result = client(builder, "").fetch(GRID, NOW);
 
         assertThat(result).isEmpty();
         server.verify();
@@ -74,7 +76,7 @@ class KmaObservationClientTest {
 
     private KmaObservationClient client(RestClient.Builder builder, String key) {
         KmaProperties properties = new KmaProperties(key, "https://kma.test/getVilageFcst",
-                NCST_URL, 57, 125);
+                NCST_URL, 57, 125, 200);
         return new KmaObservationClient(
                 new KmaRequestExecutor(builder.build(), properties), properties);
     }

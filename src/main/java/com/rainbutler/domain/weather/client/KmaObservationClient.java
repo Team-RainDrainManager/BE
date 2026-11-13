@@ -5,6 +5,7 @@ import com.rainbutler.domain.forecast.client.KmaBaseTime;
 import com.rainbutler.domain.forecast.client.KmaProperties;
 import com.rainbutler.domain.forecast.client.KmaRequestExecutor;
 import com.rainbutler.domain.forecast.client.PcpParser;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 기상청 초단기실황(getUltraSrtNcst) 클라이언트입니다. 파일럿 격자의 지금 강수형태 · 1시간 강수량을 가져옵니다.
+ * 기상청 초단기실황(getUltraSrtNcst) 클라이언트입니다. 격자의 지금 강수형태 · 1시간 강수량을 가져옵니다.
  *
  * <p>호출 · 재시도 · 인증키 가리기는 단기예보와 같이 {@link KmaRequestExecutor}가 합니다. 인증키가 없으면 호출하지
  * 않고 빈 값을 돌려줍니다 (CI · 로컬 키 없는 환경).
@@ -39,11 +40,12 @@ public class KmaObservationClient {
     /**
      * 가장 최근 발표된 초단기실황을 가져옵니다.
      *
+     * @param grid 기상청 격자
      * @param now 현재 시각 (발표 시각 계산용)
      * @return 관측 결과 (인증키가 없으면 비어 있음)
      * @throws KmaApiException 호출 실패 · 오류 응답
      */
-    public Optional<Observation> fetch(LocalDateTime now) {
+    public Optional<Observation> fetch(Grid grid, LocalDateTime now) {
         if (!executor.isConfigured()) {
             if (missingKeyWarned.compareAndSet(false, true)) {
                 log.warn("기상청 인증키(KMA_AUTH_KEY)가 설정되지 않아 현재 날씨 수집을 건너뜁니다.");
@@ -52,7 +54,8 @@ public class KmaObservationClient {
         }
         LocalDateTime base = KmaBaseTime.latestObservation(now);
         KmaObservationResponse response = executor.get(
-                properties.ultraSrtNcstUrl(), base, NUM_OF_ROWS, KmaObservationResponse.class);
+                properties.ultraSrtNcstUrl(), grid, base, NUM_OF_ROWS,
+                KmaObservationResponse.class);
         return Optional.of(toObservation(response, base));
     }
 

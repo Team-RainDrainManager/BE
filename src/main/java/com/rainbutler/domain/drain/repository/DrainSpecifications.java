@@ -7,6 +7,7 @@ import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.request.dto.RainRequestStatus;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -140,25 +141,42 @@ public final class DrainSpecifications {
     }
 
     /**
-     * 이번 비 예보의 요청이 주어진 상태인 빗물받이로 거릅니다. (지도 대신 점검 상태 필터)
+     * 이번 비 대신 점검 상태로 빗물받이를 거릅니다. (지도 필터, {@code RainRequestLookup}과 같은 기준)
      *
-     * @param forecastId 이번 비 예보 id (없으면 결과 없음)
-     * @param statuses 요청 상태
+     * <ul>
+     *   <li>NEEDS_HELP · IN_PROGRESS: 그 상태의 진행 중 요청이 있음</li>
+     *   <li>DONE: 오늘 완료한 요청이 있고 진행 중 요청은 없음</li>
+     * </ul>
+     *
+     * @param status 지도 상태
+     * @param completedSince 이 시각 이후 완료를 "오늘 완료"로 본다 (오늘 0시)
      * @return 조건
      */
     public static Specification<Drain> rainRequestStatus(
-            Long forecastId, Collection<RequestStatus> statuses) {
+            RainRequestStatus status, LocalDateTime completedSince) {
         return (root, query, cb) -> {
-            if (forecastId == null) {
-                return cb.disjunction();
+            if (status != RainRequestStatus.DONE) {
+                return cb.exists(requestSubquery(root, query, cb, status.requestStatuses(), null));
             }
-            Subquery<Long> subquery = query.subquery(Long.class);
-            Root<InspectionRequest> request = subquery.from(InspectionRequest.class);
-            subquery.select(request.get("id")).where(
-                    cb.equal(request.get("drain"), root),
-                    cb.equal(request.get("forecast").get("id"), forecastId),
-                    request.get("status").in(statuses));
-            return cb.exists(subquery);
+            return cb.and(
+                    cb.exists(requestSubquery(root, query, cb, status.requestStatuses(),
+                            completedSince)),
+                    cb.not(cb.exists(requestSubquery(root, query, cb, RequestStatus.IN_PROGRESS,
+                            null))));
         };
+    }
+
+    private static Subquery<Long> requestSubquery(Root<Drain> root, CriteriaQuery<?> query,
+            CriteriaBuilder cb, Collection<RequestStatus> statuses, LocalDateTime completedSince) {
+        Subquery<Long> subquery = query.subquery(Long.class);
+        Root<InspectionRequest> request = subquery.from(InspectionRequest.class);
+        Predicate predicate = cb.and(
+                cb.equal(request.get("drain"), root),
+                request.get("status").in(statuses));
+        if (completedSince != null) {
+            predicate = cb.and(predicate, cb.greaterThanOrEqualTo(
+                    request.<LocalDateTime>get("completedAt"), completedSince));
+        }
+        return subquery.select(request.get("id")).where(predicate);
     }
 }

@@ -1,5 +1,6 @@
 package com.rainbutler.domain.request;
 
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,6 +15,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 public class RequestFixtures {
 
+    /** 기본 격자 (역곡동). 기준 위치도 이 격자 안이다 */
+    public static final Grid GRID = new Grid(57, 125);
     /** 기준 위치 (역곡동 근처) */
     public static final double BASE_LAT = 37.4853;
     public static final double BASE_LNG = 126.8113;
@@ -95,13 +98,22 @@ public class RequestFixtures {
     }
 
     /**
-     * 진행 중(ACTIVE) 예보를 만듭니다.
+     * 기본 격자(역곡)에 진행 중(ACTIVE) 예보를 만듭니다.
      */
     public Long forecast(LocalDate rainDate, LocalDateTime rainStartAt, boolean simulated) {
+        return forecast(rainDate, rainStartAt, simulated, GRID);
+    }
+
+    /**
+     * 격자에 진행 중(ACTIVE) 예보를 만듭니다.
+     */
+    public Long forecast(LocalDate rainDate, LocalDateTime rainStartAt, boolean simulated,
+            Grid grid) {
         return jdbc.queryForObject("INSERT INTO rain_forecast (rain_date, rain_start_at, pop, "
-                + "pcp_mm, status, is_simulated, created_at, updated_at) VALUES (?, ?, 80, 10, "
-                + "'ACTIVE', ?, now(), now()) RETURNING id", Long.class, rainDate,
-                Timestamp.valueOf(rainStartAt), simulated);
+                + "pcp_mm, status, is_simulated, grid_nx, grid_ny, created_at, updated_at) "
+                + "VALUES (?, ?, 80, 10, 'ACTIVE', ?, ?, ?, now(), now()) RETURNING id",
+                Long.class, rainDate, Timestamp.valueOf(rainStartAt), simulated, grid.nx(),
+                grid.ny());
     }
 
     /**

@@ -148,11 +148,12 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
                 fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false), "또랑이");
 
         now(LocalDateTime.of(2027, 5, 10, 5, 15));
-        forecastService.apply(TOMORROW, 80, BigDecimal.TEN, TOMORROW.atTime(15, 0), false);
+        forecastService.apply(RequestFixtures.GRID, TOMORROW, 80, BigDecimal.TEN,
+                TOMORROW.atTime(15, 0), false);
         assertThat(fixtures.notificationCount(owner, "RAIN_TOMORROW")).isZero();
 
         now(LocalDateTime.of(2027, 5, 10, 11, 15));
-        forecastService.apply(LocalDate.of(2027, 5, 10), 80, BigDecimal.TEN,
+        forecastService.apply(RequestFixtures.GRID, LocalDate.of(2027, 5, 10), 80, BigDecimal.TEN,
                 LocalDateTime.of(2027, 5, 10, 18, 0), false);
         assertThat(fixtures.lastNotification(owner, "RAIN_TODAY")).isEqualTo(
                 "오늘 비 소식이 있어요 ☔ | 또랑이를 오늘 17:00까지 살펴봐 주세요. "
@@ -198,12 +199,12 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
                 fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false), "또랑이");
         fixtures.drain(RequestFixtures.north(30), RequestFixtures.BASE_LNG, true);
 
-        var confirmed = forecastSimulationService.simulate(
+        var confirmed = forecastSimulationService.simulate(RequestFixtures.GRID,
                 80, BigDecimal.TEN, LocalDateTime.of(2027, 5, 11, 15, 0));
         assertThat(confirmed.createdCount()).isEqualTo(2);
         assertThat(confirmed.cancelledCount()).isZero();
 
-        var cancelled = forecastSimulationService.simulate(
+        var cancelled = forecastSimulationService.simulate(RequestFixtures.GRID,
                 10, BigDecimal.ZERO, LocalDateTime.of(2027, 5, 11, 15, 0));
         assertThat(cancelled.createdCount()).isZero();
         assertThat(cancelled.cancelledCount()).isEqualTo(2);
@@ -222,7 +223,7 @@ class InspectionRequestCreationTest extends RequestIntegrationTest {
                 false);
         Long realRequest = fixtures.request(real, realDrain, null, "OPEN",
                 LocalDateTime.of(2027, 5, 10, 12, 0), LocalDateTime.of(2027, 5, 10, 20, 0));
-        var simulated = forecastSimulationService.simulate(
+        var simulated = forecastSimulationService.simulate(RequestFixtures.GRID,
                 80, BigDecimal.TEN, LocalDateTime.of(2027, 5, 11, 15, 0));
         assertThat(simulated.createdCount()).isEqualTo(2);
 

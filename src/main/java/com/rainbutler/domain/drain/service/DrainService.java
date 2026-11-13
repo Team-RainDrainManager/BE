@@ -14,7 +14,6 @@ import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainDisplayStatus;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.drain.repository.DrainSpecifications;
-import com.rainbutler.domain.forecast.entity.RainForecast;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
@@ -72,6 +71,8 @@ public class DrainService {
     private final DrainDisplayStatusPolicy drainDisplayStatusPolicy;
     private final DrainAddressResolver drainAddressResolver;
     private final RainRequestLookup rainRequestLookup;
+    private final DrainRegionResolver drainRegionResolver;
+    private final DrainWeatherAreaService drainWeatherAreaService;
     private final Clock clock;
 
     /**
@@ -289,6 +290,9 @@ public class DrainService {
         if (address == null) {
             address = drainAddressResolver.resolve(request.latitude(), request.longitude());
         }
+        // 비 예보 알림 문구용 행정동 이름 (실패하면 null, 백필이 다시 채운다)
+        String regionName =
+                drainRegionResolver.resolve(request.latitude(), request.longitude());
 
         // 7. 청소 불가 판정이면 입양을 막는 제보를 만들고, 아니면 불일치·저확신 검토용 제보를 만든다.
         boolean uncleanable = assessment.needsReport()
@@ -323,6 +327,7 @@ public class DrainService {
         DrainWriter.SavedDrain saved = drainWriter.save(
                 userId, request, photoKey, dirtLevel, isRisk, reportDescription, blocksAdoption,
                 name, address);
+        drainWeatherAreaService.assignRegionName(saved.drain().getId(), regionName);
 
         DrainDisplayStatus displayStatus = saved.riskReportId() == null
                 ? DrainDisplayStatus.AVAILABLE
@@ -403,16 +408,14 @@ public class DrainService {
     }
 
     /**
-     * 이번 비 대신 점검 상태 조건입니다. 상태가 없으면 조건 없음, 이번 비 예보가 없으면 결과 없음.
+     * 이번 비 대신 점검 상태 조건입니다. 상태가 없으면 조건 없음.
      */
     private Specification<Drain> rainStatusSpecification(RainRequestStatus rainStatus) {
         if (rainStatus == null) {
             return (root, query, cb) -> cb.conjunction();
         }
-        Long forecastId = rainRequestLookup.currentForecast(LocalDate.now(clock))
-                .map(RainForecast::getId)
-                .orElse(null);
-        return DrainSpecifications.rainRequestStatus(forecastId, rainStatus.requestStatuses());
+        return DrainSpecifications.rainRequestStatus(
+                rainStatus, LocalDate.now(clock).atStartOfDay());
     }
 
     private List<DrainResponse> toResponses(List<Drain> drains) {

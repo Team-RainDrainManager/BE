@@ -1,5 +1,6 @@
 package com.rainbutler.domain.forecast.client;
 
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +14,7 @@ import org.springframework.web.client.RestClientException;
  * 기상청 API허브 동네예보 서비스(단기예보 · 초단기실황) 공통 호출기입니다.
  *
  * <ul>
- *   <li>파일럿 격자({@code rain-butler.kma.nx · ny}), 발표 시각, JSON, 인증키 파라미터를 붙여 GET 한다</li>
+ *   <li>격자(nx · ny), 발표 시각, JSON, 인증키 파라미터를 붙여 GET 한다</li>
  *   <li>네트워크 · 5xx 실패는 2회 재시도, 4xx(인증 · 활용신청 문제)는 다시 불러도 같으므로 바로 실패</li>
  *   <li>인증키는 로그 · 예외 메시지에서 가린다</li>
  * </ul>
@@ -49,13 +50,15 @@ public class KmaRequestExecutor {
      * 발표 시각 기준으로 API를 호출합니다.
      *
      * @param url API 주소
+     * @param grid 기상청 격자
      * @param base 발표 시각
      * @param numOfRows 받을 행 수
      * @param type 응답 타입
      * @return 응답 본문
      * @throws KmaApiException 호출 실패 · 4xx
      */
-    public <T> T get(String url, LocalDateTime base, int numOfRows, Class<T> type) {
+    public <T> T get(String url, Grid grid, LocalDateTime base, int numOfRows,
+            Class<T> type) {
         for (int attempt = 0; ; attempt++) {
             try {
                 return restClient.get()
@@ -65,8 +68,8 @@ public class KmaRequestExecutor {
                                 .queryParam("dataType", "JSON")
                                 .queryParam("base_date", base.format(BASE_DATE))
                                 .queryParam("base_time", base.format(BASE_TIME))
-                                .queryParam("nx", properties.nx())
-                                .queryParam("ny", properties.ny())
+                                .queryParam("nx", grid.nx())
+                                .queryParam("ny", grid.ny())
                                 .queryParam("authKey", properties.authKey())
                                 .build())
                         .retrieve()
