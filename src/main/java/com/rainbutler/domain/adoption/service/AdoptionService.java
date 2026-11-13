@@ -1,7 +1,9 @@
 package com.rainbutler.domain.adoption.service;
 
+import com.rainbutler.domain.adoption.dto.Request.AdoptionNicknameUpdateRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
+import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameUpdateResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionRegisterResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
 import com.rainbutler.domain.adoption.entity.Adoption;
@@ -149,6 +151,41 @@ public class AdoptionService {
                 saved.getAdoptedAt(),
                 saved.getNextManagementAt()
         );
+    }
+
+    /**
+     * 입양한 빗물받이의 별명을 바꿉니다.
+     *
+     * <p>본인 입양만 바꿀 수 있고, 해제된 입양은 조회되지 않는 것과 같이 {@code ADOPTION_NOT_FOUND}로
+     * 응답합니다. 별명 규칙(1~20자)은 입양 등록과 같습니다.
+     *
+     * @param userId 로그인 사용자 id
+     * @param adoptionId 별명을 바꿀 입양 id
+     * @param request 새 별명
+     * @return 바뀐 별명과 수정 시각
+     * @throws BusinessException 입양이 없거나 해제됐으면(404), 본인 입양이 아니면(403)
+     */
+    @Transactional
+    public AdoptionNicknameUpdateResponse updateNickname(
+            Long userId, Long adoptionId, AdoptionNicknameUpdateRequest request) {
+        Adoption adoption = adoptionRepository.findById(adoptionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ADOPTION_NOT_FOUND));
+
+        // 본인 입양만 바꿀 수 있다
+        if (!adoption.getUser().getId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        // 해제된 입양은 상세 조회와 같은 기준으로 찾을 수 없는 입양으로 응답한다
+        if (adoption.getStatus() != AdoptionStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.ADOPTION_NOT_FOUND);
+        }
+
+        adoption.changeNickname(request.nickname());
+        // 수정 시각(Auditing)이 응답에 담기도록 먼저 반영한다
+        adoptionRepository.flush();
+
+        return AdoptionNicknameUpdateResponse.from(adoption);
     }
 
     /**

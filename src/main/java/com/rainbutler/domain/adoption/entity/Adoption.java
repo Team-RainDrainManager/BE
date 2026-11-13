@@ -109,6 +109,15 @@ public class Adoption extends BaseEntity {
     }
 
     /**
+     * 빗물받이에 붙인 별명을 바꿉니다.
+     *
+     * @param nickname 새 별명
+     */
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    /**
      * 입양을 해제합니다. 빗물받이는 다시 입양할 수 있게 됩니다. (직접 해제 · 자동 해제 · 회원 탈퇴 공통)
      *
      * <p>이 입양에 걸린 점검 요청 재공개는 호출하는 쪽에서 {@code InspectionRequest.reopenAfterRelease}로 처리합니다.
