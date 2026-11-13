@@ -33,9 +33,10 @@ prometheus.scrape "app" {
 		__address__ = "app:8080",
 		instance    = "rain-butler-ec2",
 	}]
-	job_name        = "rain-butler"
-	metrics_path    = "/actuator/prometheus"
-	scrape_interval = "15s"
+	job_name     = "rain-butler"
+	metrics_path = "/actuator/prometheus"
+	// Grafana Cloud 무료 한도가 분당 1회(1 DPM) 기준이라 60초. 줄이면 사용량이 배로 늘어남
+	scrape_interval = "60s"
 	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
 
@@ -55,9 +56,10 @@ prometheus.exporter.unix "host" {
 }
 
 prometheus.scrape "host" {
-	targets         = prometheus.exporter.unix.host.targets
-	job_name        = "node"
-	scrape_interval = "15s"
+	targets  = prometheus.exporter.unix.host.targets
+	job_name = "node"
+	// Grafana Cloud 무료 한도가 분당 1회(1 DPM) 기준이라 60초. 줄이면 사용량이 배로 늘어남
+	scrape_interval = "60s"
 	forward_to      = [prometheus.relabel.host.receiver]
 }
 
