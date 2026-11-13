@@ -4,6 +4,8 @@ import com.rainbutler.domain.bugreport.entity.BugReport;
 import com.rainbutler.domain.bugreport.entity.BugReportCategory;
 import com.rainbutler.domain.bugreport.entity.BugReportStatus;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -48,4 +50,27 @@ public interface BugReportRepository extends JpaRepository<BugReport, Long> {
             + "ORDER BY b.createdAt DESC, b.id DESC")
     Page<BugReport> search(@Param("status") BugReportStatus status,
             @Param("category") BugReportCategory category, Pageable pageable);
+
+    /**
+     * 사용자 닉네임을 찾습니다. 탈퇴(소프트 삭제)한 사용자도 포함하려고 users를 직접 읽습니다.
+     *
+     * @param userIds 사용자 id 목록
+     * @return id · 닉네임 · 탈퇴 여부
+     */
+    @Query(value = "SELECT u.id AS id, u.nickname AS nickname, "
+            + "(u.deleted_at IS NOT NULL) AS withdrawn FROM users u WHERE u.id IN (:userIds)",
+            nativeQuery = true)
+    List<UserNickname> findNicknames(@Param("userIds") Collection<Long> userIds);
+
+    /**
+     * 닉네임 조회 결과입니다.
+     */
+    interface UserNickname {
+
+        Long getId();
+
+        String getNickname();
+
+        Boolean getWithdrawn();
+    }
 }
