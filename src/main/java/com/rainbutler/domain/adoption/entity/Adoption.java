@@ -109,20 +109,6 @@ public class Adoption extends BaseEntity {
     }
 
     /**
-     * 다음 관리 예정일을 미룹니다. 이미 더 늦으면 그대로 둡니다. (점검 쉬기)
-     *
-     * <p>예정일이 실제로 밀리면 이전 예정일에 보낸 사전 알림은 지난 주기의 것이 되므로 다시 알릴 수 있게 합니다.
-     *
-     * @param until 이 시각 이후로 미룬다
-     */
-    public void postponeNextManagement(LocalDateTime until) {
-        if (this.nextManagementAt == null || this.nextManagementAt.isBefore(until)) {
-            this.nextManagementAt = until;
-            this.managementNotifiedAt = null;
-        }
-    }
-
-    /**
      * 입양을 해제합니다. 빗물받이는 다시 입양할 수 있게 됩니다. (직접 해제 · 자동 해제 · 회원 탈퇴 공통)
      *
      * <p>이 입양에 걸린 점검 요청 재공개는 호출하는 쪽에서 {@code InspectionRequest.reopenAfterRelease}로 처리합니다.

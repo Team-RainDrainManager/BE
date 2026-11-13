@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
  * @param drainName 빗물받이 표시 이름 (입양 별명 우선)
  * @param beforePhotoUrl 점검 전 · 청소 전 사진 조회 URL
  * @param afterPhotoUrl 점검 후 · 청소 후 사진 조회 URL (없으면 null)
- * @param beforeGrade 점검 전 등급 (0~3, 점검 · 청소만)
- * @param afterGrade 점검 후 등급 (0~3, 점검 · 청소만)
+ * @param beforeGrade 점검 전 등급 (1~3, 점검 · 청소만)
+ * @param afterGrade 점검 후 등급 (1~3, 점검 · 청소만)
  * @param dirtLevel 점검 전 더러움 단계 (1~3, 관리 기록만)
  * @param aiConfidence AI 확신도
  * @param distanceM 촬영 위치와 빗물받이 사이 거리 (m, 점검만)

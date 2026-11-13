@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * @param drainId 빗물받이 id
  * @param nickname 빗물받이 별명
  * @param adoptedAt 입양 일시
- * @param nextManagementAt 다음 관리 예정일 (+14일, 12월~2월은 +28일)
+ * @param nextManagementAt 다음 관리 예정일 (입양일 기준 14일 주기의 끝)
  */
 public record AdoptionRegisterResponse(
         Long adoptionId,

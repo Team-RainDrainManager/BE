@@ -114,7 +114,7 @@ class ManagementLogServiceTest {
 
     @Test
     void 정기_점검을_기록하면_관리_주기를_갱신하고_빗물받이_사진을_바꾼다() {
-        assessment("before-key", 2, 0.9, 1);
+        assessment("before-key", 2, 0.9, 2);
         given(adoption.getNextManagementAt())
                 .willReturn(NOW.plusDays(POLICIES.managementCycleDays()));
 
@@ -137,8 +137,8 @@ class ManagementLogServiceTest {
 
     @Test
     void 청소까지_하면_청소_후_사진과_등급으로_판정한다() {
-        assessment("before-key", 2, 0.9, 1);
-        assessment("after-key", 1, 0.9, 0);
+        assessment("before-key", 2, 0.9, 2);
+        assessment("after-key", 1, 0.9, 1);
 
         ManagementLogResponse response = service.record(
                 USER_ID, ADOPTION_ID, request(ManagementType.REGULAR, null,
@@ -153,8 +153,8 @@ class ManagementLogServiceTest {
 
     @Test
     void 청소_후_등급이_좋아지지_않으면_FAILED_이고_관리_주기를_갱신하지_않는다() {
-        assessment("before-key", 2, 0.9, 1);
-        assessment("after-key", 2, 0.9, 1);
+        assessment("before-key", 2, 0.9, 2);
+        assessment("after-key", 2, 0.9, 2);
 
         ManagementLogResponse response = service.record(
                 USER_ID, ADOPTION_ID, request(ManagementType.REGULAR, null,
@@ -169,7 +169,7 @@ class ManagementLogServiceTest {
 
     @Test
     void 위치가_멀면_검토_대기로_남긴다() {
-        assessment("before-key", 2, 0.9, 1);
+        assessment("before-key", 2, 0.9, 2);
 
         ManagementLogResponse response = service.record(
                 USER_ID, ADOPTION_ID, request(ManagementType.REGULAR, null,
@@ -183,7 +183,7 @@ class ManagementLogServiceTest {
 
     @Test
     void AI_확신도가_낮으면_검토_대기로_남긴다() {
-        assessment("before-key", 2, 0.5, 1);
+        assessment("before-key", 2, 0.5, 2);
 
         ManagementLogResponse response = service.record(
                 USER_ID, ADOPTION_ID, request(ManagementType.REGULAR, null,
@@ -195,7 +195,7 @@ class ManagementLogServiceTest {
 
     @Test
     void 비_예보_점검은_연결된_요청을_완료하고_무응답_횟수를_초기화한다() {
-        assessment("before-key", 2, 0.9, 1);
+        assessment("before-key", 2, 0.9, 2);
         InspectionRequest inspectionRequest = inspectionRequest();
 
         ManagementLogResponse response = service.record(

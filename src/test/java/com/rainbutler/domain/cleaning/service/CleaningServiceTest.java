@@ -113,12 +113,12 @@ class CleaningServiceTest {
     }
 
     @Test
-    void 등급0이면_청소를_완료로_만들고_청소가_필요없다고_응답한다() {
-        given(drainAiClassifier.assess("before-key-url")).willReturn(assessment(1, 0));
+    void 등급1_괜찮음이면_청소를_완료로_만들고_청소가_필요없다고_응답한다() {
+        given(drainAiClassifier.assess("before-key-url")).willReturn(assessment(1, 1));
 
         CleaningStartResponse response = start();
 
-        assertThat(response.grade()).isZero();
+        assertThat(response.grade()).isEqualTo(DrainAiClassifier.GRADE_OK);
         assertThat(response.mustClean()).isFalse();
         assertThat(response.blocked()).isFalse();
 
@@ -130,12 +130,12 @@ class CleaningServiceTest {
     }
 
     @Test
-    void 등급1이면_청소가_필요하다고_응답하고_사진을_바꾸지_않는다() {
-        given(drainAiClassifier.assess("before-key-url")).willReturn(assessment(2, 1));
+    void 등급2_쌓임이면_청소가_필요하다고_응답하고_사진을_바꾸지_않는다() {
+        given(drainAiClassifier.assess("before-key-url")).willReturn(assessment(2, 2));
 
         CleaningStartResponse response = start();
 
-        assertThat(response.grade()).isEqualTo(1);
+        assertThat(response.grade()).isEqualTo(DrainAiClassifier.GRADE_PILED);
         assertThat(response.mustClean()).isTrue();
 
         ArgumentCaptor<Cleaning> saved = ArgumentCaptor.forClass(Cleaning.class);
@@ -150,7 +150,7 @@ class CleaningServiceTest {
 
         CleaningStartResponse response = start();
 
-        assertThat(response.grade()).isEqualTo(2);
+        assertThat(response.grade()).isEqualTo(DrainAiClassifier.GRADE_PILED);
         assertThat(response.mustClean()).isTrue();
         assertThat(response.blocked()).isFalse();
     }
@@ -200,7 +200,7 @@ class CleaningServiceTest {
     @Test
     void 청소_인증에_통과하면_빗물받이_사진을_청소_후_사진으로_바꾼다() {
         given(drainAiClassifier.assess("after-key-url"))
-                .willReturn(assessment(1, 0));
+                .willReturn(assessment(1, 1));
 
         CleaningVerifyResponse response = service.verifyCleaning(
                 USER_ID, CLEANING_ID, new CleaningVerifyRequest("after-key", 37.5, 127.0));

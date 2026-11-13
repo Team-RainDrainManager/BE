@@ -4,8 +4,8 @@ package com.rainbutler.domain.cleaning.dto.Response;
  * 청소 완료 인증 응답입니다.
  *
  * @param cleaningId 청소 id
- * @param beforeGrade 청소 전 AI 판정 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
- * @param afterGrade 청소 후 AI 판정 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
+ * @param beforeGrade 청소 전 AI 판정 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
+ * @param afterGrade 청소 후 AI 판정 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
  * @param passed 인증 통과 여부 (afterGrade < beforeGrade)
  * @param attemptNo 인증 시도 횟수
  */

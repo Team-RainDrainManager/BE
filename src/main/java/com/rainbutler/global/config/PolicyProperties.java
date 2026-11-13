@@ -10,8 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>주기·반경·제한 횟수처럼 운영 중 바뀔 수 있는 값은 DB나 코드 상수가 아니라 이 설정으로 관리합니다.
  *
  * @param maxAdoptionsPerUser 사용자당 최대 입양 수
- * @param managementCycleDays 정기 점검 주기 (일)
- * @param winterManagementCycleDays 겨울철(12월~2월) 정기 점검 주기 (일)
+ * @param managementCycleDays 정기 점검 주기 (일). 입양 시점 기준으로 이 주기마다 계속 돌아간다
  * @param adoptionWarningDays 미관리 경고 알림 기준 (일)
  * @param adoptionReleaseDays 미관리 자동 파양 기준 (일)
  * @param substituteRadiusMeters 대신 점검 대상 반경 (m)
@@ -40,7 +39,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param lonelyIgnoreCount "외로운 또랑이" 표시 기준 연속 무응답 횟수 (표시만, 불이익 없음)
  * @param minRemainingMinutesAfterAdvance 비가 앞당겨져 당긴 완료 마감까지 이보다 적게 남으면 요청 취소 (분)
  * @param adoptionCareTime 관리 배치(관리 예정 알림 · 미관리 경고 · 자동 파양) 시각
- * @param inspectionXp 점검 1회를 인정했을 때 지급하는 경험치 (개인 참여 점수 · 빗물받이 성장)
+ * @param visitXp 한 주기 안 첫 점검(청소 불필요)을 인정했을 때 지급하는 경험치 (개인 참여 점수 · 빗물받이 성장)
+ * @param revisitXp 같은 주기 두 번째 점검부터 지급하는 경험치 (개인 참여 점수 · 빗물받이 성장)
+ * @param firstCleaningXp 한 주기 안 첫 청소를 인정했을 때 지급하는 경험치 (하락 단계와 무관하게 고정)
+ * @param cleaningOneLevelXp 두 번째 청소부터 1단계 하락했을 때 지급하는 경험치
+ * @param cleaningTwoLevelXp 두 번째 청소부터 2단계 하락했을 때 지급하는 경험치
+ * @param substituteVisitXp 대신 점검(청소 불필요)을 인정했을 때 지급하는 개인 경험치
+ * @param substituteCleaningXp 대신 점검 청소를 인정했을 때 지급하는 개인 경험치
  * @param photoRetentionDays 점검 사진 보존 기간 (일). 촬영일부터 이 기간이 지나면 사진 URL을 내려주지 않는다
  * @param reportXp 제보를 승인했을 때 지급하는 경험치
  * @param nearbyRequestListLimit 내 요청 목록에 보여 줄 근처(NEARBY) 대신 점검 요청 최대 개수 (가까운 순)
@@ -52,7 +57,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record PolicyProperties(
         int maxAdoptionsPerUser,
         int managementCycleDays,
-        int winterManagementCycleDays,
         int adoptionWarningDays,
         int adoptionReleaseDays,
         int substituteRadiusMeters,
@@ -80,7 +84,13 @@ public record PolicyProperties(
         int lonelyIgnoreCount,
         int minRemainingMinutesAfterAdvance,
         LocalTime adoptionCareTime,
-        int inspectionXp,
+        int visitXp,
+        int revisitXp,
+        int firstCleaningXp,
+        int cleaningOneLevelXp,
+        int cleaningTwoLevelXp,
+        int substituteVisitXp,
+        int substituteCleaningXp,
         int photoRetentionDays,
         int reportXp,
         int nearbyRequestListLimit,

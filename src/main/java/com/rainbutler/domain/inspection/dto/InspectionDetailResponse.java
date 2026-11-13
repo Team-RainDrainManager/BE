@@ -20,8 +20,8 @@ import java.time.LocalDateTime;
  * @param reviewReason 검토가 필요하거나 반려된 이유 (없으면 null)
  * @param beforePhotoUrl 점검 전 사진 조회 URL (사진이 삭제됐으면 null)
  * @param afterPhotoUrl 청소 후 사진 조회 URL (청소 전 · 사진이 삭제됐으면 null)
- * @param beforeGrade AI가 판정한 점검 전 등급 (0 괜찮음 · 2 쌓임 · 3 막힘)
- * @param afterGrade AI가 판정한 청소 후 등급 (0 괜찮음 · 2 쌓임 · 3 막힘, 청소 전이면 null)
+ * @param beforeGrade AI가 판정한 점검 전 등급 (1 괜찮음 · 2 쌓임 · 3 막힘)
+ * @param afterGrade AI가 판정한 청소 후 등급 (1 괜찮음 · 2 쌓임 · 3 막힘, 청소 전이면 null)
  * @param cleaned 청소 후 사진을 낸 기록인지
  * @param distanceM 촬영 위치와 빗물받이 사이 거리 (m)
  * @param xp 이 점검으로 지급한 경험치

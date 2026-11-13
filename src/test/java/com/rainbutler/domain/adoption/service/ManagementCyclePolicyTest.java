@@ -3,52 +3,53 @@ package com.rainbutler.domain.adoption.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rainbutler.support.TestPolicies;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 /**
- * 정기 점검 주기(14일 · 겨울 28일)와 다음 관리 예정일 계산을 검증합니다.
+ * 정기 점검 주기(입양일 기준 14일 고정)와 다음 관리 예정일 계산을 검증합니다.
  */
 class ManagementCyclePolicyTest {
+
+    private static final LocalDateTime ADOPTED_AT = LocalDateTime.of(2026, 11, 1, 10, 30);
 
     private final ManagementCyclePolicy policy =
             new ManagementCyclePolicy(TestPolicies.defaults());
 
     @Test
-    void 기본_주기는_14일이다() {
-        assertThat(policy.cycleDays(LocalDate.of(2026, 3, 1))).isEqualTo(14);
-        assertThat(policy.cycleDays(LocalDate.of(2026, 11, 30))).isEqualTo(14);
+    void 주기는_계절과_관계없이_14일이다() {
+        assertThat(policy.cycleDays()).isEqualTo(14);
     }
 
     @Test
-    void 겨울철_12월부터_2월까지는_28일이다() {
-        assertThat(policy.cycleDays(LocalDate.of(2026, 12, 1))).isEqualTo(28);
-        assertThat(policy.cycleDays(LocalDate.of(2027, 1, 15))).isEqualTo(28);
-        assertThat(policy.cycleDays(LocalDate.of(2027, 2, 28))).isEqualTo(28);
+    void 입양일_기준으로_주기가_고정된다() {
+        assertThat(policy.cycleStart(ADOPTED_AT, ADOPTED_AT.plusDays(3)))
+                .isEqualTo(ADOPTED_AT);
+        assertThat(policy.cycleStart(ADOPTED_AT, ADOPTED_AT.plusDays(14)))
+                .isEqualTo(ADOPTED_AT.plusDays(14));
+        assertThat(policy.cycleStart(ADOPTED_AT, ADOPTED_AT.plusDays(27)))
+                .isEqualTo(ADOPTED_AT.plusDays(14));
+        assertThat(policy.cycleStart(ADOPTED_AT, ADOPTED_AT.plusDays(28)))
+                .isEqualTo(ADOPTED_AT.plusDays(28));
     }
 
     @Test
-    void 관리한_시각에_주기를_더해_다음_예정일을_구한다() {
-        LocalDateTime managedAt = LocalDateTime.of(2026, 11, 1, 10, 30);
-
-        assertThat(policy.nextManagementAt(managedAt))
-                .isEqualTo(LocalDateTime.of(2026, 11, 15, 10, 30));
+    void 다음_관리_예정일은_주기_끝이라_점검일과_무관하다() {
+        // 입양 3일째에 점검해도 다음 예정일은 입양 14일째다
+        assertThat(policy.nextManagementAt(ADOPTED_AT, ADOPTED_AT.plusDays(3)))
+                .isEqualTo(ADOPTED_AT.plusDays(14));
+        // 주기 마지막 날에 점검하면 다음 예정일은 그다음 주기 끝이다
+        assertThat(policy.nextManagementAt(ADOPTED_AT, ADOPTED_AT.plusDays(13)))
+                .isEqualTo(ADOPTED_AT.plusDays(14));
+        assertThat(policy.nextManagementAt(ADOPTED_AT, ADOPTED_AT.plusDays(14)))
+                .isEqualTo(ADOPTED_AT.plusDays(28));
     }
 
     @Test
-    void 겨울에_관리하면_다음_예정일도_28일_뒤다() {
-        LocalDateTime managedAt = LocalDateTime.of(2026, 12, 20, 10, 30);
+    void 입양_시각이_없으면_지금을_주기_시작으로_본다() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 2, 10, 0);
 
-        assertThat(policy.nextManagementAt(managedAt))
-                .isEqualTo(LocalDateTime.of(2027, 1, 17, 10, 30));
-    }
-
-    @Test
-    void 겨울철_판정은_월만_본다() {
-        assertThat(ManagementCyclePolicy.isWinter(LocalDate.of(2026, 12, 31))).isTrue();
-        assertThat(ManagementCyclePolicy.isWinter(LocalDate.of(2027, 1, 1))).isTrue();
-        assertThat(ManagementCyclePolicy.isWinter(LocalDate.of(2027, 2, 1))).isTrue();
-        assertThat(ManagementCyclePolicy.isWinter(LocalDate.of(2027, 3, 1))).isFalse();
+        assertThat(policy.cycleStart(null, now)).isEqualTo(now);
+        assertThat(policy.nextManagementAt(null, now)).isEqualTo(now.plusDays(14));
     }
 }

@@ -63,7 +63,7 @@ public class CleaningService {
      *
      * <p>AI 판정 결과에 따라:
      * <ul>
-     *   <li>괜찮음(0) → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
+     *   <li>괜찮음(1) → 청소를 완료 상태로 만들고 바로 입양 가능 ({@code mustClean=false})</li>
      *   <li>쌓임(2) · 막힘(3) → 청소 진행 ({@code mustClean=true}), 청소 후 사진 인증이 필요하다</li>
      *   <li>needsReport=true 또는 막힘(3) → 입양 불가, 입양을 막는 BLOCKAGE 제보로 전환</li>
      * </ul>
@@ -139,7 +139,7 @@ public class CleaningService {
             );
         }
 
-        // 9. 청소 생성 (0등급은 청소 없이 입양할 수 있도록 완료 상태로 만든다)
+        // 9. 청소 생성 (1등급 괜찮음은 청소 없이 입양할 수 있도록 완료 상태로 만든다)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
@@ -158,8 +158,8 @@ public class CleaningService {
         cleaning.setDirtConfidence(BigDecimal.valueOf(assessment.confidence()));
         cleaning.setStatus(CleaningStatus.IN_PROGRESS);
 
-        // 이미 깨끗한 빗물받이(괜찮음 0)는 청소 인증 없이 바로 입양할 수 있게 한다
-        boolean alreadyClean = assessment.grade() == 0;
+        // 이미 깨끗한 빗물받이(괜찮음 1)는 청소 인증 없이 바로 입양할 수 있게 한다
+        boolean alreadyClean = DrainAiClassifier.isClean(assessment.grade());
         if (alreadyClean) {
             cleaning.setStatus(CleaningStatus.COMPLETED);
             cleaning.setCompletedAt(LocalDateTime.now());
@@ -168,7 +168,7 @@ public class CleaningService {
 
         Cleaning saved = cleaningRepository.save(cleaning);
 
-        // 10. 응답 (괜찮음(0)은 청소 불필요, 쌓임(2)·막힘(3)은 청소 후 사진 인증이 필요하다)
+        // 10. 응답 (괜찮음(1)은 청소 불필요, 쌓임(2)·막힘(3)은 청소 후 사진 인증이 필요하다)
         boolean mustClean = !alreadyClean;
         return new CleaningStartResponse(
                 saved.getId(),
@@ -242,10 +242,10 @@ public class CleaningService {
         DrainAiClassifier.Assessment assessment =
                 drainAiClassifier.assess(storageService.toReadUrl(photoKey));
 
-        // 7. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→괜찮음 0, 2→쌓임 2, 3→막힘 3)
+        // 7. beforeGrade 계산 (dirtLevel에서 역변환: dirtLevel 1→괜찮음 1, 2→쌓임 2, 3→막힘 3)
         int beforeGrade = cleaning.getDirtLevel() != null
                 ? DrainAiClassifier.gradeOfDirtLevel(cleaning.getDirtLevel())
-                : 0;
+                : DrainAiClassifier.GRADE_OK;
         int afterGrade = assessment.grade();
 
         // 8. 인증 시도 횟수 증가

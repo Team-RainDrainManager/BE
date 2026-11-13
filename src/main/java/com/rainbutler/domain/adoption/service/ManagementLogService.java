@@ -144,7 +144,9 @@ public class ManagementLogService {
         LocalDateTime now = LocalDateTime.now(clock);
         if (verified) {
             log.markVerified(now);
-            adoption.recordManagement(now, managementCyclePolicy.nextManagementAt(now));
+            adoption.recordManagement(
+                    now,
+                    managementCyclePolicy.nextManagementAt(adoption.getAdoptedAt(), now));
             drain.updateLatestPhoto(
                     afterPhotoKey == null ? beforePhotoKey : afterPhotoKey,
                     after == null ? before.dirtLevel() : after.dirtLevel());
@@ -198,7 +200,9 @@ public class ManagementLogService {
         log.approve(findAdmin(adminId), now);
         if (newlyVerified) {
             Adoption adoption = log.getAdoption();
-            adoption.recordManagement(now, managementCyclePolicy.nextManagementAt(now));
+            adoption.recordManagement(
+                    now,
+                    managementCyclePolicy.nextManagementAt(adoption.getAdoptedAt(), now));
             adoption.getDrain().updateLatestPhoto(
                     latestPhotoKey(log),
                     latestDirtLevel(log));

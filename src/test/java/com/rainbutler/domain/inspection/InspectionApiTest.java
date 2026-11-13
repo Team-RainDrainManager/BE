@@ -88,7 +88,7 @@ class InspectionApiTest extends IntegrationTestSupport {
         given(storageService.toReadUrl(anyString()))
                 .willAnswer(invocation -> "http://" + invocation.getArgument(0));
         given(drainAiClassifier.assess(anyString()))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 2, false));
     }
 
     @Test
@@ -108,13 +108,13 @@ class InspectionApiTest extends IntegrationTestSupport {
         Long drainId = drain("ADOPTED");
         Long adoptionId = adoption(drainId);
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 1, false));
 
         start(drainId, "ROUTINE", null, LAT, LNG, true)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.beforeGrade").value(0))
-                .andExpect(jsonPath("$.data.xpAwarded").value(20));
+                .andExpect(jsonPath("$.data.beforeGrade").value(1))
+                .andExpect(jsonPath("$.data.xpAwarded").value(10));
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
@@ -126,13 +126,13 @@ class InspectionApiTest extends IntegrationTestSupport {
                 adoptionId);
         assertThat(toLocalDateTime(adoption.get("last_managed_at"))).isNotNull();
         assertThat(toLocalDateTime(adoption.get("next_management_at"))).isNotNull();
-        assertThat(adoption.get("score")).isEqualTo(20);
+        assertThat(adoption.get("score")).isEqualTo(10);
 
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT point FROM users WHERE id = ?", Integer.class, userId)).isEqualTo(20);
+                "SELECT point FROM users WHERE id = ?", Integer.class, userId)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT amount FROM point_history WHERE user_id = ? AND source_type = 'INSPECTION'",
-                Integer.class, userId)).isEqualTo(20);
+                Integer.class, userId)).isEqualTo(10);
     }
 
     @Test
@@ -140,9 +140,9 @@ class InspectionApiTest extends IntegrationTestSupport {
         Long drainId = drain("ADOPTED");
         adoption(drainId);
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(3, false, 0.9, "더러움", 2, false));
+                .willReturn(new DrainAiClassifier.Assessment(3, false, 0.9, "더러움", 3, false));
         given(drainAiClassifier.assess("http://" + afterPhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "조금 남음", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "조금 남음", 2, false));
 
         String body = start(drainId, "ROUTINE", null, LAT, LNG, true)
                 .andExpect(status().isOk())
@@ -158,8 +158,8 @@ class InspectionApiTest extends IntegrationTestSupport {
                                 + "\",\"safetyConfirmed\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.afterGrade").value(1))
-                .andExpect(jsonPath("$.data.xpAwarded").value(20));
+                .andExpect(jsonPath("$.data.afterGrade").value(2))
+                .andExpect(jsonPath("$.data.xpAwarded").value(30));
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
@@ -172,7 +172,7 @@ class InspectionApiTest extends IntegrationTestSupport {
         Long drainId = drain("ADOPTED");
         Long adoptionId = adoption(drainId);
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 1, false));
 
         start(drainId, "ROUTINE", null, LAT + 0.01, LNG + 0.01, true)
                 .andExpect(status().isBadRequest())
@@ -190,7 +190,7 @@ class InspectionApiTest extends IntegrationTestSupport {
         jdbcTemplate.update("UPDATE adoption SET ignore_count = 2 WHERE id = ?", adoptionId);
         Long requestId = request(adoptionId, drainId, "ACCEPTED");
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "깨끗함", 1, false));
 
         start(drainId, "FORECAST", requestId, LAT, LNG, true)
                 .andExpect(status().isOk())
@@ -212,7 +212,7 @@ class InspectionApiTest extends IntegrationTestSupport {
         Long adoptionId = adoption(drainId);
         Long requestId = request(adoptionId, drainId, "ACCEPTED");
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "더러움", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "더러움", 2, false));
 
         start(drainId, "FORECAST", requestId, LAT, LNG, true)
                 .andExpect(status().isOk())
