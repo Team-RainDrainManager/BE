@@ -7,6 +7,7 @@ import com.rainbutler.domain.forecast.service.ForecastApplyResult.Applied;
 import com.rainbutler.domain.forecast.service.ForecastService;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,15 +28,17 @@ public class ForecastSimulationService {
     private final InspectionRequestRepository inspectionRequestRepository;
 
     /**
-     * 가상 예보를 적용합니다.
+     * 격자에 가상 예보를 적용합니다.
      *
+     * @param grid 기상청 격자
      * @param pop 강수확률 최댓값 (%)
      * @param mm 강수량 합계 (mm)
      * @param rainStartAt 비 시작 시각
      * @return 적용 결과와 생성 · 취소된 요청 수
      */
-    public ForecastSimulateResponse simulate(int pop, BigDecimal mm, LocalDateTime rainStartAt) {
-        ForecastApplyResult result = forecastService.simulate(pop, mm, rainStartAt);
+    public ForecastSimulateResponse simulate(Grid grid, int pop, BigDecimal mm,
+            LocalDateTime rainStartAt) {
+        ForecastApplyResult result = forecastService.simulate(grid, pop, mm, rainStartAt);
         long created = result.applied() == Applied.CONFIRMED
                 ? inspectionRequestRepository.countByForecast_Id(result.forecastId()) : 0;
         long cancelled = result.applied() == Applied.CANCELLED

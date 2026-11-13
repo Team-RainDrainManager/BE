@@ -3,8 +3,10 @@ package com.rainbutler.domain.forecast.controller;
 import com.rainbutler.domain.forecast.dto.ForecastSimulateRequest;
 import com.rainbutler.domain.forecast.dto.ForecastSimulateResponse;
 import com.rainbutler.domain.forecast.dto.SimulatedForecastCancelResponse;
+import com.rainbutler.domain.forecast.service.GridLocator;
 import com.rainbutler.domain.request.service.ForecastSimulationService;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +38,8 @@ public class ForecastAdminController {
             - `applied`: `CONFIRMED`(새로 확정) · `UPDATED`(값 갱신) · `CANCELLED`(기준 미달로 취소) ·
               `IGNORED`(기준 미달, 진행 중 가상 예보 없음)
             - `rainStartAt`은 지금부터 3시간 뒤 이후여야 합니다.
+            - `latitude` · `longitude`(선택, 함께): 그 위치의 기상청 격자(약 5km)에 예보를 만듭니다. **그 격자 안의
+              빗물받이에만** 요청이 생깁니다. 없으면 기본 격자(역곡동)
             - `createdCount`: 바로 보낸 점검 요청 수. 내일 비를 06:00 전에 넣었거나 모레 이후 비면 06:00 일괄 발송
               대상이라 0입니다. (밤 21:00 ~ 06:00에 넣은 비도 06:00 배치가 보냅니다)
             - `cancelledCount`: 예보 취소로 취소된 점검 요청 수
@@ -45,7 +49,7 @@ public class ForecastAdminController {
             진행 중인 **가상 예보를 모두 취소**합니다. **ADMIN만** 쓸 수 있습니다 (CITY_OFFICIAL은 403).
             푸시 테스트 등으로 만든 가상 예보를 날짜를 몰라도 한 번에 정리할 때 씁니다.
 
-            - 실제 기상청 예보는 건드리지 않습니다.
+            - 모든 격자의 가상 예보가 대상입니다. 실제 기상청 예보는 건드리지 않습니다.
             - 실제 예보가 취소될 때와 같이 진행 중 점검 요청이 취소되고, 입양자 · 대신 점검 수락자에게
               **"비 예보가 취소됐어요" 알림(REQUEST_CANCELLED)**이 갑니다. 완료 · 놓침 · 종료된 요청은 그대로입니다.
             - 응답: `cancelledForecastCount` 취소한 가상 예보 수, `cancelledRequestCount` 함께 취소된 요청 수
@@ -53,6 +57,7 @@ public class ForecastAdminController {
             """;
 
     private final ForecastSimulationService forecastSimulationService;
+    private final GridLocator gridLocator;
 
     /**
      * 가상 예보를 적용합니다.
@@ -64,8 +69,9 @@ public class ForecastAdminController {
     @PostMapping("/simulate")
     public ResponseEntity<ApiResponse<ForecastSimulateResponse>> simulate(
             @Valid @RequestBody ForecastSimulateRequest request) {
+        Grid grid = gridLocator.locate(request.latitude(), request.longitude());
         return ResponseEntity.ok(ApiResponse.ok(forecastSimulationService.simulate(
-                request.pop(), request.mm(), request.rainStartAt())));
+                grid, request.pop(), request.mm(), request.rainStartAt())));
     }
 
     /**

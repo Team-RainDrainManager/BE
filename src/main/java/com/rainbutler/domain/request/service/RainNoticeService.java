@@ -10,6 +10,7 @@ import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
 import com.rainbutler.domain.weather.service.CurrentWeatherService;
 import com.rainbutler.domain.weather.service.CurrentWeatherService.WeatherStatus;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 지도 화면 위에 띄울 비 예보 배너를 만듭니다.
+ * 지도 화면 위에 띄울 비 예보 배너를 만듭니다. 지도 중심 좌표의 기상청 격자 기준입니다.
  *
  * <ul>
  *   <li>지금 비가 오면 {@code RAINING} — 문구는 "비가 오고 있어요."만</li>
@@ -41,15 +42,16 @@ public class RainNoticeService {
     private final Clock clock;
 
     /**
-     * 지금 배너를 만듭니다.
+     * 격자의 지금 배너를 만듭니다.
      *
+     * @param grid 기상청 격자
      * @return 배너
      */
-    public RainNoticeResponse current() {
+    public RainNoticeResponse current(Grid grid) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
-        WeatherStatus weather = currentWeatherService.status(now);
-        Optional<RainForecast> forecast = currentRainForecastFinder.find(today);
+        WeatherStatus weather = currentWeatherService.status(grid, now);
+        Optional<RainForecast> forecast = currentRainForecastFinder.find(grid, today);
 
         ForecastSummary forecastSummary = forecast.map(this::forecastSummary).orElse(null);
         HelpSummary help = forecast.map(f -> helpSummary(f.getId())).orElse(null);

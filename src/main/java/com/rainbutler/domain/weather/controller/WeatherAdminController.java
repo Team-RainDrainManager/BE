@@ -1,9 +1,11 @@
 package com.rainbutler.domain.weather.controller;
 
+import com.rainbutler.domain.forecast.service.GridLocator;
 import com.rainbutler.domain.weather.dto.SimulateRainRequest;
 import com.rainbutler.domain.weather.dto.SimulateRainResponse;
 import com.rainbutler.domain.weather.service.CurrentWeatherService;
 import com.rainbutler.global.exception.ErrorCode;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,10 +36,13 @@ public class WeatherAdminController {
 
             - 지도 비 예보 배너(`GET /api/v1/rain-notice`)가 이 기간 동안 `RAINING`이 됩니다.
             - `minutes` 0~360. **0이면 해제**하고 다시 실제 초단기실황으로 판단합니다.
+            - `latitude` · `longitude`(선택, 함께): 그 위치의 기상청 격자(약 5km)만 비 오는 중으로 바꿉니다.
+              없으면 기본 격자(역곡동). 배너도 같은 좌표로 조회해야 보입니다.
             - 실제 관측 값(강수형태 · 강수량)은 바꾸지 않습니다.
             """;
 
     private final CurrentWeatherService currentWeatherService;
+    private final GridLocator gridLocator;
     private final Clock clock;
 
     /**
@@ -51,8 +56,9 @@ public class WeatherAdminController {
     public ResponseEntity<ApiResponse<SimulateRainResponse>> simulateRain(
             @Valid @RequestBody SimulateRainRequest request) {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime until = currentWeatherService.simulateRain(request.minutes(), now);
+        Grid grid = gridLocator.locate(request.latitude(), request.longitude());
+        LocalDateTime until = currentWeatherService.simulateRain(grid, request.minutes(), now);
         return ResponseEntity.ok(ApiResponse.ok(new SimulateRainResponse(
-                currentWeatherService.status(now).raining(), until)));
+                currentWeatherService.status(grid, now).raining(), until)));
     }
 }
