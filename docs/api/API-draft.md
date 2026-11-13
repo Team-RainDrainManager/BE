@@ -67,6 +67,13 @@
 | | POST | `/drains/{id}/cleanings` | 04 | 입양 전 청소 시작 `{ photoKey, latitude, longitude }` → AI 더러움 단계. 촬영 위치가 빗물받이에서 50m를 넘으면 400 `CLEANING_LOCATION_MISMATCH` |
 | | POST | `/cleanings/{id}/verify` | 04 | 청소 후 사진 인증 `{ photoKey, latitude, longitude }` → PASS/FAIL (실패 시 재시도). 위치가 빗물받이 또는 청소 전 사진에서 50m를 넘으면 400 `CLEANING_LOCATION_MISMATCH` |
 
+### 빗물받이 주소 규칙
+
+- 주소는 등록할 때 한 번 카카오 역지오코딩(`coord2address`)으로 채워 저장한다. 요청에 `address`가 있으면 그 값을 쓴다.
+- 조회할 때는 저장된 값을 그대로 내려준다. 외부 호출을 하지 않는다.
+- 주소가 비어 있는 기존 행은 서버가 뜰 때 한 번 백필한다. 실패한 행은 다음 시작 때 다시 채우고, 카카오가 403(카카오맵 사용 설정 꺼짐)이면 남은 행은 멈춘다.
+- 카카오 키가 없거나 주소 조회를 꺼 두면(`rain-butler.address.reverse-geocoding-enabled=false`) `address`는 `null`이다.
+
 ### 입양 전 청소 위치 검증 규칙
 
 - 청소 전 · 후 사진 모두 촬영 위치(`latitude`, `longitude`)를 함께 보낸다. (필수)
