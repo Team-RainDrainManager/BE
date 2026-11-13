@@ -56,6 +56,7 @@
 | | POST | `/drains/{id}/adoptions` | 04 | `{ cleaningId, nickname, safetyAgreed }` → 인증 통과한 청소로 입양. 3개 초과면 `ADOPTION_LIMIT_EXCEEDED`. 위치 불일치·검토 대기·검토 반려 청소는 거부 ⚠️ |
 | | GET | `/adoptions/me` | 05 | 내 빗물받이 목록 (2/3), 다음 점검일, 35일 경고 |
 | ★ | GET | `/adoptions/{id}` | 06 | 입양 상세 + 돌봄 정보. 입양자 · 관리자만 조회 (해제된 입양은 404) |
+| | PATCH | `/adoptions/{id}/nickname` | 05, 06 | `{ nickname }` 빗물받이 별명 수정. 입양 등록과 같은 1~20자, 본인 입양만, 해제된 입양은 404 |
 | | POST | `/adoptions/{id}/release` | 05, 06 | `{ reason: MOVED \| NO_TIME \| OTHER }` 입양 그만두기(파양). 본인만 · 기록·성장 보관 · SENT·ACCEPTED 요청은 소유자 비우고 OPEN 재공개 |
 | | POST | `/adoptions/{id}/management-logs` | 07, 08, 09 | 정기·비 예보 점검 기록(기존 API). `{ type, requestId?, actionType, beforePhotoKey, afterPhotoKey?, memo, latitude, longitude, safetyAgreed }` → AI 판정, 위치 불일치·낮은 확신도면 검토 대기. 인증 성공 시 관리 주기·빗물받이 최신 사진 갱신 (포인트·성장 지급은 별도) |
 | ★ | GET | `/drains/{id}/inspection-eligibility?requestId=` | 07, 08, 09 | 점검 화면 진입 전 가능 여부. 정기·비 예보·대신 점검의 권한, 요청 상태, 마감, 제재 여부를 판정 |

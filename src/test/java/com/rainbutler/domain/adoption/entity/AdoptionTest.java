@@ -24,6 +24,15 @@ class AdoptionTest {
         assertThat(adoption.isManagementNotified()).isFalse();
     }
 
+    @Test
+    void 빗물받이_별명을_바꾼다() {
+        Adoption adoption = adoption();
+
+        adoption.changeNickname("새또랑이");
+
+        assertThat(adoption.getNickname()).isEqualTo("새또랑이");
+    }
+
     private Adoption adoption() {
         return Adoption.builder()
                 .nickname("또랑이")
