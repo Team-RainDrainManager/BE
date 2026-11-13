@@ -65,6 +65,27 @@ public class DrainRegionResolver {
         if (!isEnabled()) {
             return null;
         }
+        try {
+            return lookup(latitude, longitude);
+        } catch (RegionLookupForbiddenException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 백필용 조회입니다. {@link #resolve}와 같지만 403(카카오맵 사용 설정 꺼짐)이면 예외를 던져 백필을 멈추게 합니다.
+     * (빗물받이마다 같은 거절을 반복 호출 · 로그하지 않게)
+     *
+     * @param latitude 위도
+     * @param longitude 경도
+     * @return 행정동 이름 (찾지 못하거나 실패하면 null)
+     * @throws RegionLookupForbiddenException 카카오가 403으로 거절
+     */
+    public String resolveForBackfill(double latitude, double longitude) {
+        return isEnabled() ? lookup(latitude, longitude) : null;
+    }
+
+    private String lookup(double latitude, double longitude) {
         String uri = UriComponentsBuilder.fromUriString(COORD_TO_REGION_URL)
                 .queryParam("x", longitude)
                 .queryParam("y", latitude)
@@ -82,6 +103,7 @@ public class DrainRegionResolver {
             if (e.getStatusCode() == HttpStatus.FORBIDDEN) {
                 log.warn("행정동 조회가 거절됐습니다(403). 카카오 개발자 콘솔에서 카카오맵(로컬) 사용 설정이 켜져 있는지 "
                         + "확인하세요. 위도={}, 경도={}", latitude, longitude);
+                throw new RegionLookupForbiddenException();
             } else {
                 log.warn("행정동 조회에 실패했습니다({}). 위도={}, 경도={}", e.getStatusCode().value(),
                         latitude, longitude);
@@ -107,6 +129,16 @@ public class DrainRegionResolver {
                 .map(String::strip)
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * 카카오가 행정구역 조회를 403으로 거절했습니다. (카카오맵 사용 설정 꺼짐)
+     */
+    public static class RegionLookupForbiddenException extends RuntimeException {
+
+        RegionLookupForbiddenException() {
+            super("카카오 행정구역 조회 거절(403)");
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

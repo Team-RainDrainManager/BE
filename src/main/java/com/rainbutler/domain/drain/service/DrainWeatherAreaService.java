@@ -1,6 +1,7 @@
 package com.rainbutler.domain.drain.service;
 
 import com.rainbutler.domain.drain.repository.DrainRepository;
+import com.rainbutler.domain.drain.service.DrainRegionResolver.RegionLookupForbiddenException;
 import com.rainbutler.global.geo.KmaGridConverter;
 import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.util.ArrayList;
@@ -16,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>격자는 위경도로 계산하므로 외부 호출 없이 항상 채운다</li>
- *   <li>행정동 이름은 카카오 호출이라 초당 호출 수를 제한하고, 실패한 행은 비워 두었다가 다음 백필 때 다시 한다</li>
+ *   <li>행정동 이름은 카카오 호출이라 초당 호출 수를 제한하고, 실패한 행은 비워 두었다가 다음 백필 때 다시 한다.
+ *       카카오가 403(카카오맵 사용 설정 꺼짐)이면 남은 행은 부르지 않고 멈춘다</li>
  *   <li>값이 비어 있는 행만 채우므로 여러 번 돌려도 같다</li>
  * </ul>
  */
@@ -117,7 +119,13 @@ public class DrainWeatherAreaService {
             }
             for (Object[] row : rows) {
                 lastId = (Long) row[0];
-                String name = drainRegionResolver.resolve((Double) row[1], (Double) row[2]);
+                String name;
+                try {
+                    name = drainRegionResolver.resolveForBackfill((Double) row[1], (Double) row[2]);
+                } catch (RegionLookupForbiddenException e) {
+                    log.warn("[빗물받이 날씨 지역 백필] 카카오가 행정구역 조회를 거절해(403) 행정동 백필을 멈춥니다.");
+                    return new int[] {filled, failed + 1};
+                }
                 if (name == null) {
                     failed++;
                 } else {

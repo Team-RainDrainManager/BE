@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -106,6 +108,9 @@ public class RainNoticeBatch {
     /**
      * 알림을 쌓습니다. 모으는 중이 아니면 바로 1곳 알림으로 보냅니다. (호출하는 쪽 트랜잭션 안)
      *
+     * <p>요청 생성 트랜잭션 안이면 커밋된 뒤에 쌓습니다. 롤백되면 그 요청은 없으므로 알림도 버린다
+     * (다른 예보의 알림 묶음에 섞여 발송이 실패하지 않게).
+     *
      * @param notice 알림
      */
     public void add(PendingNotice notice) {
@@ -114,6 +119,20 @@ public class RainNoticeBatch {
             send(List.of(notice));
             return;
         }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            collect(collected, notice);
+                        }
+                    });
+            return;
+        }
+        collect(collected, notice);
+    }
+
+    private static void collect(Map<Long, List<PendingNotice>> collected, PendingNotice notice) {
         collected.computeIfAbsent(notice.userId(), id -> new ArrayList<>()).add(notice);
     }
 
