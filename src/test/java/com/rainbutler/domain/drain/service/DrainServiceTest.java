@@ -76,11 +76,13 @@ class DrainServiceTest {
 
     @BeforeEach
     void setUp() {
-        PolicyProperties policy = new PolicyProperties(3, 14, 28, 28, 35, 300, 3, 50,
+        PolicyProperties policy = new PolicyProperties(3, 14, 28, 35, 300, 3, 50,
                 new BigDecimal("0.7"), LocalTime.of(6, 0), LocalTime.of(20, 0), 90,
                 LocalTime.of(22, 0), LocalTime.of(8, 0), 7, 14, 3, 14, 100,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 20, 365, 5, 30, 30, 100, 10);
+                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0),
+                10, 5, 30, 10, 20, 10, 20,
+                365, 5, 30, 30, 100, 10);
         Clock clock = Clock.fixed(
                 LocalDateTime.of(2026, 11, 3, 9, 0)
                         .atZone(java.time.ZoneId.of("Asia/Seoul")).toInstant(),
@@ -94,7 +96,7 @@ class DrainServiceTest {
     void 검증된_S3_key를_저장하고_AI에는_조회_URL을_넘기며_응답에는_조회_URL을_준다() {
         givenVerifiedPhoto();
         given(drainAiClassifier.assess(READ_URL))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.95, "조금 쌓임", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.95, "조금 쌓임", 2, false));
         Drain savedDrain = Drain.builder()
                 .registeredBy(User.local("a@test.com", "{noop}x", "집사"))
                 .latitude(37.5)
@@ -181,7 +183,7 @@ class DrainServiceTest {
         given(storageService.verifyUploaded(USER_ID, beforeKey, ASSESSABLE)).willReturn(beforeKey);
         given(storageService.toReadUrl(beforeKey)).willReturn(READ_URL);
         given(drainAiClassifier.assess(READ_URL))
-                .willReturn(new DrainAiClassifier.Assessment(3, true, 0.9, "많이 막힘", 2, true));
+                .willReturn(new DrainAiClassifier.Assessment(3, true, 0.9, "많이 막힘", 3, true));
 
         DrainAssessmentResponse response =
                 drainService.assessPhoto(USER_ID, new DrainAssessmentRequest(beforeKey));

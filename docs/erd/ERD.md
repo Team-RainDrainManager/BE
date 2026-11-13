@@ -58,8 +58,8 @@
 - 요청 상태 `EXPIRED` 추가 (Flyway 없음, 문자열 값만): 미입양 · 위험 아님 빗물받이 대신 점검이 완료 마감까지 안 되면 종료.
   시청 인계(`MISSED`) 아님. 종료 시각은 `missed_at`을 같이 쓴다
 - V22: 현재 날씨 `current_weather` (기상청 초단기실황 1행, 인프라 테이블 · 엔티티 없음, 시연용 강제 비 종료 시각 포함)
-- V23: 앱 버그 신고 `bug_report` (제목 · 내용, 빗물받이 제보와 별개, 스크린샷 key 최대 3개는 `photo_keys` 한 컬럼, 관리자 메모는 신고자에게 비공개)
-- `erd.png`는 V2 ~ V23 반영 전 그림이다 (`erd.dbml`이 기준)
+- V24: 앱 버그 신고 `bug_report` (제목 · 내용, 빗물받이 제보와 별개, 스크린샷 key 최대 3개는 `photo_keys` 한 컬럼, 관리자 메모는 신고자에게 비공개)
+- `erd.png`는 V2 ~ V24 반영 전 그림이다 (`erd.dbml`이 기준)
 
 ## 공통 컬럼 (BaseEntity)
 
@@ -78,18 +78,18 @@
 - 사용자당 ACTIVE 입양 최대 3개 → 서비스 로직
 - 배수구당 ACTIVE 입양 1개 → `UNIQUE (drain_id) WHERE status='ACTIVE'`
 
-**정기 점검**: 입양자가 `inspection`(kind=ROUTINE)에 제출 → `adoption.last_managed_at` = 점검일, `next_management_at` = 점검일 + 14일 (12월~2월은 28일)
+**정기 점검**: 입양자가 `inspection`(kind=ROUTINE)에 제출 → `adoption.last_managed_at` = 점검일, `next_management_at` = 입양일 기준 14일 단위 주기의 끝 (계절과 무관)
 - 관리 예정일 하루 전: `next_management_at`이 내일인 입양에 `MANAGEMENT_DUE` 알림 (`management_notified_at`으로 한 주기 1회)
 - 매일 배치: 관리 기준 시각(입양일 · 마지막 관리일 · 지난 쉬기 종료일 중 가장 늦은 시각)이 28일 지나면 `ADOPTION_WARNING` 한 번(`warned_at`), 35일 지나면 `status=RELEASED`, `release_reason=AUTO`
 - 점검 쉬기 중인 사용자는 관리 예정 알림 · 미관리 경고 · 자동 파양을 모두 건너뛴다
-- 주기(14일 · 겨울 28일)와 경고 · 해제 기준(28일 · 35일)은 DB가 아니라 설정 값
+- 주기(입양일 기준 14일 고정)와 경고 · 해제 기준(28일 · 35일)은 DB가 아니라 설정 값
 
 **점검 · 청소 공통 제출**: `inspection` 한 테이블에 정기 · 비 예보 · 대신 점검을 모은다
-- 점검 전 사진(`POST /inspections`) → AI 등급 0이면 청소 없이 `COMPLETED`, 더러우면 `NEEDS_CLEANING`
+- 점검 전 사진(`POST /inspections`) → AI 등급 1(괜찮음)이면 청소 없이 `COMPLETED`, 더러우면 `NEEDS_CLEANING`
 - 청소 후 사진(`POST /inspections/{id}/complete`) → 등급이 좋아지면 `COMPLETED`, 아니면 다시 `NEEDS_CLEANING`
 - 위치 50m 초과 · AI 확신도 0.7 미만이면 `PENDING`(관리자 검토)
 - `COMPLETED`면 관리 주기 · 빗물받이 최신 사진 · XP(개인 점수 + 입양 성장) 갱신, `PENDING`이면 요청만 완료하고 지급은 보류
-- XP는 완료 점검 1회 5점, 같은 사용자 · 같은 빗물받이 하루 1회만 지급
+- XP는 그 주기(입양일 기준 14일) 안에서 몇 번째인지로 정한다. 점검(청소 불필요)은 첫 점검 10 · 두 번째부터 5, 청소는 첫 청소 30 고정 · 두 번째부터 1단계 하락 10 · 2단계 하락 20. 대신 점검은 주기와 무관하게 점검 10 · 청소 20이고 빗물받이 성장은 없다. 같은 사용자 · 같은 빗물받이에서 점검 · 청소 중 먼저 인정된 한 건만 하루 1회 지급한다
 - 상세(`GET /inspections/{id}`) · 입양별 이력(`GET /adoptions/{id}/inspections`)은 저장된 `status`로 검토 상태를 보여주고, 촬영일부터 `photo-retention-days`(365일)가 지나면 사진 URL 대신 `photoDeleted=true`를 내려준다 (삭제 배치는 별도)
 - 기존 `management_log` API는 병행 유지
 

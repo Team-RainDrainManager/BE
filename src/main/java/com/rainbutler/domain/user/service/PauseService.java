@@ -52,7 +52,9 @@ public class PauseService {
     }
 
     /**
-     * 점검 쉬기를 신청합니다. 입양 중인 빗물받이의 다음 관리 예정일을 쉬기 종료 뒤로 미룹니다.
+     * 점검 쉬기를 신청합니다.
+     *
+     * <p>쉬는 동안에도 입양 시점 기준 2주 주기는 그대로 흘러갑니다. 경고 · 자동 파양 판정만 보류합니다.
      *
      * @param userId 로그인 사용자 id
      * @return 쉬기 종료 시각
@@ -78,9 +80,6 @@ public class PauseService {
         }
 
         user.startPause(now, policyProperties.pauseDays());
-        // 쉬는 동안 정기 점검이 돌아오지 않도록 다음 관리 예정일을 쉬기 종료 뒤로 미룬다
-        activeAdoptions(userId)
-                .forEach(adoption -> adoption.postponeNextManagement(user.getPauseUntil()));
         return new PauseResponse(user.getPauseUntil());
     }
 

@@ -109,17 +109,12 @@ public class Adoption extends BaseEntity {
     }
 
     /**
-     * 다음 관리 예정일을 미룹니다. 이미 더 늦으면 그대로 둡니다. (점검 쉬기)
+     * 빗물받이에 붙인 별명을 바꿉니다.
      *
-     * <p>예정일이 실제로 밀리면 이전 예정일에 보낸 사전 알림은 지난 주기의 것이 되므로 다시 알릴 수 있게 합니다.
-     *
-     * @param until 이 시각 이후로 미룬다
+     * @param nickname 새 별명
      */
-    public void postponeNextManagement(LocalDateTime until) {
-        if (this.nextManagementAt == null || this.nextManagementAt.isBefore(until)) {
-            this.nextManagementAt = until;
-            this.managementNotifiedAt = null;
-        }
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
     }
 
     /**

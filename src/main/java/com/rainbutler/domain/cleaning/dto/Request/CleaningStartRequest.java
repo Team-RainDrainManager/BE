@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
  *
  * <p>청소 전 사진(BEFORE)과 촬영 위치가 필수입니다. 사진은 {@code POST /api/v1/uploads/presigned-url}
  * (purpose=BEFORE)로 S3에 먼저 올리고, 받은 {@code key}를 {@code photoKey}로 보냅니다.
- * AI가 사진으로 더러움 단계를 판정하고, 괜찮음(0)이면 바로 입양, 쌓임(2)이면 청소 진행, 막힘(3) 또는 덮개 안쪽 막힘 신고가 필요하면 입양 불가입니다.
+ * AI가 사진으로 더러움 단계를 판정하고, 괜찮음(1)이면 바로 입양, 쌓임(2)이면 청소 진행, 막힘(3) 또는 덮개 안쪽 막힘 신고가 필요하면 입양 불가입니다.
  */
 public record CleaningStartRequest(
         @NotBlank(message = "청소 전 사진을 등록해 주세요.")

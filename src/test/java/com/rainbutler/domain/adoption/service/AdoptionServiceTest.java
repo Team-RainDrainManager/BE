@@ -10,9 +10,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.rainbutler.domain.adoption.dto.Request.AdoptionNicknameUpdateRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseReason;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
+import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameUpdateResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
@@ -154,6 +156,61 @@ class AdoptionServiceTest {
                 .isEqualTo(ErrorCode.DUPLICATE_RESOURCE);
         verify(adoption, never()).release(any(), any());
         verifyNoInteractions(inspectionRequestRepository);
+    }
+
+    @Test
+    void 본인_입양의_별명을_바꾼다() {
+        Adoption adoption = activeAdoption(USER_ID);
+        given(adoption.getNickname()).willReturn("새또랑이");
+        given(adoption.getUpdatedAt()).willReturn(NOW);
+
+        AdoptionNicknameUpdateResponse response = adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest("새또랑이"));
+
+        assertThat(response.adoptionId()).isEqualTo(ADOPTION_ID);
+        assertThat(response.nickname()).isEqualTo("새또랑이");
+        assertThat(response.updatedAt()).isEqualTo(NOW);
+        verify(adoption).changeNickname("새또랑이");
+        verify(adoptionRepository).flush();
+    }
+
+    @Test
+    void 별명을_바꿀_입양이_없으면_ADOPTION_NOT_FOUND() {
+        given(adoptionRepository.findById(ADOPTION_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest("새또랑이")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ADOPTION_NOT_FOUND);
+        verify(adoptionRepository, never()).flush();
+    }
+
+    @Test
+    void 다른_사람의_입양_별명은_바꿀_수_없다() {
+        Adoption adoption = activeAdoption(USER_ID + 1);
+
+        assertThatThrownBy(() -> adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest("새또랑이")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.FORBIDDEN);
+        verify(adoption, never()).changeNickname(any());
+        verify(adoptionRepository, never()).flush();
+    }
+
+    @Test
+    void 해제된_입양의_별명은_바꿀_수_없다() {
+        Adoption adoption = activeAdoption(USER_ID);
+        given(adoption.getStatus()).willReturn(AdoptionStatus.RELEASED);
+
+        assertThatThrownBy(() -> adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest("새또랑이")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ADOPTION_NOT_FOUND);
+        verify(adoption, never()).changeNickname(any());
+        verify(adoptionRepository, never()).flush();
     }
 
     @Test

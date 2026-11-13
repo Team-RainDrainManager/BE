@@ -92,7 +92,7 @@ class ManagementLogApiTest extends IntegrationTestSupport {
         given(storageService.toReadUrl(anyString()))
                 .willAnswer(invocation -> "http://" + invocation.getArgument(0));
         given(drainAiClassifier.assess(anyString()))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 2, false));
     }
 
     @Test
@@ -134,13 +134,14 @@ class ManagementLogApiTest extends IntegrationTestSupport {
         assertThat(log.get("managed_at")).isNotNull();
 
         Map<String, Object> adoption = jdbcTemplate.queryForMap(
-                "SELECT last_managed_at, next_management_at FROM adoption WHERE id = ?",
+                "SELECT adopted_at, last_managed_at, next_management_at FROM adoption WHERE id = ?",
                 adoptionId);
+        LocalDateTime adoptedAt = toLocalDateTime(adoption.get("adopted_at"));
         LocalDateTime lastManagedAt = toLocalDateTime(adoption.get("last_managed_at"));
         LocalDateTime nextManagementAt = toLocalDateTime(adoption.get("next_management_at"));
         assertThat(lastManagedAt).isNotNull();
         assertThat(nextManagementAt)
-                .isEqualTo(managementCyclePolicy.nextManagementAt(lastManagedAt));
+                .isEqualTo(managementCyclePolicy.nextManagementAt(adoptedAt, lastManagedAt));
 
         Map<String, Object> drain = jdbcTemplate.queryForMap(
                 "SELECT photo_url, dirt_level FROM drain WHERE id = ?", drainId);
@@ -153,9 +154,9 @@ class ManagementLogApiTest extends IntegrationTestSupport {
         Long drainId = drain("ADOPTED");
         Long adoptionId = adoption(drainId, null, null);
         given(drainAiClassifier.assess("http://" + beforePhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 1, false));
+                .willReturn(new DrainAiClassifier.Assessment(2, false, 0.9, "판정", 2, false));
         given(drainAiClassifier.assess("http://" + afterPhotoKey))
-                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "판정", 0, false));
+                .willReturn(new DrainAiClassifier.Assessment(1, false, 0.9, "판정", 1, false));
 
         record(adoptionId, cleaningBody(null))
                 .andExpect(status().isOk())

@@ -25,27 +25,12 @@ class AdoptionTest {
     }
 
     @Test
-    void 예정일이_뒤로_밀리면_사전_알림을_다시_보낼_수_있다() {
+    void 빗물받이_별명을_바꾼다() {
         Adoption adoption = adoption();
-        adoption.recordManagement(NOW, NOW.plusDays(14));
-        adoption.markManagementNotified(NOW.plusDays(13));
 
-        adoption.postponeNextManagement(NOW.plusDays(28));
+        adoption.changeNickname("새또랑이");
 
-        assertThat(adoption.getNextManagementAt()).isEqualTo(NOW.plusDays(28));
-        assertThat(adoption.isManagementNotified()).isFalse();
-    }
-
-    @Test
-    void 예정일이_그대로면_사전_알림_표시를_유지한다() {
-        Adoption adoption = adoption();
-        adoption.recordManagement(NOW, NOW.plusDays(14));
-        adoption.markManagementNotified(NOW.plusDays(13));
-
-        adoption.postponeNextManagement(NOW.plusDays(7));
-
-        assertThat(adoption.getNextManagementAt()).isEqualTo(NOW.plusDays(14));
-        assertThat(adoption.isManagementNotified()).isTrue();
+        assertThat(adoption.getNickname()).isEqualTo("새또랑이");
     }
 
     private Adoption adoption() {

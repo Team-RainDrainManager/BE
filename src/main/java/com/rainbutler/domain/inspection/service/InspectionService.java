@@ -123,13 +123,13 @@ public class InspectionService {
 
         if (reviewRequired) {
             inspection.requireReview();
-        } else if (before.grade() == 0) {
+        } else if (DrainAiClassifier.isClean(before.grade())) {
             inspection.completeWithoutCleaning();
         }
 
         Inspection saved = inspectionRepository.save(inspection);
         LocalDateTime now = LocalDateTime.now(clock);
-        applyAfterSubmit(saved, context.growthAdoption(), now, false);
+        applyAfterSubmit(saved, context.growthAdoption(), now);
 
         return response(saved, notice(saved.getStatus(), false));
     }
@@ -184,7 +184,7 @@ public class InspectionService {
 
         Inspection saved = inspectionRepository.save(inspection);
         LocalDateTime now = LocalDateTime.now(clock);
-        applyAfterSubmit(saved, resolveGrowthAdoption(saved), now, true);
+        applyAfterSubmit(saved, resolveGrowthAdoption(saved), now);
 
         return response(saved, notice(saved.getStatus(), true));
     }
@@ -244,8 +244,7 @@ public class InspectionService {
      * 제출 결과에 따라 요청 완료 · 인증 후처리를 실행합니다.
      */
     private void applyAfterSubmit(
-            Inspection inspection, Adoption growthAdoption, LocalDateTime now,
-            boolean afterSubmitted) {
+            Inspection inspection, Adoption growthAdoption, LocalDateTime now) {
         if (inspection.getStatus() == InspectionStatus.COMPLETED) {
             applyCompletion(inspection, growthAdoption, now);
         } else if (inspection.getStatus() == InspectionStatus.PENDING) {
@@ -267,7 +266,10 @@ public class InspectionService {
         drain.updateLatestPhoto(latestPhotoKey, dirtLevel(latestGrade));
 
         if (growthAdoption != null) {
-            growthAdoption.recordManagement(now, managementCyclePolicy.nextManagementAt(now));
+            growthAdoption.recordManagement(
+                    now,
+                    managementCyclePolicy.nextManagementAt(
+                            growthAdoption.getAdoptedAt(), now));
         }
         inspectionRewardService.reward(
                 inspection, growthAdoption, description(inspection.getKind()), now);

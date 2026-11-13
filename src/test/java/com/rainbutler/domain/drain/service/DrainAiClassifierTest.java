@@ -25,25 +25,25 @@ import org.springframework.web.client.RestClient;
 class DrainAiClassifierTest {
 
     @ParameterizedTest(name = "촬영기 {0}등급 → 더러움 {1}단계")
-    @CsvSource({"0, 1", "1, 2", "2, 2", "3, 3"})
+    @CsvSource({"0, 1", "1, 1", "2, 2", "3, 3"})
     void gradeToDirtLevel(int grade, int expected) {
         assertThat(DrainAiClassifier.toDirtLevel(grade)).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "더러움 {0}단계 → 촬영기 {1}등급")
-    @CsvSource({"1, 0", "2, 2", "3, 3"})
+    @CsvSource({"1, 1", "2, 2", "3, 3"})
     void dirtLevelToGrade(int dirtLevel, int expected) {
         assertThat(DrainAiClassifier.gradeOfDirtLevel(dirtLevel)).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "AI 답 {0} → 촬영기 {1}등급")
-    @CsvSource({"괜찮음, 0", "쌓임, 2", "막힘, 3"})
+    @CsvSource({"괜찮음, 1", "쌓임, 2", "막힘, 3"})
     void gradeNameToValue(String name, int expected) {
         assertThat(DrainAiClassifier.gradeFromAnswer(name, null, null)).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "이름 없이 덮개 {0}% · 주변 {1}% → 촬영기 {2}등급")
-    @CsvSource({"20, 5, 0", "5, 20, 0", "21, 0, 2", "65, 0, 2", "0, 66, 3"})
+    @CsvSource({"20, 5, 1", "5, 20, 1", "21, 0, 2", "65, 0, 2", "0, 66, 3"})
     void gradeFromPercentWhenNameIsUnknown(int grate, int around, int expected) {
         assertThat(DrainAiClassifier.gradeFromAnswer("알 수 없음", grate, around)).isEqualTo(expected);
     }
@@ -58,7 +58,7 @@ class DrainAiClassifierTest {
     @Test
     @DisplayName("막힘일 때만 위험")
     void toRisk() {
-        assertThat(DrainAiClassifier.toRisk(0)).isFalse();
+        assertThat(DrainAiClassifier.toRisk(1)).isFalse();
         assertThat(DrainAiClassifier.toRisk(2)).isFalse();
         assertThat(DrainAiClassifier.toRisk(3)).isTrue();
     }

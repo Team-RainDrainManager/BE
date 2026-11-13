@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
+import com.rainbutler.domain.adoption.repository.ManagementLogRepository;
 import com.rainbutler.domain.adoption.service.ManagementCyclePolicy;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.entity.DrainStatus;
@@ -28,6 +29,7 @@ import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.inspection.entity.InspectionStatus;
 import com.rainbutler.domain.inspection.repository.InspectionRepository;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
+import com.rainbutler.domain.point.service.ActivityRewardPolicy;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
@@ -84,6 +86,8 @@ class InspectionServiceTest {
     @Mock
     private PointHistoryRepository pointHistoryRepository;
     @Mock
+    private ManagementLogRepository managementLogRepository;
+    @Mock
     private InspectionEligibilityService inspectionEligibilityService;
     @Mock
     private InspectionRequestService inspectionRequestService;
@@ -102,7 +106,9 @@ class InspectionServiceTest {
     @BeforeEach
     void setUp() {
         InspectionRewardService rewardService = new InspectionRewardService(
-                inspectionRepository, pointHistoryRepository, new GrowthLevelPolicy(), POLICIES);
+                inspectionRepository, managementLogRepository, pointHistoryRepository,
+                new GrowthLevelPolicy(), new ManagementCyclePolicy(POLICIES),
+                new ActivityRewardPolicy(POLICIES));
         service = new InspectionService(inspectionRepository, drainRepository, adoptionRepository,
                 inspectionRequestRepository, inspectionEligibilityService,
                 inspectionRequestService, rewardService, storageService, drainAiClassifier,
@@ -142,29 +148,27 @@ class InspectionServiceTest {
                 .thenAnswer(invocation -> invocation.getArgument(0) + "-url");
         lenient().when(inspectionRepository.save(any(Inspection.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(inspectionRepository.countRewardedBetween(any(), any(), any(), any()))
-                .thenReturn(0L);
     }
 
     @Test
     void 깨끗한_점검_전_사진이면_청소_없이_완료하고_관리_주기와_경험치를_반영한다() {
-        assessment("before-key", 0, 0.9);
+        assessment("before-key", DrainAiClassifier.GRADE_OK, 0.9);
 
         InspectionSubmitResponse response = service.start(
                 USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
                         DRAIN_LAT, DRAIN_LNG));
 
         assertThat(response.status()).isEqualTo(InspectionStatus.COMPLETED);
-        assertThat(response.beforeGrade()).isZero();
+        assertThat(response.beforeGrade()).isEqualTo(DrainAiClassifier.GRADE_OK);
         assertThat(response.afterGrade()).isNull();
-        assertThat(response.xpAwarded()).isEqualTo(POLICIES.inspectionXp());
+        assertThat(response.xpAwarded()).isEqualTo(POLICIES.visitXp());
         assertThat(drain.getPhotoUrl()).isEqualTo("before-key");
         assertThat(drain.getDirtLevel()).isEqualTo(1);
-        assertThat(adoption.getScore()).isEqualTo(POLICIES.inspectionXp());
+        assertThat(adoption.getScore()).isEqualTo(POLICIES.visitXp());
         assertThat(adoption.getLastManagedAt()).isEqualTo(NOW);
         assertThat(adoption.getNextManagementAt())
-                .isEqualTo(NOW.plusDays(POLICIES.managementCycleDays()));
-        assertThat(user.getPoint()).isEqualTo(POLICIES.inspectionXp());
+                .isEqualTo(NOW.minusDays(3).plusDays(POLICIES.managementCycleDays()));
+        assertThat(user.getPoint()).isEqualTo(POLICIES.visitXp());
         verify(pointHistoryRepository).save(any());
     }
 
@@ -190,17 +194,17 @@ class InspectionServiceTest {
         Inspection inspection = startAndCapture(
                 USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
                         DRAIN_LAT, DRAIN_LNG));
-        assessment("after-key", 1, 0.9);
+        assessment("after-key", DrainAiClassifier.GRADE_OK, 0.9);
 
         InspectionSubmitResponse response = service.complete(
                 USER_ID, INSPECTION_ID, new InspectionCompleteRequest("after-key", true));
 
         assertThat(response.status()).isEqualTo(InspectionStatus.COMPLETED);
-        assertThat(response.afterGrade()).isEqualTo(1);
-        assertThat(response.xpAwarded()).isEqualTo(POLICIES.inspectionXp());
+        assertThat(response.afterGrade()).isEqualTo(DrainAiClassifier.GRADE_OK);
+        assertThat(response.xpAwarded()).isEqualTo(POLICIES.firstCleaningXp());
         assertThat(inspection.getAfterPhotoKey()).isEqualTo("after-key");
         assertThat(drain.getPhotoUrl()).isEqualTo("after-key");
-        assertThat(drain.getDirtLevel()).isEqualTo(2);
+        assertThat(drain.getDirtLevel()).isEqualTo(1);
         assertThat(adoption.getLastManagedAt()).isEqualTo(NOW);
     }
 
@@ -265,7 +269,7 @@ class InspectionServiceTest {
 
     @Test
     void 촬영_시각은_앱이_보낸_시간대와_상관없이_서버_시간으로_저장한다() {
-        assessment("before-key", 0, 0.9);
+        assessment("before-key", DrainAiClassifier.GRADE_OK, 0.9);
         InspectionStartRequest request = new InspectionStartRequest(
                 DRAIN_ID, InspectionKind.ROUTINE, null, "before-key", DRAIN_LAT, DRAIN_LNG,
                 OffsetDateTime.parse("2026-11-02T00:50:00Z"), null, true);
@@ -279,7 +283,7 @@ class InspectionServiceTest {
 
     @Test
     void AI_확신도가_낮으면_검토_대기로_남긴다() {
-        assessment("before-key", 0, 0.5);
+        assessment("before-key", DrainAiClassifier.GRADE_OK, 0.5);
 
         InspectionSubmitResponse response = service.start(
                 USER_ID, startRequest(null, InspectionKind.ROUTINE, "before-key",
@@ -293,7 +297,7 @@ class InspectionServiceTest {
     void 비_예보_점검을_마치면_요청을_완료하고_무응답_횟수를_초기화한다() {
         given(inspectionRequestRepository.findById(REQUEST_ID))
                 .willReturn(Optional.of(request(RequestStatus.ACCEPTED)));
-        assessment("before-key", 0, 0.9);
+        assessment("before-key", DrainAiClassifier.GRADE_OK, 0.9);
 
         InspectionSubmitResponse response = service.start(
                 USER_ID, startRequest(REQUEST_ID, InspectionKind.FORECAST, "before-key",

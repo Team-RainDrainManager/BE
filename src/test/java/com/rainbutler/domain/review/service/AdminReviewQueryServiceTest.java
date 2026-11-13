@@ -209,7 +209,7 @@ class AdminReviewQueryServiceTest {
         given(cleaning.getBeforePhotoUrl()).willReturn("clean-before-" + id);
         given(cleaning.getAfterPhotoUrl()).willReturn(null);
         given(cleaning.getDirtLevel()).willReturn(2);
-        given(cleaning.getAfterGrade()).willReturn(0);
+        given(cleaning.getAfterGrade()).willReturn(1);
         given(cleaning.getDirtConfidence()).willReturn(new BigDecimal("0.90"));
         given(cleaning.isLocationMismatch()).willReturn(false);
         return cleaning;

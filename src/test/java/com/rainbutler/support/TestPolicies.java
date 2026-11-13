@@ -18,10 +18,12 @@ public final class TestPolicies {
      * @return 정책
      */
     public static PolicyProperties defaults() {
-        return new PolicyProperties(3, 14, 28, 28, 35, 300, 10, 50, new BigDecimal("0.7"),
+        return new PolicyProperties(3, 14, 28, 35, 300, 10, 50, new BigDecimal("0.7"),
                 LocalTime.of(6, 0), LocalTime.of(12, 0), 90, LocalTime.of(22, 0),
                 LocalTime.of(8, 0), 7, 14, 3, 14, 100,
                 LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
-                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0), 20, 365, 5, 30, 30, 100, 10);
+                LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0),
+                10, 5, 30, 10, 20, 10, 20,
+                365, 5, 30, 30, 100, 10);
     }
 }
