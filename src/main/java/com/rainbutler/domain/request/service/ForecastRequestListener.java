@@ -29,6 +29,7 @@ public class ForecastRequestListener {
     private final RequestSchedulePolicy schedulePolicy;
     private final InspectionRequestService inspectionRequestService;
     private final DeadlineAdvanceService deadlineAdvanceService;
+    private final RainNoticeBatch rainNoticeBatch;
     private final Clock clock;
     private final TransactionTemplate newTransaction;
 
@@ -36,12 +37,14 @@ public class ForecastRequestListener {
             RequestSchedulePolicy schedulePolicy,
             InspectionRequestService inspectionRequestService,
             DeadlineAdvanceService deadlineAdvanceService,
+            RainNoticeBatch rainNoticeBatch,
             Clock clock,
             PlatformTransactionManager transactionManager) {
         this.rainForecastRepository = rainForecastRepository;
         this.schedulePolicy = schedulePolicy;
         this.inspectionRequestService = inspectionRequestService;
         this.deadlineAdvanceService = deadlineAdvanceService;
+        this.rainNoticeBatch = rainNoticeBatch;
         this.clock = clock;
         this.newTransaction = new TransactionTemplate(transactionManager);
         this.newTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -51,10 +54,18 @@ public class ForecastRequestListener {
      * 확정된 예보가 지금 보낼 대상(오늘 비, 낮에 알게 된 내일 비)이면 바로 요청을 만들어 보냅니다.
      * 06:00 일괄 발송 대상이면 보내지 않습니다. 그다음 새 예보의 비가 기존 요청 마감보다 이르면 마감을 당깁니다.
      *
+     * <p>입양자 알림은 {@link RainNoticeBatch}로 묶습니다. 수집 배치처럼 바깥에서 이미 모으는 중이면 그 실행 끝에,
+     * 아니면(가상 예보 API) 이 예보 처리 끝에 보냅니다.
+     *
      * @param event 예보 확정
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onConfirmed(ForecastConfirmedEvent event) {
+        rainNoticeBatch.run(() -> createRequests(event));
+        advanceDeadlines(event.forecastId());
+    }
+
+    private void createRequests(ForecastConfirmedEvent event) {
         try {
             newTransaction.executeWithoutResult(status -> {
                 RainForecast forecast =
@@ -76,7 +87,6 @@ public class ForecastRequestListener {
             log.error("[비 예보 요청] 예보 id={} 확정 처리 실패: {}",
                     event.forecastId(), e.getMessage(), e);
         }
-        advanceDeadlines(event.forecastId(), event.simulated());
     }
 
     /**
@@ -86,26 +96,13 @@ public class ForecastRequestListener {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRainStartAdvanced(ForecastRainStartAdvancedEvent event) {
-        Boolean simulated;
-        try {
-            simulated = newTransaction.execute(status -> rainForecastRepository
-                    .findById(event.forecastId())
-                    .map(RainForecast::isSimulated)
-                    .orElse(null));
-        } catch (RuntimeException e) {
-            log.error("[요청 마감 당기기] 예보 id={} 조회 실패: {}",
-                    event.forecastId(), e.getMessage(), e);
-            return;
-        }
-        if (simulated != null) {
-            advanceDeadlines(event.forecastId(), simulated);
-        }
+        advanceDeadlines(event.forecastId());
     }
 
-    private void advanceDeadlines(Long forecastId, boolean simulated) {
+    private void advanceDeadlines(Long forecastId) {
         try {
             newTransaction.executeWithoutResult(
-                    status -> deadlineAdvanceService.advance(simulated));
+                    status -> deadlineAdvanceService.advance(forecastId));
         } catch (RuntimeException e) {
             log.error("[요청 마감 당기기] 예보 id={} 실패: {}", forecastId, e.getMessage(), e);
         }
