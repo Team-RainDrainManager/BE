@@ -104,7 +104,7 @@ class RainNoticeApiTest extends RequestIntegrationTest {
     @Test
     void 비가_오면_예보가_있어도_RAINING이고_문구는_비가_오고_있어요만이다() throws Exception {
         Long forecast = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false);
-        currentWeatherRepository.saveObservation(
+        currentWeatherRepository.saveObservation(RequestFixtures.GRID,
                 1, new BigDecimal("3.0"), true, NOW.withMinute(0), NOW);
 
         notice()
@@ -117,7 +117,8 @@ class RainNoticeApiTest extends RequestIntegrationTest {
 
     @Test
     void 시연용_강제_비도_RAINING이다() throws Exception {
-        currentWeatherRepository.saveSimulatedRainingUntil(NOW.plusMinutes(30), NOW);
+        currentWeatherRepository.saveSimulatedRainingUntil(
+                RequestFixtures.GRID, NOW.plusMinutes(30), NOW);
 
         notice().andExpect(jsonPath("$.data.state").value("RAINING"));
     }

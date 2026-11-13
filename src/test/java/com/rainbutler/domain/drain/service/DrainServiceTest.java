@@ -72,6 +72,12 @@ class DrainServiceTest {
     @Mock
     private RainRequestLookup rainRequestLookup;
 
+    @Mock
+    private DrainRegionResolver drainRegionResolver;
+
+    @Mock
+    private DrainWeatherAreaService drainWeatherAreaService;
+
     private DrainService drainService;
 
     @BeforeEach
@@ -89,7 +95,8 @@ class DrainServiceTest {
                 java.time.ZoneId.of("Asia/Seoul"));
         drainService = new DrainService(drainRepository, adoptionRepository, reportRepository,
                 drainAiClassifier, drainWriter, policy, storageService, new GrowthLevelPolicy(),
-                new DrainDisplayStatusPolicy(), drainAddressResolver, rainRequestLookup, clock);
+                new DrainDisplayStatusPolicy(), drainAddressResolver, rainRequestLookup,
+                drainRegionResolver, drainWeatherAreaService, clock);
     }
 
     @Test

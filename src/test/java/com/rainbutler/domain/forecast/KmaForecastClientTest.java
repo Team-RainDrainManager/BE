@@ -16,6 +16,7 @@ import com.rainbutler.domain.forecast.client.KmaApiException;
 import com.rainbutler.domain.forecast.client.KmaForecastClient;
 import com.rainbutler.domain.forecast.client.KmaProperties;
 import com.rainbutler.domain.forecast.client.KmaRequestExecutor;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -33,6 +34,7 @@ import org.springframework.web.client.RestClient;
  */
 class KmaForecastClientTest {
 
+    private static final Grid GRID = new Grid(57, 125);
     private static final String BASE_URL = "https://kma.test/getVilageFcst";
     private static final String NCST_URL = "https://kma.test/getUltraSrtNcst";
     private static final String KEY = "test-kma-key";
@@ -52,7 +54,7 @@ class KmaForecastClientTest {
                 .andExpect(queryParam("authKey", KEY))
                 .andRespond(withSuccess(sample(), MediaType.APPLICATION_JSON));
 
-        List<DailyRain> result = client(builder, KEY).fetchDailyRain(NOW, 60);
+        List<DailyRain> result = client(builder, KEY).fetchDailyRain(GRID, NOW, 60);
 
         assertThat(result).extracting(DailyRain::maxPop).containsExactly(30, 90);
         server.verify();
@@ -67,7 +69,7 @@ class KmaForecastClientTest {
                         {"response":{"header":{"resultCode":"03","resultMsg":"NO_DATA"}}}
                         """, MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(NOW, 60))
+        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(GRID, NOW, 60))
                 .isInstanceOf(KmaApiException.class)
                 .hasMessageContaining("03")
                 .hasMessageContaining("NO_DATA");
@@ -83,7 +85,7 @@ class KmaForecastClientTest {
                         .body("{\"result\":{\"status\":403,\"message\":\"활용신청이 필요한 API 입니다. "
                                 + KEY + "\"}}"));
 
-        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(NOW, 60))
+        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(GRID, NOW, 60))
                 .isInstanceOf(KmaApiException.class)
                 .hasMessageContaining("403")
                 .hasMessageNotContaining(KEY);
@@ -97,7 +99,7 @@ class KmaForecastClientTest {
         server.expect(times(3), requestTo(org.hamcrest.Matchers.startsWith(BASE_URL)))
                 .andRespond(withServerError());
 
-        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(NOW, 60))
+        assertThatThrownBy(() -> client(builder, KEY).fetchDailyRain(GRID, NOW, 60))
                 .isInstanceOf(KmaApiException.class)
                 .hasMessageContaining("3회");
         server.verify();
@@ -108,13 +110,13 @@ class KmaForecastClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
 
-        assertThat(client(builder, "").fetchDailyRain(NOW, 60)).isEmpty();
-        assertThat(client(builder, "${KMA_AUTH_KEY}").fetchDailyRain(NOW, 60)).isEmpty();
+        assertThat(client(builder, "").fetchDailyRain(GRID, NOW, 60)).isEmpty();
+        assertThat(client(builder, "${KMA_AUTH_KEY}").fetchDailyRain(GRID, NOW, 60)).isEmpty();
         server.verify();
     }
 
     private KmaForecastClient client(RestClient.Builder builder, String key) {
-        KmaProperties properties = new KmaProperties(key, BASE_URL, NCST_URL, 57, 125);
+        KmaProperties properties = new KmaProperties(key, BASE_URL, NCST_URL, 57, 125, 200);
         return new KmaForecastClient(
                 new KmaRequestExecutor(builder.build(), properties), properties);
     }

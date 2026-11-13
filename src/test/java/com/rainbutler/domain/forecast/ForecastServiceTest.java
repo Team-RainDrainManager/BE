@@ -12,6 +12,7 @@ import com.rainbutler.domain.forecast.repository.RainForecastRepository;
 import com.rainbutler.domain.forecast.service.ForecastApplyResult;
 import com.rainbutler.domain.forecast.service.ForecastApplyResult.Applied;
 import com.rainbutler.domain.forecast.service.ForecastService;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import com.rainbutler.support.IntegrationTestSupport;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -34,6 +35,8 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 @RecordApplicationEvents
 class ForecastServiceTest extends IntegrationTestSupport {
 
+    /** 기본 격자 (역곡동) */
+    private static final Grid GRID = new Grid(57, 125);
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 30, 5, 15);
     private static final AtomicInteger DAY = new AtomicInteger();
@@ -155,7 +158,7 @@ class ForecastServiceTest extends IntegrationTestSupport {
     void 같은_날짜라도_실제_예보와_가상_예보는_따로_확정된다() {
         ForecastApplyResult real = apply(80, "10", at(15));
         ForecastApplyResult simulated =
-                forecastService.apply(date, 80, new BigDecimal("10"), at(15), true);
+                forecastService.apply(GRID, date, 80, new BigDecimal("10"), at(15), true);
 
         assertThat(simulated.applied()).isEqualTo(Applied.CONFIRMED);
         assertThat(simulated.forecastId()).isNotEqualTo(real.forecastId());
@@ -165,8 +168,25 @@ class ForecastServiceTest extends IntegrationTestSupport {
         assertThat(forecast.getFetchedAt()).isNull();
     }
 
+    @Test
+    void 같은_날짜라도_격자가_다르면_따로_확정되고_같은_격자는_하나다() {
+        ForecastApplyResult here = apply(80, "10", at(15));
+        Grid other = new Grid(60, 127);
+        ForecastApplyResult there =
+                forecastService.apply(other, date, 80, new BigDecimal("10"), at(15), false);
+        ForecastApplyResult hereAgain = apply(90, "20", at(15));
+
+        assertThat(there.applied()).isEqualTo(Applied.CONFIRMED);
+        assertThat(there.forecastId()).isNotEqualTo(here.forecastId());
+        assertThat(hereAgain.applied()).isEqualTo(Applied.UPDATED);
+        assertThat(hereAgain.forecastId()).isEqualTo(here.forecastId());
+        RainForecast forecast = rainForecastRepository.findById(there.forecastId()).orElseThrow();
+        assertThat(forecast.getGridNx()).isEqualTo(60);
+        assertThat(forecast.getGridNy()).isEqualTo(127);
+    }
+
     private ForecastApplyResult apply(int pop, String mm, LocalDateTime firstRainAt) {
-        return forecastService.apply(date, pop, new BigDecimal(mm), firstRainAt, false);
+        return forecastService.apply(GRID, date, pop, new BigDecimal(mm), firstRainAt, false);
     }
 
     private LocalDateTime at(int hour) {

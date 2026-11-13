@@ -104,7 +104,11 @@ class DrainRainStatusApiTest extends RequestIntegrationTest {
         LocalDateTime deadline = NOW.withHour(20);
         openRequest = fixtures.request(forecast, open, null, "OPEN", NOW.withHour(12), deadline);
         fixtures.request(forecast, sent, null, "SENT", NOW.withHour(12), deadline);
-        fixtures.request(forecast, done, null, "COMPLETED", NOW.withHour(12), deadline);
+        Long doneRequest =
+                fixtures.request(forecast, done, null, "COMPLETED", NOW.withHour(12), deadline);
+        // 지도는 오늘 완료한 요청까지 보여 준다
+        jdbcTemplate.update("UPDATE inspection_request SET completed_at = ? WHERE id = ?",
+                NOW, doneRequest);
         fixtures.request(forecast, expired, null, "EXPIRED", NOW.withHour(12), deadline);
     }
 
