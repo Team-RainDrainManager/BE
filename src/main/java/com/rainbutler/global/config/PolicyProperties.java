@@ -52,6 +52,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param captureMaxAgeMinutes 점검 사진으로 받아 주는 촬영 후 경과 시간 (분). 이보다 오래된 사진은 다시 찍게 한다
  * @param nearbyHelpRadiusMeters 입양자에게 "내 빗물받이 근처 도움 필요" 개수를 셀 반경 (m). 대신 점검 수락 위치
  *     확인 반경({@code substituteRadiusMeters})과 다른 값이다
+ * @param bugReportDailyLimit 사용자 한 명이 하루에 할 수 있는 앱 버그 신고 수
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -95,5 +96,6 @@ public record PolicyProperties(
         int reportXp,
         int nearbyRequestListLimit,
         int captureMaxAgeMinutes,
-        int nearbyHelpRadiusMeters) {
+        int nearbyHelpRadiusMeters,
+        int bugReportDailyLimit) {
 }

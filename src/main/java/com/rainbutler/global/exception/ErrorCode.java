@@ -103,6 +103,11 @@ public enum ErrorCode {
     // ───────── 알림 ─────────
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없어요."),
 
+    // ───────── 앱 버그 신고 ─────────
+    BUG_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "버그 신고를 찾을 수 없어요."),
+    BUG_REPORT_DAILY_LIMIT(HttpStatus.TOO_MANY_REQUESTS,
+            "오늘 신고할 수 있는 횟수를 모두 사용했어요. 내일 다시 신고해 주세요."),
+
     // ───────── 도구함 ─────────
     TOOL_BOX_NOT_FOUND(HttpStatus.NOT_FOUND, "도구함을 찾을 수 없어요."),
     TOOL_BOX_EMPTY(HttpStatus.CONFLICT, "도구함에 남은 도구가 없어요."),

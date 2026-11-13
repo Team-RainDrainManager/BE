@@ -21,7 +21,7 @@ class PushConsentPolicyTest {
             LocalTime.of(20, 0), 60, new BigDecimal("5"), 3, 1, 1, LocalTime.of(21, 0),
             LocalTime.of(9, 0), 3, 30, LocalTime.of(9, 0),
                 10, 5, 30, 10, 20, 10, 20,
-                365, 5, 30, 30, 100));
+                365, 5, 30, 30, 100, 10));
 
     @Test
     void 알림_수신에_동의하지_않으면_낮에도_보내지_않는다() {
