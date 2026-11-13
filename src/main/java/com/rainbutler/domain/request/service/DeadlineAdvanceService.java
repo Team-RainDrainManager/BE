@@ -1,5 +1,6 @@
 package com.rainbutler.domain.request.service;
 
+import com.rainbutler.domain.forecast.entity.RainForecast;
 import com.rainbutler.domain.forecast.repository.RainForecastRepository;
 import com.rainbutler.domain.notification.entity.NotificationType;
 import com.rainbutler.domain.request.entity.InspectionRequest;
@@ -17,8 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 비가 예보보다 일찍 오면 진행 중 요청의 마감을 당깁니다. <b>당기기만 하고 늦추지는 않습니다.</b>
  *
- * <p>비 오는 중에 청소하지 않고 미리 하게 하려는 것입니다. 파일럿은 한 지역이라, 진행 중 예보(실제 · 가상 따로)
- * 중 <b>지금 이후 가장 이른 비 시작</b>을 기준으로 새 완료 마감을 구합니다
+ * <p>비 오는 중에 청소하지 않고 미리 하게 하려는 것입니다. 기준이 된 예보와 <b>같은 격자</b>의 진행 중 예보(실제 ·
+ * 가상 따로) 중 <b>지금 이후 가장 이른 비 시작</b>을 기준으로 새 완료 마감을 구하고, 그 격자 예보의 요청만 당깁니다
+ * (다른 지역 비로 마감이 당겨지지 않게)
  * ({@link RequestSchedulePolicy#completeDeadlineBefore}, 비 시작 1시간 전 · 밤이면 직전 21:00).
  *
  * <ul>
@@ -42,22 +44,30 @@ public class DeadlineAdvanceService {
     private final Clock clock;
 
     /**
-     * 실제 또는 가상 예보 기준으로 진행 중 요청의 마감을 당깁니다.
+     * 예보의 격자 · 실제/가상 구분 기준으로 진행 중 요청의 마감을 당깁니다.
      *
-     * @param simulated 가상 예보 기준이면 true (가상 예보의 요청만 대상)
+     * @param forecastId 확정 · 비 시작이 앞당겨진 예보 id (없으면 아무것도 하지 않는다)
      * @return 마감을 당기거나 취소한 요청 수
      */
     @Transactional
-    public int advance(boolean simulated) {
+    public int advance(Long forecastId) {
+        RainForecast forecast = rainForecastRepository.findById(forecastId).orElse(null);
+        if (forecast == null) {
+            return 0;
+        }
+        int gridNx = forecast.getGridNx();
+        int gridNy = forecast.getGridNy();
+        boolean simulated = forecast.isSimulated();
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime earliestRain =
-                rainForecastRepository.findEarliestActiveRainStartAfter(simulated, now);
+        LocalDateTime earliestRain = rainForecastRepository.findEarliestActiveRainStartAfter(
+                gridNx, gridNy, simulated, now);
         if (earliestRain == null) {
             return 0;
         }
         LocalDateTime newDeadline = schedulePolicy.completeDeadlineBefore(earliestRain);
         List<InspectionRequest> requests = inspectionRequestRepository
-                .findInProgressDeadlineAfter(simulated, RequestStatus.IN_PROGRESS, newDeadline);
+                .findInProgressDeadlineAfter(gridNx, gridNy, simulated, RequestStatus.IN_PROGRESS,
+                        newDeadline);
         boolean tooLate = !newDeadline.isAfter(
                 now.plusMinutes(policy.minRemainingMinutesAfterAdvance()));
 
@@ -76,8 +86,8 @@ public class DeadlineAdvanceService {
             }
         }
         if (!requests.isEmpty()) {
-            log.info("[요청 마감 당기기] 비 시작 {} → 완료 마감 {} : 요청 {}건 {}", earliestRain,
-                    newDeadline, requests.size(), tooLate ? "취소" : "당김");
+            log.info("[요청 마감 당기기] 격자 {},{} 비 시작 {} → 완료 마감 {} : 요청 {}건 {}", gridNx,
+                    gridNy, earliestRain, newDeadline, requests.size(), tooLate ? "취소" : "당김");
         }
         return requests.size();
     }

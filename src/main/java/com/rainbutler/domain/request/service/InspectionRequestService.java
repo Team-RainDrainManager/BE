@@ -3,22 +3,21 @@ package com.rainbutler.domain.request.service;
 import com.rainbutler.domain.adoption.entity.Adoption;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.drain.entity.Drain;
+import com.rainbutler.domain.forecast.client.KmaProperties;
 import com.rainbutler.domain.forecast.entity.RainForecast;
 import com.rainbutler.domain.forecast.repository.RainForecastRepository;
 import com.rainbutler.domain.notification.entity.NotificationType;
-import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.request.repository.InspectionRequestRepository;
+import com.rainbutler.domain.request.service.RainNoticeBatch.PendingNotice;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
-import com.rainbutler.global.util.KoreanJosa;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,13 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 비 예보 점검 요청을 만들어 보내고, 예보가 취소되면 요청을 취소합니다.
  *
- * <p>발송 대상 (운영 중 빗물받이)
+ * <p>발송 대상: 운영 중 빗물받이 중 <b>예보와 같은 기상청 격자</b>에 있는 것 (격자가 없으면 기본 격자로 본다)
  * <ol>
  *   <li>ACTIVE 입양이 있는 빗물받이 → {@code SENT}, 입양자에게 알림. 입양자가 점검 쉬기 중이어도 보낸다</li>
  *   <li>입양되지 않은 빗물받이 전부 → 바로 {@code OPEN} (미입양 대신 점검). 위험 여부로 거르지 않는다
  *       (공공데이터로 일괄 등록해 사진 · AI 판정이 없음)</li>
  * </ol>
  * 같은 예보로 이미 요청이 있거나, 다른 예보의 요청이 아직 진행 중인 빗물받이는 건너뜁니다.
+ * 입양자 알림은 {@link RainNoticeBatch}에 쌓아 같은 실행 안에서 사용자별로 묶어 보냅니다.
  */
 @Slf4j
 @Service
@@ -44,8 +44,9 @@ public class InspectionRequestService {
     private final InspectionRequestRepository inspectionRequestRepository;
     private final RainForecastRepository rainForecastRepository;
     private final AdoptionRepository adoptionRepository;
-    private final PushService pushService;
+    private final RainNoticeBatch rainNoticeBatch;
     private final RequestNotifier requestNotifier;
+    private final KmaProperties kmaProperties;
     private final Clock clock;
 
     /**
@@ -66,9 +67,12 @@ public class InspectionRequestService {
         LocalDate today = schedule.sentAt().toLocalDate();
         boolean tomorrow = forecast.getRainDate().isAfter(today);
 
+        int gridNx = forecast.getGridNx();
+        int gridNy = forecast.getGridNy();
         int created = 0;
         for (Adoption adoption : adoptionRepository.findAllActiveOnActiveDrains()) {
-            if (!blocked.add(adoption.getDrain().getId())) {
+            if (!inGrid(adoption.getDrain(), gridNx, gridNy)
+                    || !blocked.add(adoption.getDrain().getId())) {
                 continue;
             }
             InspectionRequest request = inspectionRequestRepository.save(
@@ -81,7 +85,8 @@ public class InspectionRequestService {
         // 미입양 빗물받이는 수백 ~ 수천 개일 수 있어 한 번에 저장한다
         long startedAt = System.currentTimeMillis();
         List<InspectionRequest> toOpen = new ArrayList<>();
-        for (Drain drain : inspectionRequestRepository.findUnadoptedActiveDrains()) {
+        for (Drain drain : inspectionRequestRepository.findUnadoptedActiveDrainsInGrid(gridNx,
+                gridNy, kmaProperties.defaultGridNx(), kmaProperties.defaultGridNy())) {
             if (blocked.add(drain.getId())) {
                 toOpen.add(newRequest(forecast, drain, null, RequestStatus.OPEN, schedule));
             }
@@ -89,9 +94,9 @@ public class InspectionRequestService {
         // 대신 점검은 지도에서 보고 자발적으로 찾아간다. 근처 입양자에게 개별 알림을 보내지 않는다
         List<InspectionRequest> opened = inspectionRequestRepository.saveAll(toOpen);
         created += opened.size();
-        log.info("[비 예보 요청] 예보 id={} 요청 {}건 생성 (입양자 {} · 미입양 대신 점검 {}, 미입양 저장 {}ms)",
-                forecastId, created, created - opened.size(), opened.size(),
-                System.currentTimeMillis() - startedAt);
+        log.info("[비 예보 요청] 예보 id={} 격자 {},{} 요청 {}건 생성 (입양자 {} · 미입양 대신 점검 {}, "
+                + "미입양 저장 {}ms)", forecastId, gridNx, gridNy, created,
+                created - opened.size(), opened.size(), System.currentTimeMillis() - startedAt);
         return created;
     }
 
@@ -183,15 +188,19 @@ public class InspectionRequestService {
                 .build();
     }
 
+    /**
+     * 빗물받이가 그 격자에 있는지 확인합니다. 격자가 없으면(백필 전) 기본 격자로 봅니다.
+     */
+    private boolean inGrid(Drain drain, int gridNx, int gridNy) {
+        int nx = drain.getGridNx() == null ? kmaProperties.defaultGridNx() : drain.getGridNx();
+        int ny = drain.getGridNy() == null ? kmaProperties.defaultGridNy() : drain.getGridNy();
+        return nx == gridNx && ny == gridNy;
+    }
+
     private void notifyAdopter(InspectionRequest request, Adoption adoption, boolean tomorrow,
             LocalDate today) {
-        NotificationType type =
-                tomorrow ? NotificationType.RAIN_TOMORROW : NotificationType.RAIN_TODAY;
-        String title = tomorrow ? "내일 비 소식이 있어요 ☔" : "오늘 비 소식이 있어요 ☔";
-        String body = KoreanJosa.eulReul(adoption.getNickname()) + " "
-                + DeadlineText.of(request.getCompleteDeadlineAt(), today) + "까지 살펴봐 주세요. "
-                + DeadlineText.of(request.getReplyDeadlineAt(), today) + "까지 가능 여부를 알려 주세요.";
-        pushService.notify(adoption.getUser().getId(), type, title, body, request.getId(),
-                adoption.getId(), Map.of("requestId", String.valueOf(request.getId())));
+        rainNoticeBatch.add(new PendingNotice(adoption.getUser().getId(), request.getId(),
+                adoption.getId(), adoption.getNickname(), adoption.getDrain().getRegionName(),
+                request.getCompleteDeadlineAt(), request.getReplyDeadlineAt(), today, tomorrow));
     }
 }

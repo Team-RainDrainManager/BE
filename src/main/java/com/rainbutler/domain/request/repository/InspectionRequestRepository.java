@@ -52,17 +52,26 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("inProgress") Collection<RequestStatus> inProgress);
 
     /**
-     * 입양되지 않은 운영 중 빗물받이를 모두 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
+     * 한 격자의 입양되지 않은 운영 중 빗물받이를 모두 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
      *
-     * <p>빗물받이는 공공데이터로 일괄 등록해 사진 · AI 판정(위험 여부)이 없으므로 위험 여부로 거르지 않습니다.
+     * <p>빗물받이는 공공데이터로 일괄 등록해 사진 · AI 판정(위험 여부)이 없으므로 위험 여부로 거르지 않습니다. 격자가
+     * 없는(아직 백필 전) 빗물받이는 기본 격자로 봅니다.
      *
+     * @param gridNx 격자 X
+     * @param gridNy 격자 Y
+     * @param defaultNx 기본 격자 X
+     * @param defaultNy 기본 격자 Y
      * @return 빗물받이 목록
      */
     @Query("SELECT d FROM Drain d "
             + "WHERE d.status = com.rainbutler.domain.drain.entity.DrainStatus.ACTIVE "
+            + "AND COALESCE(d.gridNx, :defaultNx) = :gridNx "
+            + "AND COALESCE(d.gridNy, :defaultNy) = :gridNy "
             + "AND NOT EXISTS (SELECT 1 FROM Adoption a WHERE a.drain = d "
             + "AND a.status = com.rainbutler.domain.adoption.entity.AdoptionStatus.ACTIVE)")
-    List<Drain> findUnadoptedActiveDrains();
+    List<Drain> findUnadoptedActiveDrainsInGrid(@Param("gridNx") int gridNx,
+            @Param("gridNy") int gridNy, @Param("defaultNx") int defaultNx,
+            @Param("defaultNy") int defaultNy);
 
     /**
      * 예보의 요청 중 해당 상태인 것을 찾습니다. (예보 취소)
@@ -117,16 +126,20 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
     List<Long> findIdsReplyOverdue(@Param("now") LocalDateTime now, Pageable pageable);
 
     /**
-     * 완료 마감이 주어진 시각보다 늦은 진행 중 요청을 찾습니다. (비가 앞당겨져 마감을 당길 대상)
+     * 한 격자에서 완료 마감이 주어진 시각보다 늦은 진행 중 요청을 찾습니다. (비가 앞당겨져 마감을 당길 대상)
      *
+     * @param gridNx 예보 격자 X
+     * @param gridNy 예보 격자 Y
      * @param simulated 가상 예보의 요청이면 true
      * @param inProgress 진행 중 상태
      * @param deadline 새 완료 마감
      * @return 요청 목록
      */
     @Query("SELECT r FROM InspectionRequest r WHERE r.forecast.isSimulated = :simulated "
+            + "AND r.forecast.gridNx = :gridNx AND r.forecast.gridNy = :gridNy "
             + "AND r.status IN :inProgress AND r.completeDeadlineAt > :deadline")
-    List<InspectionRequest> findInProgressDeadlineAfter(@Param("simulated") boolean simulated,
+    List<InspectionRequest> findInProgressDeadlineAfter(@Param("gridNx") int gridNx,
+            @Param("gridNy") int gridNy, @Param("simulated") boolean simulated,
             @Param("inProgress") Collection<RequestStatus> inProgress,
             @Param("deadline") LocalDateTime deadline);
 
@@ -267,12 +280,18 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             @Param("inProgress") Collection<RequestStatus> inProgress);
 
     /**
-     * 예보의 요청 중 주어진 빗물받이들의 것을 찾습니다. (지도 빗물받이 이번 비 상태, 한 번에 조회)
+     * 빗물받이들의 진행 중 요청과 기준 시각 이후 완료된 요청을 찾습니다. (지도 빗물받이 이번 비 상태, 한 번에 조회)
      *
-     * @param forecastId 예보 id
      * @param drainIds 빗물받이 id
+     * @param inProgress 진행 중 상태
+     * @param completedSince 이 시각 이후 완료된 요청도 포함 (오늘 0시)
      * @return 요청 목록
      */
-    List<InspectionRequest> findAllByForecast_IdAndDrain_IdIn(
-            Long forecastId, Collection<Long> drainIds);
+    @Query("SELECT r FROM InspectionRequest r WHERE r.drain.id IN :drainIds "
+            + "AND (r.status IN :inProgress "
+            + "OR (r.status = com.rainbutler.domain.request.entity.RequestStatus.COMPLETED "
+            + "AND r.completedAt >= :completedSince))")
+    List<InspectionRequest> findForMap(@Param("drainIds") Collection<Long> drainIds,
+            @Param("inProgress") Collection<RequestStatus> inProgress,
+            @Param("completedSince") LocalDateTime completedSince);
 }
