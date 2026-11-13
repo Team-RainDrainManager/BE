@@ -12,6 +12,7 @@ import java.util.List;
  *
  * @param bugReportId 신고 id
  * @param category 분류
+ * @param title 제목
  * @param content 내용 전체
  * @param screen 버그가 난 화면 · 경로
  * @param requestId 신고자가 마지막으로 받은 X-Request-Id (로그 검색용)
@@ -29,6 +30,7 @@ import java.util.List;
 public record AdminBugReportDetailResponse(
         Long bugReportId,
         BugReportCategory category,
+        String title,
         String content,
         String screen,
         String requestId,
@@ -49,7 +51,7 @@ public record AdminBugReportDetailResponse(
     public static AdminBugReportDetailResponse of(BugReport report, List<String> photoUrls,
             String reporterNickname, String resolvedByNickname) {
         return new AdminBugReportDetailResponse(report.getId(), report.getCategory(),
-                report.getContent(), report.getScreen(), report.getRequestId(),
+                report.getTitle(), report.getContent(), report.getScreen(), report.getRequestId(),
                 report.getAppVersion(), report.getPlatform(), report.getUserAgent(), photoUrls,
                 report.getStatus(), report.getAdminNote(), reporterNickname, resolvedByNickname,
                 report.getResolvedAt(), report.getCreatedAt());

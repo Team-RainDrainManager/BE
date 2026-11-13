@@ -12,6 +12,7 @@ import java.util.List;
  * 버그 신고 요청입니다.
  *
  * @param category 분류 (ERROR · UI · FEATURE · PERFORMANCE · OTHER)
+ * @param title 제목 (앞뒤 공백을 뺀 2~100자)
  * @param content 내용 (앞뒤 공백을 뺀 10~2000자)
  * @param screen 버그가 난 화면 · 경로 (선택, 200자 이하)
  * @param requestId 마지막으로 받은 응답 헤더 X-Request-Id (선택, 64자 이하)
@@ -21,6 +22,8 @@ import java.util.List;
  */
 public record BugReportCreateRequest(
         @Schema(example = "ERROR") @NotNull BugReportCategory category,
+        @Schema(example = "점검 사진 업로드 후 화면 멈춤") @NotBlank @Size(max = 100)
+        String title,
         @Schema(example = "점검 사진을 올리면 화면이 하얗게 멈춰요.") @NotBlank @Size(max = 2000)
         String content,
         @Schema(example = "/inspections/new") @Size(max = 200) String screen,

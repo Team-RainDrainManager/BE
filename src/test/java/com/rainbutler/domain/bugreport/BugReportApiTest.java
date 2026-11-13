@@ -49,6 +49,7 @@ import tools.jackson.databind.json.JsonMapper;
 class BugReportApiTest extends IntegrationTestSupport {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final String TITLE = "점검 사진 업로드 후 화면 멈춤";
     private static final String CONTENT = "점검 사진을 올리면 화면이 하얗게 멈춰요.";
 
     @Autowired
@@ -99,7 +100,8 @@ class BugReportApiTest extends IntegrationTestSupport {
     @Test
     void 온보딩_전이어도_신고하고_User_Agent와_사진을_저장한다() throws Exception {
         String photoKey = "test/bug_report/" + userId + "/a.jpg";
-        Long id = create(token, Map.of("category", "ERROR", "content", "  " + CONTENT + "  ",
+        Long id = create(token, Map.of("category", "ERROR", "title", "  " + TITLE + "  ",
+                "content", "  " + CONTENT + "  ",
                 "screen", "/inspections/new", "requestId", "ab12cd34", "appVersion", "1.0.3",
                 "platform", "WEB", "photoKeys", List.of(photoKey)), "Mozilla/5.0 테스트")
                 .andExpect(status().isOk())
@@ -109,6 +111,7 @@ class BugReportApiTest extends IntegrationTestSupport {
         Map<String, Object> row = jdbcTemplate.queryForMap(
                 "SELECT * FROM bug_report WHERE id = ?", id);
         assertThat(row.get("user_id")).isEqualTo(userId);
+        assertThat(row.get("title")).isEqualTo(TITLE);
         assertThat(row.get("content")).isEqualTo(CONTENT);
         assertThat(row.get("user_agent")).isEqualTo("Mozilla/5.0 테스트");
         assertThat(row.get("photo_keys")).isEqualTo(photoKey);
@@ -136,15 +139,27 @@ class BugReportApiTest extends IntegrationTestSupport {
         create(token, body("가".repeat(2000)), null).andExpect(status().isOk());
 
         String key = "test/bug_report/" + userId + "/a.jpg";
-        create(token, Map.of("category", "UI", "content", CONTENT,
+        create(token, Map.of("category", "UI", "title", TITLE, "content", CONTENT,
                 "photoKeys", List.of(key, key, key, key)), null)
                 .andExpect(status().isBadRequest());
         create(token, Map.of("content", CONTENT), null).andExpect(status().isBadRequest());
     }
 
     @Test
+    void 제목은_앞뒤_공백을_빼고_2에서_100자다() throws Exception {
+        create(token, Map.of("category", "UI", "content", CONTENT), null)
+                .andExpect(status().isBadRequest());
+        create(token, Map.of("category", "UI", "title", " 가 ", "content", CONTENT), null)
+                .andExpect(status().isBadRequest());
+        create(token, Map.of("category", "UI", "title", "가".repeat(101), "content", CONTENT),
+                null).andExpect(status().isBadRequest());
+        create(token, Map.of("category", "UI", "title", "가".repeat(100), "content", CONTENT),
+                null).andExpect(status().isOk());
+    }
+
+    @Test
     void 남이_올린_사진_key는_거절한다() throws Exception {
-        create(token, Map.of("category", "UI", "content", CONTENT,
+        create(token, Map.of("category", "UI", "title", TITLE, "content", CONTENT,
                 "photoKeys", List.of("test/bug_report/" + adminId + "/a.jpg")), null)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("PHOTO_FORBIDDEN"));
@@ -180,6 +195,7 @@ class BugReportApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(2)))
                 .andExpect(jsonPath("$.data.content[0].bugReportId").value(second))
+                .andExpect(jsonPath("$.data.content[0].title").value(TITLE))
                 .andExpect(jsonPath("$.data.content[0].content").value("가".repeat(100) + "…"))
                 .andExpect(jsonPath("$.data.content[1].bugReportId").value(first))
                 .andExpect(jsonPath("$.data.content[1].status").value("RESOLVED"))
@@ -208,6 +224,7 @@ class BugReportApiTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/v1/admin/bug-reports/" + id)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value(TITLE))
                 .andExpect(jsonPath("$.data.reporterNickname").value("신고자"));
         mockMvc.perform(get("/api/v1/admin/bug-reports/999999999")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
@@ -250,7 +267,7 @@ class BugReportApiTest extends IntegrationTestSupport {
     @Test
     void 해결하면_처리자와_시각을_남기고_다시_열면_지운다() throws Exception {
         String photoKey = "test/bug_report/" + userId + "/a.jpg";
-        Long id = create(token, Map.of("category", "ERROR", "content", CONTENT,
+        Long id = create(token, Map.of("category", "ERROR", "title", TITLE, "content", CONTENT,
                 "photoKeys", List.of(photoKey)), null)
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString().transform(this::bugReportId);
@@ -313,7 +330,7 @@ class BugReportApiTest extends IntegrationTestSupport {
     }
 
     private static Map<String, Object> body(String content) {
-        return Map.of("category", "ERROR", "content", content);
+        return Map.of("category", "ERROR", "title", TITLE, "content", content);
     }
 
     private Long bugReportId(String json) {

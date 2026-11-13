@@ -58,8 +58,8 @@ public class BugReportAdminController {
     /**
      * 버그 신고 상세를 조회합니다.
      */
-    @Operation(summary = "버그 신고 상세 (관리자)", description = "내용 전체, 화면 · requestId · 앱 버전 · "
-            + "플랫폼 · User-Agent, 스크린샷 URL, 관리자 메모, 처리자를 조회합니다. `requestId`로 Grafana "
+    @Operation(summary = "버그 신고 상세 (관리자)", description = "제목 · 내용 전체, 화면 · requestId · "
+            + "앱 버전 · 플랫폼 · User-Agent, 스크린샷 URL, 관리자 메모, 처리자를 조회합니다. `requestId`로 Grafana "
             + "로그를 찾을 수 있습니다. **ADMIN만**")
     @ApiErrorCodes({ErrorCode.BUG_REPORT_NOT_FOUND, ErrorCode.UNAUTHORIZED,
             ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN, ErrorCode.FORBIDDEN})

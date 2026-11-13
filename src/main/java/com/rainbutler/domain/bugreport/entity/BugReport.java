@@ -43,6 +43,9 @@ public class BugReport extends BaseEntity {
     @Column(nullable = false, length = 30)
     private BugReportCategory category;
 
+    @Column(nullable = false, length = 100)
+    private String title;
+
     @Column(nullable = false, length = 2000)
     private String content;
 
@@ -84,11 +87,12 @@ public class BugReport extends BaseEntity {
 
     /** 필수 값으로 생성합니다. 상태는 접수(RECEIVED)로 시작합니다. */
     @Builder
-    private BugReport(Long userId, BugReportCategory category, String content, String screen,
-            String requestId, String appVersion, BugReportPlatform platform, String userAgent,
-            List<String> photoKeys) {
+    private BugReport(Long userId, BugReportCategory category, String title, String content,
+            String screen, String requestId, String appVersion, BugReportPlatform platform,
+            String userAgent, List<String> photoKeys) {
         this.userId = userId;
         this.category = category;
+        this.title = title;
         this.content = content;
         this.screen = screen;
         this.requestId = requestId;

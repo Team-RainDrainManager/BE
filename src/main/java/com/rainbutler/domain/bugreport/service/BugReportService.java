@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class BugReportService {
 
+    private static final int MIN_TITLE_LENGTH = 2;
     private static final int MIN_CONTENT_LENGTH = 10;
     private static final int MAX_USER_AGENT_LENGTH = 500;
     private static final int MAX_PAGE_SIZE = 100;
@@ -51,11 +52,16 @@ public class BugReportService {
      * @param request 신고 내용
      * @param userAgent 요청 헤더 User-Agent (500자에서 자른다)
      * @return 등록 결과
-     * @throws BusinessException 내용 10자 미만(400) · 없는 사용자(404) · 하루 제한 초과(429) · 사진 검증 실패
+     * @throws BusinessException 제목 2자 · 내용 10자 미만(400) · 없는 사용자(404) · 하루 제한 초과(429) · 사진 검증 실패
      */
     @Transactional
     public BugReportCreateResponse create(Long userId, BugReportCreateRequest request,
             String userAgent) {
+        String title = request.title().strip();
+        if (title.length() < MIN_TITLE_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "제목을 " + MIN_TITLE_LENGTH + "자 이상 적어 주세요.");
+        }
         String content = request.content().strip();
         if (content.length() < MIN_CONTENT_LENGTH) {
             throw new BusinessException(ErrorCode.INVALID_INPUT,
@@ -80,6 +86,7 @@ public class BugReportService {
         BugReport report = bugReportRepository.save(BugReport.builder()
                 .userId(userId)
                 .category(request.category())
+                .title(title)
                 .content(content)
                 .screen(blankToNull(request.screen()))
                 .requestId(blankToNull(request.requestId()))

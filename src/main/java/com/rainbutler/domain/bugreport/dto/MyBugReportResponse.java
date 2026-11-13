@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
  *
  * @param bugReportId 신고 id
  * @param category 분류
+ * @param title 제목
  * @param content 내용 미리보기 (앞 100자)
  * @param status 처리 상태 (RECEIVED 접수 · IN_PROGRESS 확인 중 · RESOLVED 해결 · WONT_FIX 보류)
  * @param createdAt 신고 시각
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 public record MyBugReportResponse(
         Long bugReportId,
         BugReportCategory category,
+        String title,
         String content,
         BugReportStatus status,
         LocalDateTime createdAt,
@@ -28,7 +30,7 @@ public record MyBugReportResponse(
      */
     public static MyBugReportResponse from(BugReport report) {
         return new MyBugReportResponse(report.getId(), report.getCategory(),
-                BugReportPreview.of(report.getContent()), report.getStatus(),
+                report.getTitle(), BugReportPreview.of(report.getContent()), report.getStatus(),
                 report.getCreatedAt(), report.getResolvedAt());
     }
 }

@@ -38,6 +38,7 @@ public class BugReportController {
 
             - `category`: ERROR(오류 · 멈춤) · UI(화면 깨짐 · 표시 이상) · FEATURE(기능이 안 됨) ·
               PERFORMANCE(느림) · OTHER(기타)
+            - `title`: 앞뒤 공백을 뺀 2~100자
             - `content`: 앞뒤 공백을 뺀 10~2000자
             - 선택: `screen`(버그가 난 화면 · 경로), `requestId`(**마지막으로 받은 응답 헤더 `X-Request-Id`** — 로그를
               바로 찾을 수 있어요), `appVersion`, `platform`(WEB · IOS · ANDROID)
@@ -71,8 +72,8 @@ public class BugReportController {
      * 내 신고 목록을 최신순으로 조회합니다.
      */
     @Operation(summary = "내 버그 신고 목록", description = "내가 신고한 버그를 최신순으로 조회합니다. "
-            + "`content`는 앞 100자 미리보기입니다. 상태: RECEIVED 접수 · IN_PROGRESS 확인 중 · RESOLVED 해결 · "
-            + "WONT_FIX 보류")
+            + "`title`은 전체, `content`는 앞 100자 미리보기입니다. "
+            + "상태: RECEIVED 접수 · IN_PROGRESS 확인 중 · RESOLVED 해결 · WONT_FIX 보류")
     @ApiErrorCodes({ErrorCode.INVALID_INPUT, ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN,
             ErrorCode.INVALID_TOKEN})
     @GetMapping("/me")

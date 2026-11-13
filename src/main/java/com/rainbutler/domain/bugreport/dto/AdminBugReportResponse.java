@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
  *
  * @param bugReportId 신고 id
  * @param category 분류
+ * @param title 제목
  * @param content 내용 미리보기 (앞 100자)
  * @param status 처리 상태
  * @param reporterNickname 신고자 닉네임 (탈퇴했으면 "탈퇴한 사용자")
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 public record AdminBugReportResponse(
         Long bugReportId,
         BugReportCategory category,
+        String title,
         String content,
         BugReportStatus status,
         String reporterNickname,
@@ -28,7 +30,7 @@ public record AdminBugReportResponse(
      */
     public static AdminBugReportResponse of(BugReport report, String reporterNickname) {
         return new AdminBugReportResponse(report.getId(), report.getCategory(),
-                BugReportPreview.of(report.getContent()), report.getStatus(), reporterNickname,
-                report.getCreatedAt());
+                report.getTitle(), BugReportPreview.of(report.getContent()), report.getStatus(),
+                reporterNickname, report.getCreatedAt());
     }
 }
