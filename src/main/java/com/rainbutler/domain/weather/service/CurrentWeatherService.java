@@ -2,6 +2,7 @@ package com.rainbutler.domain.weather.service;
 
 import com.rainbutler.domain.weather.repository.CurrentWeatherRepository;
 import com.rainbutler.domain.weather.repository.CurrentWeatherRepository.CurrentWeather;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -9,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * 지금 비가 오는지 판단합니다. (지도 비 예보 배너)
+ * 격자마다 지금 비가 오는지 판단합니다. (지도 비 예보 배너)
  *
  * <ul>
  *   <li>시연용 강제 비 종료 시각 전이면 비 오는 중</li>
@@ -37,13 +38,14 @@ public class CurrentWeatherService {
     }
 
     /**
-     * 지금 비가 오는지 판단합니다.
+     * 격자에 지금 비가 오는지 판단합니다.
      *
+     * @param grid 기상청 격자
      * @param now 현재 시각
      * @return 날씨 상태
      */
-    public WeatherStatus status(LocalDateTime now) {
-        Optional<CurrentWeather> current = currentWeatherRepository.find();
+    public WeatherStatus status(Grid grid, LocalDateTime now) {
+        Optional<CurrentWeather> current = currentWeatherRepository.find(grid);
         if (current.isEmpty()) {
             return new WeatherStatus(false, null, false);
         }
@@ -58,15 +60,16 @@ public class CurrentWeatherService {
     }
 
     /**
-     * 시연용으로 지금부터 정한 시간 동안 "비 오는 중"으로 표시합니다. 0분이면 해제합니다.
+     * 시연용으로 격자를 지금부터 정한 시간 동안 "비 오는 중"으로 표시합니다. 0분이면 해제합니다.
      *
+     * @param grid 기상청 격자
      * @param minutes 분 (0이면 해제)
      * @param now 현재 시각
      * @return 강제 비 종료 시각 (해제했으면 null)
      */
-    public LocalDateTime simulateRain(int minutes, LocalDateTime now) {
+    public LocalDateTime simulateRain(Grid grid, int minutes, LocalDateTime now) {
         LocalDateTime until = minutes == 0 ? null : now.plusMinutes(minutes);
-        currentWeatherRepository.saveSimulatedRainingUntil(until, now);
+        currentWeatherRepository.saveSimulatedRainingUntil(grid, until, now);
         return until;
     }
 }
