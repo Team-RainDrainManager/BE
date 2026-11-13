@@ -124,6 +124,9 @@ CREATE TABLE "drain" (
   "adoption_status" varchar NOT NULL,
   "status" varchar NOT NULL,
   "is_risk" boolean NOT NULL DEFAULT false,
+  "grid_nx" integer,
+  "grid_ny" integer,
+  "region_name" varchar(50),
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "deleted_at" timestamp
@@ -271,6 +274,8 @@ CREATE TABLE "rain_forecast" (
   "status" varchar NOT NULL,
   "is_simulated" boolean NOT NULL DEFAULT false,
   "fetched_at" timestamp,
+  "grid_nx" integer NOT NULL DEFAULT 57,
+  "grid_ny" integer NOT NULL DEFAULT 125,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "deleted_at" timestamp
@@ -284,13 +289,15 @@ CREATE TABLE "shedlock" (
 );
 
 CREATE TABLE "current_weather" (
-  "id" smallint PRIMARY KEY DEFAULT 1 CHECK ("id" = 1),
+  "grid_nx" integer NOT NULL,
+  "grid_ny" integer NOT NULL,
   "pty" smallint,
   "rn1_mm" numeric(5,1),
   "raining" boolean NOT NULL DEFAULT false,
   "observed_at" timestamp,
   "fetched_at" timestamp NOT NULL,
-  "simulated_raining_until" timestamp
+  "simulated_raining_until" timestamp,
+  PRIMARY KEY ("grid_nx", "grid_ny")
 );
 
 CREATE TABLE "inspection_request" (
@@ -538,7 +545,7 @@ COMMENT ON COLUMN "rain_forecast"."fetched_at" IS '마지막으로 기상청 값
 
 COMMENT ON TABLE "shedlock" IS '배치 중복 실행 방지 잠금 (ShedLock이 직접 사용)';
 
-COMMENT ON TABLE "current_weather" IS '역곡동 격자 현재 날씨 (초단기실황, 1행)';
+COMMENT ON TABLE "current_weather" IS '기상청 격자별 현재 날씨 (초단기실황, 격자당 1행)';
 
 COMMENT ON COLUMN "inspection_request"."adoption_id" IS '입양자에게 간 요청. 미입양 위험 배수구면 null → 바로 대신 점검 공개';
 
@@ -680,7 +687,7 @@ CREATE UNIQUE INDEX uq_users_local_email ON "users" (lower("email")) WHERE "prov
 -- 자체 로그인은 이메일 · 비밀번호, 카카오는 회원번호 필수 (탈퇴한 계정은 제외)
 ALTER TABLE "users" ADD CONSTRAINT ck_users_provider_credentials CHECK ("deleted_at" IS NOT NULL OR ("provider" = 'LOCAL' AND "email" IS NOT NULL AND "password" IS NOT NULL) OR ("provider" = 'KAKAO' AND "provider_id" IS NOT NULL));
 -- 같은 날짜의 진행 중 예보는 실제 · 가상 각각 1개 (취소 후 재확정은 새 행)
-CREATE UNIQUE INDEX uq_rain_forecast_active ON "rain_forecast" ("rain_date", "is_simulated") WHERE "status" = 'ACTIVE' AND "deleted_at" IS NULL;
+CREATE UNIQUE INDEX uq_rain_forecast_active ON "rain_forecast" ("rain_date", "grid_nx", "grid_ny", "is_simulated") WHERE "status" = 'ACTIVE' AND "deleted_at" IS NULL;
 -- 1인 1개 대여
 CREATE UNIQUE INDEX uq_tool_rental_active_user ON "tool_rental" ("user_id") WHERE "status" = 'RENTED' AND "deleted_at" IS NULL;
 -- 더러움 단계 1~3
@@ -694,6 +701,7 @@ ALTER TABLE "ai_verification" ADD CONSTRAINT ck_ai_verification_target CHECK (nu
 
 -- ───────── 조회용 인덱스 ─────────
 CREATE INDEX idx_drain_location ON "drain" ("latitude", "longitude");
+CREATE INDEX idx_drain_grid ON "drain" ("grid_nx", "grid_ny") WHERE "deleted_at" IS NULL;
 CREATE INDEX idx_notification_user_read ON "notification" ("user_id", "read_at");
 CREATE INDEX idx_notification_user_id_desc ON "notification" ("user_id", "id" DESC);
 CREATE INDEX idx_inspection_request_status ON "inspection_request" ("status");

@@ -1,6 +1,8 @@
 package com.rainbutler.domain.drain.entity;
 
 import com.rainbutler.domain.user.entity.User;
+import com.rainbutler.global.geo.KmaGridConverter;
+import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import com.rainbutler.global.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,6 +75,16 @@ public class Drain extends BaseEntity {
     @Column(nullable = false)
     private boolean isRisk;
 
+    /** 기상청 단기예보 격자 X (위경도로 계산, null이면 기본 격자로 본다) */
+    private Integer gridNx;
+
+    /** 기상청 단기예보 격자 Y */
+    private Integer gridNy;
+
+    /** 행정동 이름 (예: 역곡2동, 알림 문구용. 카카오 조회 실패 시 null) */
+    @Column(length = 50)
+    private String regionName;
+
     /** 필수 값으로 생성합니다. 초기 상태·기본값은 여기서 채웁니다. */
     @Builder
     private Drain(
@@ -95,6 +107,28 @@ public class Drain extends BaseEntity {
         this.status = status;
         this.isRisk = isRisk;
         this.adoptionStatus = DrainAdoptionStatus.AVAILABLE;
+        if (latitude != null && longitude != null) {
+            assignGrid(KmaGridConverter.toGrid(latitude, longitude));
+        }
+    }
+
+    /**
+     * 기상청 격자를 정합니다. (등록 · 백필)
+     *
+     * @param grid 격자
+     */
+    public void assignGrid(Grid grid) {
+        this.gridNx = grid.nx();
+        this.gridNy = grid.ny();
+    }
+
+    /**
+     * 행정동 이름을 정합니다. (등록 · 백필)
+     *
+     * @param regionName 행정동 이름
+     */
+    public void assignRegionName(String regionName) {
+        this.regionName = regionName;
     }
 
     /**
