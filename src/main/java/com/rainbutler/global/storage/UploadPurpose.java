@@ -15,7 +15,9 @@ public enum UploadPurpose {
     /** 제보 사진 */
     REPORT,
     /** 마이페이지 프로필 사진 */
-    PROFILE;
+    PROFILE,
+    /** 앱 버그 신고 스크린샷 (S3 경로 {@code .../bug_report/...}) */
+    BUG_REPORT;
 
     /**
      * S3 key에 들어가는 경로 이름입니다.
