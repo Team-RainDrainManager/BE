@@ -36,4 +36,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 사용자
      */
     Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
+
+    /**
+     * 닉네임으로 가입 여부를 확인합니다.
+     *
+     * @param nickname 닉네임
+     * @return 가입 여부
+     */
+    boolean existsByNickname(String nickname);
 }
