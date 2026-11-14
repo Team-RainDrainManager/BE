@@ -1,6 +1,7 @@
 package com.rainbutler.domain.sanction.repository;
 
 import com.rainbutler.domain.sanction.entity.Sanction;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -32,4 +33,12 @@ public interface SanctionRepository extends JpaRepository<Sanction, Long> {
      * @return 해제되지 않은 제재
      */
     List<Sanction> findAllByUser_IdAndRevokedAtIsNull(Long userId);
+
+    /**
+     * 제보들로 부과된 제재를 찾습니다. (관리자 제보 목록에 한 번에 붙이기)
+     *
+     * @param reportIds 제보 id
+     * @return 제재 목록
+     */
+    List<Sanction> findAllByReport_IdIn(Collection<Long> reportIds);
 }
