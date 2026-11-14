@@ -29,11 +29,13 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
 
     private Long userId;
     private String token;
+    private String uniqueNickname;
 
     @BeforeEach
     void setUp() {
+        uniqueNickname = "테스트유저" + UUID.randomUUID().toString().substring(0, 8);
         User user = userRepository.save(User.local(
-                UUID.randomUUID() + "@test.com", "{noop}x", "테스트유저"));
+                UUID.randomUUID() + "@test.com", "{noop}x", uniqueNickname));
         userId = user.getId();
         token = jwtTokenProvider.createAccessToken(userId, user.getRole());
     }
@@ -41,7 +43,7 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
     @Test
     void 사용가_닉네임은_중복으로_나온다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
-                        .param("nickname", "테스트유저"))
+                        .param("nickname", uniqueNickname))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(false));
     }
@@ -49,7 +51,7 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
     @Test
     void 사용_안_하는_닉네임은_사용_가능하다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
-                        .param("nickname", "테스트유저2"))
+                        .param("nickname", "사용안하는닉네임"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(true));
     }
