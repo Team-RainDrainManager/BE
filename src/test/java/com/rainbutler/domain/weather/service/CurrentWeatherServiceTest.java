@@ -31,8 +31,8 @@ class CurrentWeatherServiceTest {
     private final CurrentWeatherRepository repository = mock(CurrentWeatherRepository.class);
     private final OnDemandWeatherFetcher fetcher = mock(OnDemandWeatherFetcher.class);
     private final CurrentWeatherService service = new CurrentWeatherService(repository, fetcher,
-            new WeatherOnDemandProperties(Duration.ofSeconds(2), Duration.ofMinutes(10), 30,
-                    Duration.ofMinutes(5)));
+            new WeatherOnDemandProperties(Duration.ofSeconds(2), Duration.ofSeconds(10),
+                    Duration.ofMinutes(10), 30, Duration.ofMinutes(5)));
 
     @Test
     void 기록이_없으면_받아_오고_저장된_값으로_판단한다() {
