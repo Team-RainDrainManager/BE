@@ -51,6 +51,16 @@ public class UserService {
     private final Clock clock;
 
     /**
+     * 닉네임 중복 여부를 확인합니다.
+     *
+     * @param nickname 닉네임
+     * @return 사용 가능 여부 (true: 사용 가능, false: 이미 사용 중)
+     */
+    public boolean isNicknameAvailable(String nickname) {
+        return !userRepository.existsByNickname(nickname);
+    }
+
+    /**
      * 로그인 사용자의 정보를 조회합니다.
      *
      * @param userId 로그인 사용자 id

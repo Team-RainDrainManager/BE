@@ -50,6 +50,18 @@ public class UserController {
     }
 
     /**
+     * 닉네임 중복 여부를 확인합니다.
+     */
+    @Operation(summary = "닉네임 중복 확인",
+            description = "닉네임이 이미 사용 중인지 확인합니다. 사용 중이면 false를 반환합니다.")
+    @ApiErrorCodes({ErrorCode.INVALID_INPUT})
+    @GetMapping("/nickname/available")
+    public ResponseEntity<ApiResponse<Boolean>> checkNicknameAvailable(
+            @org.springframework.web.bind.annotation.RequestParam String nickname) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.isNicknameAvailable(nickname)));
+    }
+
+    /**
      * 활동 확인서에 쓸 실명을 등록합니다. (목업 본인인증)
      */
     @Operation(summary = "실명 등록",

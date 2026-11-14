@@ -70,10 +70,11 @@ class WithdrawalApiTest extends IntegrationTestSupport {
     @BeforeEach
     void setUp() throws Exception {
         email = "w" + UUID.randomUUID().toString().substring(0, 8) + "@test.com";
+        String nickname = "탈퇴집사" + UUID.randomUUID().toString().substring(0, 8);
         String body = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"rain1234\","
-                                + "\"nickname\":\"탈퇴집사\"}"))
+                                + "\"nickname\":\"" + nickname + "\"}"))
                 .andReturn().getResponse().getContentAsString();
         accessToken = JsonPath.read(body, "$.data.accessToken");
         refreshToken = JsonPath.read(body, "$.data.refreshToken");
@@ -107,7 +108,7 @@ class WithdrawalApiTest extends IntegrationTestSupport {
 
     @Test
     void 맡았던_대신_점검_요청은_다시_공개되고_수락자가_비워진다() throws Exception {
-        Long otherDrain = saveDrain(saveKakaoUser("다른집사").getId(), "AVAILABLE");
+        Long otherDrain = saveDrain(saveKakaoUser("다른집사" + UUID.randomUUID().toString().substring(0, 8)).getId(), "AVAILABLE");
         Long requestId = jdbcTemplate.queryForObject("INSERT INTO inspection_request (forecast_id, "
                 + "drain_id, substitute_user_id, status, sent_at, reply_deadline_at, "
                 + "complete_deadline_at, opened_at, claimed_at, created_at, updated_at) VALUES "
@@ -180,9 +181,10 @@ class WithdrawalApiTest extends IntegrationTestSupport {
     void 같은_이메일로_다시_가입하면_새_계정이다() throws Exception {
         withdraw().andExpect(status().isOk());
 
+        String nickname = "다시집사" + UUID.randomUUID().toString().substring(0, 8);
         mockMvc.perform(post("/api/v1/auth/signup").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"rain1234\","
-                                + "\"nickname\":\"다시집사\"}"))
+                                + "\"nickname\":\"" + nickname + "\"}"))
                 .andExpect(status().isCreated());
 
         Long newId = jdbcTemplate.queryForObject(

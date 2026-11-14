@@ -6,6 +6,8 @@ import com.rainbutler.domain.auth.dto.KakaoLoginResponse;
 import com.rainbutler.domain.user.entity.Provider;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.global.exception.BusinessException;
+import com.rainbutler.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,9 @@ public class KakaoAuthService {
      * 카카오 사용자를 가입시킵니다. 동시 요청으로 이미 가입됐으면 그 사용자를 씁니다.
      */
     private User register(KakaoUserInfo kakaoUser) {
+        if (userRepository.existsByNickname(kakaoUser.nickname())) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
         try {
             return userRepository.saveAndFlush(User.kakao(
                     kakaoUser.kakaoId(), kakaoUser.nickname(), kakaoUser.profileImageUrl()));

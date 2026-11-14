@@ -50,6 +50,9 @@ public class AuthService {
         if (userRepository.existsByProviderAndEmail(Provider.LOCAL, email)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+        if (userRepository.existsByNickname(request.nickname())) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
         User user = User.local(email, passwordEncoder.encode(request.password()),
                 request.nickname());
         try {

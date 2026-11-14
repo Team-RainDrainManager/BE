@@ -38,7 +38,8 @@ class AuthControllerTest extends IntegrationTestSupport {
     @Test
     void 회원가입_로그인_후_내_정보를_조회한다() throws Exception {
         String email = uniqueEmail();
-        signup(email, PASSWORD, "빗물집사")
+        String nickname = "빗물집사" + UUID.randomUUID().toString().substring(0, 8);
+        signup(email, PASSWORD, nickname)
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.tokenType").value("Bearer"));
 
@@ -47,7 +48,7 @@ class AuthControllerTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.email").value(email))
-                .andExpect(jsonPath("$.data.nickname").value("빗물집사"))
+                .andExpect(jsonPath("$.data.nickname").value(nickname))
                 .andExpect(jsonPath("$.data.role").value("USER"))
                 .andExpect(jsonPath("$.data.provider").value("LOCAL"));
     }
@@ -55,9 +56,11 @@ class AuthControllerTest extends IntegrationTestSupport {
     @Test
     void 이메일은_대소문자를_구분하지_않고_중복_가입하면_409() throws Exception {
         String email = uniqueEmail();
-        signup(email, PASSWORD, "집사하나").andExpect(status().isCreated());
+        String nickname1 = "집사하나" + UUID.randomUUID().toString().substring(0, 8);
+        String nickname2 = "집사둘" + UUID.randomUUID().toString().substring(0, 8);
+        signup(email, PASSWORD, nickname1).andExpect(status().isCreated());
 
-        signup(email.toUpperCase(), PASSWORD, "집사둘")
+        signup(email.toUpperCase(), PASSWORD, nickname2)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("EMAIL_ALREADY_EXISTS"));
     }
@@ -65,7 +68,8 @@ class AuthControllerTest extends IntegrationTestSupport {
     @Test
     void 비밀번호가_틀리거나_없는_이메일이면_같은_401() throws Exception {
         String email = uniqueEmail();
-        signup(email, PASSWORD, "집사").andExpect(status().isCreated());
+        String nickname = "집사" + UUID.randomUUID().toString().substring(0, 8);
+        signup(email, PASSWORD, nickname).andExpect(status().isCreated());
 
         login(email, "wrong1234")
                 .andExpect(status().isUnauthorized())
@@ -134,7 +138,8 @@ class AuthControllerTest extends IntegrationTestSupport {
     @Test
     void refresh를_회전하고_로그아웃하면_그_refresh는_쓸_수_없다() throws Exception {
         String email = uniqueEmail();
-        String body = signup(email, PASSWORD, "집사").andReturn().getResponse().getContentAsString();
+        String nickname = "집사" + UUID.randomUUID().toString().substring(0, 8);
+        String body = signup(email, PASSWORD, nickname).andReturn().getResponse().getContentAsString();
         String refreshToken = JsonPath.read(body, "$.data.refreshToken");
 
         // 회전: 새 토큰을 받고, 이전 refresh는 더 이상 못 쓴다

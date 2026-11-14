@@ -69,7 +69,13 @@ public class SecurityConfig {
                         // 약관 목록 · 전문은 가입 전에 본다
                         .requestMatchers(HttpMethod.GET, "/api/v1/terms", "/api/v1/terms/**")
                         .permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "CITY_OFFICIAL")
+
+                        // 닉네임 중복 확인은 회원가입 전에 인증 없이 사용할 수 있다
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/nickname/available")
+                        .permitAll()
+
+                        .requestMatchers("/api/v1/admin/**")
+                        .hasAnyRole("ADMIN", "CITY_OFFICIAL")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().denyAll())
                 // JWT 인증 직후 사용자 id를 로그(MDC · 접근 로그)에 남긴다
