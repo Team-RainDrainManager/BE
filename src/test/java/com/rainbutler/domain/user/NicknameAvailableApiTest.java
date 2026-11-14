@@ -54,4 +54,3 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data").value(true));
     }
 }
-}
