@@ -38,6 +38,30 @@ public interface AdoptionRepository extends JpaRepository<Adoption, Long> {
     List<Adoption> findAllByUser_IdAndStatus(Long userId, AdoptionStatus status);
 
     /**
+     * 해당 별명을 쓰는 입양이 있는지 확인합니다. (별명 중복 확인)
+     *
+     * <p>대소문자를 구분하지 않고 비교합니다. 삭제된 입양은 {@code @SQLRestriction}으로 빠집니다.
+     *
+     * @param nickname 별명 (앞뒤 공백 제거본)
+     * @param status 입양 상태
+     * @return 있으면 true
+     */
+    boolean existsByNicknameIgnoreCaseAndStatus(String nickname, AdoptionStatus status);
+
+    /**
+     * 해당 별명을 쓰는 다른 입양이 있는지 확인합니다. (별명 변경 시 본인 입양 제외)
+     *
+     * <p>대소문자를 구분하지 않고 비교합니다.
+     *
+     * @param nickname 별명 (앞뒤 공백 제거본)
+     * @param status 입양 상태
+     * @param id 제외할 입양 id
+     * @return 있으면 true
+     */
+    boolean existsByNicknameIgnoreCaseAndStatusAndIdNot(
+            String nickname, AdoptionStatus status, Long id);
+
+    /**
      * 내 입양 목록을 최근 입양한 순으로 찾습니다.
      *
      * @param userId 사용자 id

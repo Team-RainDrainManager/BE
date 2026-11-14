@@ -3,6 +3,7 @@ package com.rainbutler.domain.adoption.service;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionNicknameUpdateRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
+import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameCheckResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameUpdateResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionRegisterResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
@@ -57,13 +58,21 @@ public class AdoptionService {
     /**
      * 빗물받이를 입양합니다.
      *
-     * <p>인증 통과한 청소를 통해 입양합니다. 배수구당 ACTIVE 입양은 1개만 가능합니다.
+     * <p>인증 통과한 청소를 통해 입양합니다. 배수구당 ACTIVE 입양은 1개만 가능하고, 별명은 입양 중인
+     * 빗물받이 전체에서 겹치지 않아야 합니다. (대소문자 구분 없음)
      */
     @Transactional
     public AdoptionRegisterResponse registerAdoption(Long userId, Long drainId, AdoptionRegisterRequest request) {
         // 1. 안전 동의 확인
         if (!Boolean.TRUE.equals(request.safetyAgreed())) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "안전 동의가 필요합니다.");
+        }
+
+        // 1-1. 별명 중복 확인 (입양 중인 빗물받이는 전체에서 별명이 겹치지 않는다)
+        String nickname = normalizeNickname(request.nickname());
+        if (adoptionRepository.existsByNicknameIgnoreCaseAndStatus(
+                nickname, AdoptionStatus.ACTIVE)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
 
         // 2. 빗물받이 존재 확인
@@ -131,7 +140,7 @@ public class AdoptionService {
                 .user(user)
                 .drain(drain)
                 .cleaning(cleaning)
-                .nickname(request.nickname())
+                .nickname(nickname)
                 .adoptedAt(now)
                 .build();
 
@@ -163,7 +172,8 @@ public class AdoptionService {
      * @param adoptionId 별명을 바꿀 입양 id
      * @param request 새 별명
      * @return 바뀐 별명과 수정 시각
-     * @throws BusinessException 입양이 없거나 해제됐으면(404), 본인 입양이 아니면(403)
+     * @throws BusinessException 입양이 없거나 해제됐으면(404), 본인 입양이 아니면(403),
+     *     다른 입양이 쓰는 별명이면(409)
      */
     @Transactional
     public AdoptionNicknameUpdateResponse updateNickname(
@@ -181,11 +191,45 @@ public class AdoptionService {
             throw new BusinessException(ErrorCode.ADOPTION_NOT_FOUND);
         }
 
-        adoption.changeNickname(request.nickname());
+        // 바꾸려는 별명을 다른 입양이 쓰고 있으면 바꿀 수 없다 (본인 입양은 제외)
+        String nickname = normalizeNickname(request.nickname());
+        if (adoptionRepository.existsByNicknameIgnoreCaseAndStatusAndIdNot(
+                nickname, AdoptionStatus.ACTIVE, adoptionId)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+
+        adoption.changeNickname(nickname);
         // 수정 시각(Auditing)이 응답에 담기도록 먼저 반영한다
         adoptionRepository.flush();
 
         return AdoptionNicknameUpdateResponse.from(adoption);
+    }
+
+    /**
+     * 입양 빗물받이 별명을 쓸 수 있는지 확인합니다.
+     *
+     * <p>입양 중(ACTIVE)인 빗물받이의 별명과 대소문자 구분 없이 비교합니다. 별명을 바꾸는 중이면
+     * {@code excludeAdoptionId}로 자기 자신을 빼고 확인합니다.
+     *
+     * @param nickname 확인할 별명
+     * @param excludeAdoptionId 중복에서 뺄 입양 id (등록할 때는 null)
+     * @return 앞뒤 공백을 지운 별명과 사용 가능 여부
+     */
+    public AdoptionNicknameCheckResponse checkNickname(String nickname, Long excludeAdoptionId) {
+        String normalized = normalizeNickname(nickname);
+        boolean taken = excludeAdoptionId == null
+                ? adoptionRepository.existsByNicknameIgnoreCaseAndStatus(
+                        normalized, AdoptionStatus.ACTIVE)
+                : adoptionRepository.existsByNicknameIgnoreCaseAndStatusAndIdNot(
+                        normalized, AdoptionStatus.ACTIVE, excludeAdoptionId);
+        return new AdoptionNicknameCheckResponse(normalized, !taken);
+    }
+
+    /**
+     * 별명 앞뒤 공백을 지웁니다. 중복 확인과 저장이 같은 값으로 비교되게 합니다.
+     */
+    private static String normalizeNickname(String nickname) {
+        return nickname == null ? null : nickname.strip();
     }
 
     /**

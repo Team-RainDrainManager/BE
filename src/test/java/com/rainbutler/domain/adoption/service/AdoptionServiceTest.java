@@ -14,6 +14,7 @@ import com.rainbutler.domain.adoption.dto.Request.AdoptionNicknameUpdateRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionRegisterRequest;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseReason;
 import com.rainbutler.domain.adoption.dto.Request.AdoptionReleaseRequest;
+import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameCheckResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionNicknameUpdateResponse;
 import com.rainbutler.domain.adoption.dto.Response.AdoptionReleaseResponse;
 import com.rainbutler.domain.adoption.entity.Adoption;
@@ -214,8 +215,69 @@ class AdoptionServiceTest {
     }
 
     @Test
-    void 입양을_막는_제보가_있는_빗물받이는_입양할_수_없다() {
-        givenRegisterableDrain();
+    void 사용할_수_있는_별명이면_available_true() {
+        AdoptionNicknameCheckResponse response = adoptionService.checkNickname("  또랑이  ", null);
+
+        assertThat(response.nickname()).isEqualTo("또랑이");
+        assertThat(response.available()).isTrue();
+        verify(adoptionRepository).existsByNicknameIgnoreCaseAndStatus(
+                "또랑이", AdoptionStatus.ACTIVE);
+    }
+
+    @Test
+    void 다른_입양이_쓰는_별명이면_available_false() {
+        given(adoptionRepository.existsByNicknameIgnoreCaseAndStatus(
+                "또랑이", AdoptionStatus.ACTIVE)).willReturn(true);
+
+        AdoptionNicknameCheckResponse response = adoptionService.checkNickname("또랑이", null);
+
+        assertThat(response.available()).isFalse();
+    }
+
+    @Test
+    void 별명을_바꿀_때는_본인_입양을_중복에서_뺀다() {
+        Adoption adoption = activeAdoption(USER_ID);
+        given(adoption.getNickname()).willReturn("또랑이");
+        given(adoption.getUpdatedAt()).willReturn(NOW);
+
+        adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest(" 또랑이 "));
+
+        verify(adoptionRepository).existsByNicknameIgnoreCaseAndStatusAndIdNot(
+                "또랑이", AdoptionStatus.ACTIVE, ADOPTION_ID);
+        verify(adoption).changeNickname("또랑이");
+    }
+
+    @Test
+    void 다른_입양이_쓰는_별명으로는_바꿀_수_없다() {
+        Adoption adoption = activeAdoption(USER_ID);
+        given(adoptionRepository.existsByNicknameIgnoreCaseAndStatusAndIdNot(
+                "새또랑이", AdoptionStatus.ACTIVE, ADOPTION_ID)).willReturn(true);
+
+        assertThatThrownBy(() -> adoptionService.updateNickname(
+                USER_ID, ADOPTION_ID, new AdoptionNicknameUpdateRequest("새또랑이")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        verify(adoption, never()).changeNickname(any());
+        verify(adoptionRepository, never()).flush();
+    }
+
+    @Test
+    void 이미_쓰는_별명으로는_입양할_수_없다() {
+        given(adoptionRepository.existsByNicknameIgnoreCaseAndStatus(
+                "또랑이", AdoptionStatus.ACTIVE)).willReturn(true);
+
+        assertThatThrownBy(this::register)
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        verify(adoptionRepository, never()).save(any());
+        verifyNoInteractions(drainRepository);
+    }
+
+    @Test
+    void 입양을_막는_제보가_있는_빗물받이는_입양할_수_없다() {        givenRegisterableDrain();
         given(reportRepository.existsByDrain_IdAndBlocksAdoptionTrueAndStatusIn(any(), any()))
                 .willReturn(true);
 

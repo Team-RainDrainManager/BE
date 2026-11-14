@@ -29,9 +29,11 @@ public class AdoptionNicknameController {
 
     @Operation(summary = "입양 빗물받이 별명 변경",
             description = "내가 입양한 빗물받이의 별명을 바꿉니다. 입양 등록과 같은 규칙(1~20자)이고, "
-                    + "해제된 입양은 바꿀 수 없습니다. 로그인이 필요합니다.")
+                    + "해제된 입양은 바꿀 수 없습니다. 다른 입양이 쓰는 별명이면 바꿀 수 없습니다. "
+                    + "로그인이 필요합니다.")
     @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
-            ErrorCode.INVALID_INPUT, ErrorCode.FORBIDDEN, ErrorCode.ADOPTION_NOT_FOUND})
+            ErrorCode.INVALID_INPUT, ErrorCode.FORBIDDEN, ErrorCode.ADOPTION_NOT_FOUND,
+            ErrorCode.NICKNAME_ALREADY_EXISTS})
     @PatchMapping
     public ResponseEntity<ApiResponse<AdoptionNicknameUpdateResponse>> updateNickname(
             @LoginUserId Long userId,

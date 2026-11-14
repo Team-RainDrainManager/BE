@@ -62,6 +62,7 @@ public enum ErrorCode {
     ADOPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "입양 정보를 찾을 수 없어요."),
     ADOPTION_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "빗물받이는 최대 3개까지 입양할 수 있어요."),
     DRAIN_ALREADY_ADOPTED(HttpStatus.CONFLICT, "이미 다른 집사가 입양한 빗물받이예요."),
+    NICKNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 별명이에요. 다른 별명을 입력해 주세요."),
 
     // ───────── 점검 ─────────
     INSPECTION_NOT_FOUND(HttpStatus.NOT_FOUND, "점검 기록을 찾을 수 없어요."),
