@@ -187,6 +187,7 @@ public class ReportService {
             validateSanction(admin, request, comment);
         }
 
+        Sanction sanction = null;
         if (Boolean.TRUE.equals(request.approved())) {
             report.approve(admin, comment, now);
             reward(report);
@@ -196,11 +197,12 @@ public class ReportService {
             }
             report.reject(admin, comment, now);
             if (request.isSanction()) {
-                imposeSanction(report, admin, comment);
+                sanction = imposeSanction(report, admin, comment);
             }
         }
 
-        return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
+        return ReportDetailResponse.from(
+                report, storageService.toReadUrl(report.getPhotoUrl()), sanction);
     }
 
     /**
@@ -284,7 +286,9 @@ public class ReportService {
         String comment = request == null ? null : trimToNull(request.adminComment());
         report.clear(admin, comment, LocalDateTime.now(clock));
 
-        return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
+        // 해제는 승인된 제보만 가능하고 제재는 반려된 제보에만 붙으므로 제재 정보는 없다
+        return ReportDetailResponse.from(
+                report, storageService.toReadUrl(report.getPhotoUrl()), null);
     }
 
     /**

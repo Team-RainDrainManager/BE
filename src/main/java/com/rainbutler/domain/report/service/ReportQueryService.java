@@ -6,6 +6,8 @@ import com.rainbutler.domain.report.dto.ReportSummaryResponse;
 import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.sanction.entity.Sanction;
+import com.rainbutler.domain.sanction.repository.SanctionRepository;
 import com.rainbutler.domain.user.entity.Role;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
@@ -13,6 +15,9 @@ import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.storage.StorageService;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +36,7 @@ public class ReportQueryService {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final SanctionRepository sanctionRepository;
 
     /**
      * 내 제보 내역을 최신순으로 조회합니다.
@@ -71,13 +77,30 @@ public class ReportQueryService {
         if (!isPrivileged(requester) && !report.getUser().getId().equals(requesterId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
+        Sanction sanction = sanctionsByReport(List.of(reportId)).get(reportId);
+        return ReportDetailResponse.from(
+                report, storageService.toReadUrl(report.getPhotoUrl()), sanction);
     }
 
     private ReportListResponse toList(List<Report> reports) {
+        // 이 제보로 부과된 제재를 한 번에 조회한다 (N+1 방지)
+        Map<Long, Sanction> sanctions =
+                sanctionsByReport(reports.stream().map(Report::getId).toList());
         return new ReportListResponse(reports.stream()
-                .map(ReportSummaryResponse::from)
+                .map(report -> ReportSummaryResponse.from(report, sanctions.get(report.getId())))
                 .toList());
+    }
+
+    /**
+     * 제보 id → 그 제보로 부과된 제재. (제보는 한 번만 처리되므로 제보당 제재는 많아야 1건)
+     */
+    private Map<Long, Sanction> sanctionsByReport(List<Long> reportIds) {
+        if (reportIds.isEmpty()) {
+            return Map.of();
+        }
+        return sanctionRepository.findAllByReport_IdIn(reportIds).stream()
+                .collect(Collectors.toMap(sanction -> sanction.getReport().getId(),
+                        Function.identity(), (first, second) -> first));
     }
 
     private boolean isPrivileged(User user) {

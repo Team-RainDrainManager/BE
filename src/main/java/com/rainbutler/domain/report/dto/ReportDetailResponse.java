@@ -3,6 +3,7 @@ package com.rainbutler.domain.report.dto;
 import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
+import com.rainbutler.domain.sanction.entity.Sanction;
 import java.time.LocalDateTime;
 
 /**
@@ -23,6 +24,7 @@ import java.time.LocalDateTime;
  * @param resolvedAt 처리 완료 시각
  * @param clearedAt 입양 차단 해제 시각 (해제 전에는 null)
  * @param createdAt 제보 생성 시각
+ * @param sanction 이 제보로 부과된 제재 (허위 제보 반려. 없으면 null)
  */
 public record ReportDetailResponse(
         Long reportId,
@@ -39,7 +41,8 @@ public record ReportDetailResponse(
         String adminComment,
         LocalDateTime resolvedAt,
         LocalDateTime clearedAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        ReportSanctionResponse sanction
 ) {
 
     /**
@@ -47,9 +50,10 @@ public record ReportDetailResponse(
      *
      * @param report 제보
      * @param photoUrl 조회 URL로 바꾼 사진 (사진이 없으면 null)
+     * @param sanction 이 제보로 부과된 제재 (없으면 null)
      * @return 제보 상세 응답
      */
-    public static ReportDetailResponse from(Report report, String photoUrl) {
+    public static ReportDetailResponse from(Report report, String photoUrl, Sanction sanction) {
         return new ReportDetailResponse(
                 report.getId(),
                 report.getDrain() == null ? null : report.getDrain().getId(),
@@ -65,6 +69,7 @@ public record ReportDetailResponse(
                 report.getAdminComment(),
                 report.getResolvedAt(),
                 report.getClearedAt(),
-                report.getCreatedAt());
+                report.getCreatedAt(),
+                ReportSanctionResponse.from(sanction));
     }
 }
