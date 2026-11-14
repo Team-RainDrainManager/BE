@@ -53,6 +53,7 @@ public class NotificationController {
             | `ADOPTION_REGISTERED` | 빗물받이 입양 완료 | 내 빗물받이 (`adoptionId`) |
             | `LEVEL_UP` | 빗물받이 레벨 상승 | 내 빗물받이 (`adoptionId`) |
             | `INSPECTION_APPROVED` | 점검 인증 · 검토 승인 | 내 점검 기록 |
+            | `SANCTION_IMPOSED` | 허위 제보로 이용 제한 (`reportId` · `sanctionId`) | 내 제재 내역 |
             """;
 
     private final NotificationService notificationService;

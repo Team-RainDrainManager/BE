@@ -6,7 +6,7 @@ import java.util.List;
  * 알림 화면의 탭 구분입니다.
  *
  * <p>점검 요청 탭에는 비 예보 · 대신 점검 · 요청 상태 알림이, 활동 알림 탭에는 입양 · 성장 · 점검 승인 · 제보
- * 결과 알림이 모입니다.
+ * 결과 · 제재 알림이 모입니다.
  */
 public enum NotificationCategory {
     /** 점검 요청 */
@@ -40,7 +40,8 @@ public enum NotificationCategory {
             case RAIN_TOMORROW, RAIN_TODAY, SUBSTITUTE_OPEN, REQUEST_CANCELLED,
                     REQUEST_CLAIMED, REQUEST_MISSED, REQUEST_DEADLINE_CHANGED -> REQUEST;
             case MANAGEMENT_DUE, ADOPTION_WARNING, ADOPTION_RELEASED, REPORT_RESULT,
-                    WELCOME, ADOPTION_REGISTERED, LEVEL_UP, INSPECTION_APPROVED -> ACTIVITY;
+                    WELCOME, ADOPTION_REGISTERED, LEVEL_UP, INSPECTION_APPROVED,
+                    SANCTION_IMPOSED -> ACTIVITY;
         };
     }
 

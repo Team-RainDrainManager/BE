@@ -3,10 +3,12 @@ package com.rainbutler.domain.report.service;
 import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.drain.repository.DrainRepository;
 import com.rainbutler.domain.drain.service.DrainAiClassifier;
+import com.rainbutler.domain.notification.entity.NotificationType;
 import com.rainbutler.domain.point.entity.PointHistory;
 import com.rainbutler.domain.point.entity.PointSourceType;
 import com.rainbutler.domain.point.entity.PointType;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
+import com.rainbutler.domain.push.service.PushService;
 import com.rainbutler.domain.report.dto.ReportClearRequest;
 import com.rainbutler.domain.report.dto.ReportCreateRequest;
 import com.rainbutler.domain.report.dto.ReportCreateResponse;
@@ -28,7 +30,9 @@ import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.global.storage.UploadPurpose;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,6 +55,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ReportService {
 
+    private static final DateTimeFormatter SANCTION_UNTIL =
+            DateTimeFormatter.ofPattern("M월 d일 HH:mm");
+
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final DrainRepository drainRepository;
@@ -59,6 +66,7 @@ public class ReportService {
     private final StorageService storageService;
     private final PolicyProperties policyProperties;
     private final SanctionService sanctionService;
+    private final PushService pushService;
     private final Clock clock;
 
     /** 입양을 막는 제보 상태 (반려 · 해제되면 풀린다) */
@@ -227,10 +235,26 @@ public class ReportService {
         if (reporter.getRole() == Role.ADMIN || reporter.getRole() == Role.CITY_OFFICIAL) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "관리자 계정은 제재할 수 없습니다.");
         }
-        Sanction sanction = sanctionService.impose(reporterId, report.getId(), reason, admin.getId());
+        Sanction sanction =
+                sanctionService.impose(reporterId, report.getId(), reason, admin.getId());
         log.info("[허위 제보 제재] reportId={} userId={} sanctionId={} 영구={} 종료={}", report.getId(),
                 reporterId, sanction.getId(), sanction.isPermanent(), sanction.getUntil());
+        notifySanction(reporterId, report.getId(), sanction, reason);
         return sanction;
+    }
+
+    /**
+     * 제재 알림을 보냅니다. 반려 알림과 따로 보내지 않고 이 알림 하나만 보냅니다.
+     */
+    private void notifySanction(Long userId, Long reportId, Sanction sanction, String reason) {
+        String body = sanction.isPermanent()
+                ? "점검 · 대신 점검을 더 이상 할 수 없어요. 사유: " + reason
+                : sanction.getUntil().format(SANCTION_UNTIL) + "까지 점검 · 대신 점검을 할 수 없어요. 사유: "
+                        + reason;
+        pushService.notify(userId, NotificationType.SANCTION_IMPOSED, "허위 제보로 이용이 제한됐어요",
+                body, null, null, Map.of(
+                        "reportId", String.valueOf(reportId),
+                        "sanctionId", String.valueOf(sanction.getId())));
     }
 
     /**

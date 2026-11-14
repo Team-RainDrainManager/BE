@@ -39,7 +39,7 @@ public class AdminReportController {
             | --- | --- | --- |
             | 승인 | `{"approved": true, "adminComment": "확인했습니다"}` | APPROVED, 제보자 경험치 |
             | 반려 | `{"approved": false, "adminComment": "사유"}` | REJECTED (사유 필수) |
-            | **제재** | `{"approved": false, "sanction": true, "adminComment": "사유"}` | REJECTED + 제보자 제재 |
+            | **제재** | `{"approved": false, "sanction": true, "adminComment": "사유"}` | REJECTED + 제재 |
 
             - **제재는 ADMIN만** (CITY_OFFICIAL은 403). 허위 제보로 보고 반려와 함께 제보자를 제재합니다.
             - 기간: 1회 7일 · 2회 14일 · 3회 이상 영구 (이미 제재 중이면 기존 종료 시각부터 이어짐).

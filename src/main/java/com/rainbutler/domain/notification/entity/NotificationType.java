@@ -38,5 +38,7 @@ public enum NotificationType {
     /** 빗물받이 레벨 상승 */
     LEVEL_UP,
     /** 점검 인증 · 관리자 검토 승인 */
-    INSPECTION_APPROVED
+    INSPECTION_APPROVED,
+    /** 허위 제보로 이용 제한 (제보 반려 + 제재. 이때는 제보 결과 알림을 따로 보내지 않는다) */
+    SANCTION_IMPOSED
 }
