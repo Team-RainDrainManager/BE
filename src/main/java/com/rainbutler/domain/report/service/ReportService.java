@@ -157,6 +157,7 @@ public class ReportService {
      *
      * <p>승인하면 제보자에게 경험치를 지급합니다. 반려는 사유가 필요하고 경험치를 지급하지 않습니다.
      * 이미 처리된 제보는 다시 처리할 수 없습니다 (그래서 한 제보로 제재가 두 번 걸리지 않습니다).
+     * 처리 결과는 제보자에게 알립니다: 승인 · 반려는 {@code REPORT_RESULT}, 제재는 {@code SANCTION_IMPOSED} 하나만.
      *
      * <p>허위 제보면 {@code sanction = true}로 반려와 함께 제보자를 제재합니다 (ADMIN만, 같은 트랜잭션).
      * 횟수별 기간은 {@link SanctionService#impose} 규칙(1회 7일 · 2회 14일 · 3회 이상 영구)을 따르고, 반려 사유가
@@ -191,13 +192,20 @@ public class ReportService {
         if (Boolean.TRUE.equals(request.approved())) {
             report.approve(admin, comment, now);
             reward(report);
+            notifyResult(report, "제보가 반영됐어요", typeName(report) + " 제보를 확인했어요. 고마워요!"
+                    + (policyProperties.reportXp() > 0
+                            ? " 경험치가 " + policyProperties.reportXp() + " 올랐어요." : ""));
         } else {
             if (comment == null) {
                 throw new BusinessException(ErrorCode.INVALID_INPUT, "반려 사유를 입력해 주세요.");
             }
             report.reject(admin, comment, now);
             if (request.isSanction()) {
+                // 제재 알림이 반려 사유를 함께 알리므로 반려 알림은 따로 보내지 않는다
                 sanction = imposeSanction(report, admin, comment);
+            } else {
+                notifyResult(report, "제보가 반려됐어요",
+                        typeName(report) + " 제보를 반려했어요. 사유: " + comment);
             }
         }
 
@@ -243,6 +251,31 @@ public class ReportService {
                 reporterId, sanction.getId(), sanction.isPermanent(), sanction.getUntil());
         notifySanction(reporterId, report.getId(), sanction, reason);
         return sanction;
+    }
+
+    /**
+     * 승인 · 반려 결과를 제보자에게 알립니다. 탈퇴한 제보자에게는 보내지 않습니다.
+     */
+    private void notifyResult(Report report, String title, String body) {
+        Long reporterId = report.getUser().getId();
+        if (userRepository.findById(reporterId).isEmpty()) {
+            return;
+        }
+        pushService.notify(reporterId, NotificationType.REPORT_RESULT, title, body, null, null,
+                Map.of("reportId", String.valueOf(report.getId())));
+    }
+
+    /**
+     * 알림 문구에 쓰는 제보 종류 이름입니다.
+     */
+    private static String typeName(Report report) {
+        return switch (report.getType()) {
+            case BLOCKAGE -> "막힘";
+            case NEW_DRAIN -> "새 빗물받이";
+            case LOCATION_FIX -> "위치 수정";
+            case REMOVAL -> "철거";
+            case ODOR -> "악취";
+        };
     }
 
     /**

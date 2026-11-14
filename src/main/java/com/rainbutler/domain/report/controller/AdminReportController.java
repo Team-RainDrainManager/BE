@@ -39,7 +39,7 @@ public class AdminReportController {
             | --- | --- | --- |
             | 승인 | `{"approved": true, "adminComment": "확인했습니다"}` | APPROVED, 제보자 경험치 |
             | 반려 | `{"approved": false, "adminComment": "사유"}` | REJECTED (사유 필수) |
-            | **제재** | `{"approved": false, "sanction": true, "adminComment": "사유"}` | REJECTED + 제재 |
+            | **제재** | `{"approved": false, "sanction": true, "adminComment": "사유"}` | 반려 + 제재 |
 
             - **제재는 ADMIN만** (CITY_OFFICIAL은 403). 허위 제보로 보고 반려와 함께 제보자를 제재합니다.
             - 기간: 1회 7일 · 2회 14일 · 3회 이상 영구 (이미 제재 중이면 기존 종료 시각부터 이어짐).
@@ -47,6 +47,7 @@ public class AdminReportController {
             - **`adminComment`가 제재 사유로 사용자에게 그대로 보입니다.** 제재는 사유가 필수입니다.
             - `approved: true`와 `sanction: true`를 함께 보내면 400, 관리자 계정이 올린 제보는 제재할 수 없습니다(400).
             - 제보자가 탈퇴했으면 반려만 하고 제재는 하지 않습니다.
+            - 제보자 알림: 승인 · 반려는 `REPORT_RESULT`(반려는 사유 포함), 제재는 `SANCTION_IMPOSED` 하나만 갑니다.
             - 막힘이 해결되면 제재가 아니라 `PATCH /api/v1/admin/reports/{reportId}/clear`(막힘 해제)를 씁니다.
             """;
 

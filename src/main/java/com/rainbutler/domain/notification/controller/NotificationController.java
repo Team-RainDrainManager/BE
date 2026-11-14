@@ -48,7 +48,7 @@ public class NotificationController {
             | `REQUEST_MISSED` | 마감까지 미완료 (시청 인계) | 내 요청 목록 |
             | `MANAGEMENT_DUE` | 정기 관리 예정 | 내 빗물받이 (`adoptionId`) |
             | `ADOPTION_WARNING` · `ADOPTION_RELEASED` | 미관리 경고 · 자동 해제 | 내 빗물받이 (`adoptionId`) |
-            | `REPORT_RESULT` | 제보 처리 결과 | 내 제보 |
+            | `REPORT_RESULT` | 제보 승인 · 반려 결과 (`reportId`) | 내 제보 |
             | `WELCOME` | 가입 환영 | 홈 |
             | `ADOPTION_REGISTERED` | 빗물받이 입양 완료 | 내 빗물받이 (`adoptionId`) |
             | `LEVEL_UP` | 빗물받이 레벨 상승 | 내 빗물받이 (`adoptionId`) |

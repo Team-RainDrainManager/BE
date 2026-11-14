@@ -87,7 +87,7 @@ class ReportSanctionApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 승인과_반려는_sanction_없이_보내면_그대로다() throws Exception {
+    void 승인과_반려는_sanction_없이_보내면_그대로이고_결과를_알린다() throws Exception {
         review(report(), adminToken, "{\"approved\":true,\"adminComment\":\"확인했습니다\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("APPROVED"))
@@ -100,6 +100,11 @@ class ReportSanctionApiTest extends IntegrationTestSupport {
 
         assertThat(sanctionCount()).isZero();
         assertThat(notificationCount("SANCTION_IMPOSED")).isZero();
+        assertThat(jdbcTemplate.queryForList("SELECT title || ' | ' || body FROM notification "
+                + "WHERE user_id = ? AND type = 'REPORT_RESULT' ORDER BY id", String.class,
+                reporterId)).containsExactly(
+                "제보가 반영됐어요 | 막힘 제보를 확인했어요. 고마워요! 경험치가 5 올랐어요.",
+                "제보가 반려됐어요 | 막힘 제보를 반려했어요. 사유: 막힘이 보이지 않음");
     }
 
     @Test

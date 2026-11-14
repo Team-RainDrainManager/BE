@@ -29,7 +29,7 @@ public enum NotificationType {
     ADOPTION_WARNING,
     /** 자동 파양 (35일) */
     ADOPTION_RELEASED,
-    /** 제보 처리 결과 */
+    /** 제보 처리 결과 (승인 · 반려. 제재면 SANCTION_IMPOSED만 보낸다) */
     REPORT_RESULT,
     /** 온보딩 완료 환영 */
     WELCOME,
