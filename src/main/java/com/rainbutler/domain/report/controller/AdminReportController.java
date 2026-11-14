@@ -32,6 +32,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/admin/reports")
 public class AdminReportController {
 
+    private static final String REVIEW = """
+            제보를 처리합니다. ADMIN · CITY_OFFICIAL만 쓸 수 있고, 이미 처리된 제보는 다시 처리할 수 없습니다.
+
+            | 처리 | 요청 body | 결과 |
+            | --- | --- | --- |
+            | 승인 | `{"approved": true, "adminComment": "확인했습니다"}` | APPROVED, 제보자 경험치 |
+            | 반려 | `{"approved": false, "adminComment": "사유"}` | REJECTED (사유 필수) |
+            | **제재** | `{"approved": false, "sanction": true, "adminComment": "사유"}` | REJECTED + 제보자 제재 |
+
+            - **제재는 ADMIN만** (CITY_OFFICIAL은 403). 허위 제보로 보고 반려와 함께 제보자를 제재합니다.
+            - 기간: 1회 7일 · 2회 14일 · 3회 이상 영구 (이미 제재 중이면 기존 종료 시각부터 이어짐).
+              제재 중에는 점검 · 대신 점검을 할 수 없습니다 (제보 · 버그 신고는 가능).
+            - **`adminComment`가 제재 사유로 사용자에게 그대로 보입니다.** 제재는 사유가 필수입니다.
+            - `approved: true`와 `sanction: true`를 함께 보내면 400, 관리자 계정이 올린 제보는 제재할 수 없습니다(400).
+            - 제보자가 탈퇴했으면 반려만 하고 제재는 하지 않습니다.
+            - 막힘이 해결되면 제재가 아니라 `PATCH /api/v1/admin/reports/{reportId}/clear`(막힘 해제)를 씁니다.
+            """;
+
     private final ReportQueryService reportQueryService;
     private final ReportService reportService;
 
@@ -46,9 +64,7 @@ public class AdminReportController {
         return ApiResponse.ok(reportQueryService.findAll(status));
     }
 
-    @Operation(summary = "제보 승인 · 반려 (관리자)", description = "제보를 승인하거나 반려합니다. "
-            + "승인하면 제보자에게 경험치가 지급되고, 반려는 사유가 필요합니다. "
-            + "이미 처리된 제보는 다시 처리할 수 없습니다. ADMIN · CITY_OFFICIAL만 쓸 수 있습니다.")
+    @Operation(summary = "제보 승인 · 반려 · 제재 (관리자)", description = REVIEW)
     @ApiErrorCodes({ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN, ErrorCode.INVALID_TOKEN,
             ErrorCode.INVALID_INPUT, ErrorCode.USER_NOT_FOUND, ErrorCode.REPORT_NOT_FOUND,
             ErrorCode.REPORT_ALREADY_PROCESSED, ErrorCode.FORBIDDEN})

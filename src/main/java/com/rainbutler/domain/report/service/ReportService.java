@@ -16,6 +16,9 @@ import com.rainbutler.domain.report.entity.Report;
 import com.rainbutler.domain.report.entity.ReportStatus;
 import com.rainbutler.domain.report.entity.ReportType;
 import com.rainbutler.domain.report.repository.ReportRepository;
+import com.rainbutler.domain.sanction.entity.Sanction;
+import com.rainbutler.domain.sanction.service.SanctionService;
+import com.rainbutler.domain.user.entity.Role;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.UserRepository;
 import com.rainbutler.global.config.PolicyProperties;
@@ -27,6 +30,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 접수됩니다. 이 제보는 {@code blocksAdoption=true}로 저장되어, 반려되면 자동으로 풀리고 승인 후에는
  * 관리자가 {@link #clear}로 해제할 때까지 빗물받이 입양을 막습니다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -53,6 +58,7 @@ public class ReportService {
     private final DrainAiClassifier drainAiClassifier;
     private final StorageService storageService;
     private final PolicyProperties policyProperties;
+    private final SanctionService sanctionService;
     private final Clock clock;
 
     /** 입양을 막는 제보 상태 (반려 · 해제되면 풀린다) */
@@ -142,14 +148,19 @@ public class ReportService {
      * 관리자가 제보를 승인하거나 반려합니다.
      *
      * <p>승인하면 제보자에게 경험치를 지급합니다. 반려는 사유가 필요하고 경험치를 지급하지 않습니다.
-     * 이미 처리된 제보는 다시 처리할 수 없습니다.
+     * 이미 처리된 제보는 다시 처리할 수 없습니다 (그래서 한 제보로 제재가 두 번 걸리지 않습니다).
+     *
+     * <p>허위 제보면 {@code sanction = true}로 반려와 함께 제보자를 제재합니다 (ADMIN만, 같은 트랜잭션).
+     * 횟수별 기간은 {@link SanctionService#impose} 규칙(1회 7일 · 2회 14일 · 3회 이상 영구)을 따르고, 반려 사유가
+     * 제재 사유로 사용자에게 보입니다. 제보자가 탈퇴했으면 반려만 하고 제재는 건너뜁니다.
      *
      * @param adminId 처리하는 관리자 · 시청 관계자 id
      * @param reportId 제보 id
      * @param request 승인 여부 · 코멘트
      * @return 처리된 제보 상세
      * @throws BusinessException 사용자 · 제보 없음, 이미 처리됨 (REPORT_ALREADY_PROCESSED),
-     *     반려 사유 누락 (INVALID_INPUT)
+     *     반려 · 제재 사유 누락 · 승인과 제재를 함께 요청 · 관리자 계정 제재 (INVALID_INPUT),
+     *     ADMIN이 아닌데 제재 (FORBIDDEN)
      */
     @Transactional
     public ReportDetailResponse review(
@@ -164,6 +175,9 @@ public class ReportService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         String comment = trimToNull(request.adminComment());
         LocalDateTime now = LocalDateTime.now(clock);
+        if (request.isSanction()) {
+            validateSanction(admin, request, comment);
+        }
 
         if (Boolean.TRUE.equals(request.approved())) {
             report.approve(admin, comment, now);
@@ -173,9 +187,50 @@ public class ReportService {
                 throw new BusinessException(ErrorCode.INVALID_INPUT, "반려 사유를 입력해 주세요.");
             }
             report.reject(admin, comment, now);
+            if (request.isSanction()) {
+                imposeSanction(report, admin, comment);
+            }
         }
 
         return ReportDetailResponse.from(report, storageService.toReadUrl(report.getPhotoUrl()));
+    }
+
+    /**
+     * 제재 요청을 검사합니다. 승인과 함께 할 수 없고, 사유가 필요하며, ADMIN만 할 수 있습니다.
+     */
+    private void validateSanction(User admin, ReportReviewRequest request, String comment) {
+        if (Boolean.TRUE.equals(request.approved())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "승인과 제재는 함께 할 수 없습니다.");
+        }
+        if (comment == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "제재 사유를 입력해 주세요.");
+        }
+        if (admin.getRole() != Role.ADMIN) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    /**
+     * 반려한 제보의 제보자를 제재합니다. 탈퇴한 제보자는 건너뛰고, 관리자 계정은 제재할 수 없습니다.
+     *
+     * @return 부과한 제재 (탈퇴해 건너뛰었으면 null)
+     */
+    private Sanction imposeSanction(Report report, User admin, String reason) {
+        // 탈퇴(소프트 삭제)한 사용자는 연관관계로 읽히지 않으므로 id로 다시 조회한다
+        Long reporterId = report.getUser().getId();
+        User reporter = userRepository.findById(reporterId).orElse(null);
+        if (reporter == null) {
+            log.warn("[허위 제보 제재] 제보자가 탈퇴해 제재 없이 반려만 합니다. reportId={} userId={}",
+                    report.getId(), reporterId);
+            return null;
+        }
+        if (reporter.getRole() == Role.ADMIN || reporter.getRole() == Role.CITY_OFFICIAL) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "관리자 계정은 제재할 수 없습니다.");
+        }
+        Sanction sanction = sanctionService.impose(reporterId, report.getId(), reason, admin.getId());
+        log.info("[허위 제보 제재] reportId={} userId={} sanctionId={} 영구={} 종료={}", report.getId(),
+                reporterId, sanction.getId(), sanction.isPermanent(), sanction.getUntil());
+        return sanction;
     }
 
     /**
