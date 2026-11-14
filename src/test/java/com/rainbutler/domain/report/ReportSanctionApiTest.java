@@ -2,6 +2,7 @@ package com.rainbutler.domain.report;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -21,6 +22,7 @@ import com.rainbutler.global.security.JwtTokenProvider;
 import com.rainbutler.global.storage.StorageService;
 import com.rainbutler.support.IntegrationTestSupport;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -127,11 +129,15 @@ class ReportSanctionApiTest extends IntegrationTestSupport {
         assertThat((String) notice.get("body"))
                 .endsWith("까지 점검 · 대신 점검을 할 수 없어요. 사유: 다른 장소 사진으로 허위 제보");
 
-        // 두 번째: 14일, 첫 제재가 끝나는 시각부터 이어서
+        // 두 번째: 14일, 첫 제재가 끝나는 시각부터 이어서.
+        // 이어지는 기준은 DB에 저장된 종료 시각이다 (DB는 마이크로초까지라 응답의 나노초와 다를 수 있음)
+        LocalDateTime storedUntil = jdbcTemplate.queryForObject("SELECT until FROM sanction "
+                + "WHERE report_id = ?", LocalDateTime.class, first);
+        assertThat(storedUntil).isCloseTo(firstUntil, within(1, ChronoUnit.MILLIS));
         String second = sanction(report(), "또 허위 제보").andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        assertThat(time(second, "$.data.sanction.startsAt")).isEqualTo(firstUntil);
-        assertThat(time(second, "$.data.sanction.until")).isEqualTo(firstUntil.plusDays(14));
+        assertThat(time(second, "$.data.sanction.startsAt")).isEqualTo(storedUntil);
+        assertThat(time(second, "$.data.sanction.until")).isEqualTo(storedUntil.plusDays(14));
 
         // 세 번째: 영구
         sanction(report(), "세 번째 허위 제보").andExpect(status().isOk())
