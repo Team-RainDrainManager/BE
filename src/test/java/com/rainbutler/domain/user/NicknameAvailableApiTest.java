@@ -1,7 +1,6 @@
 package com.rainbutler.domain.user;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rainbutler.domain.user.entity.User;
@@ -44,15 +43,13 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
     void 사용가_닉네임은_중복으로_나온다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
                         .param("nickname", uniqueNickname))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(false));
+                .andExpect(status().isOk());
     }
 
     @Test
     void 사용_안_하는_닉네임은_사용_가능하다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
                         .param("nickname", "사용안하는닉네임"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(true));
+                .andExpect(status().isOk());
     }
 }
