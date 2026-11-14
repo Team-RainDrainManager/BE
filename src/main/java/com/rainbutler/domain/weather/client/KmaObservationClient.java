@@ -12,15 +12,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
  * 기상청 초단기실황(getUltraSrtNcst) 클라이언트입니다. 격자의 지금 강수형태 · 1시간 강수량을 가져옵니다.
  *
- * <p>호출 · 재시도 · 인증키 가리기는 단기예보와 같이 {@link KmaRequestExecutor}가 합니다. 인증키가 없으면 호출하지
+ * <p>호출 · 재시도 · 인증키 가리기는 단기예보와 같이 {@link KmaRequestExecutor}가 합니다. 이 빈(수집 배치용,
+ * {@code @Primary})과 별도로 배너 조회 시 호출용(짧은 타임아웃 · 재시도 없음)이 {@code KmaClientConfig}에 있습니다. 인증키가 없으면 호출하지
  * 않고 빈 값을 돌려줍니다 (CI · 로컬 키 없는 환경).
  */
 @Slf4j
+@Primary
 @Component
 public class KmaObservationClient {
 

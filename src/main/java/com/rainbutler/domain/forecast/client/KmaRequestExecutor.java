@@ -4,6 +4,7 @@ import com.rainbutler.global.geo.KmaGridConverter.Grid;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -15,7 +16,8 @@ import org.springframework.web.client.RestClientException;
  *
  * <ul>
  *   <li>격자(nx · ny), 발표 시각, JSON, 인증키 파라미터를 붙여 GET 한다</li>
- *   <li>네트워크 · 5xx 실패는 2회 재시도, 4xx(인증 · 활용신청 문제)는 다시 불러도 같으므로 바로 실패</li>
+ *   <li>네트워크 · 5xx 실패는 2회 재시도(배치용 기본), 4xx(인증 · 활용신청 문제)는 다시 불러도 같으므로 바로 실패.
+ *       배너 조회 시 호출용은 재시도 없이 만든다 ({@link KmaClientConfig})</li>
  *   <li>인증키는 로그 · 예외 메시지에서 가린다</li>
  * </ul>
  */
@@ -23,18 +25,33 @@ import org.springframework.web.client.RestClientException;
 @Component
 public class KmaRequestExecutor {
 
-    private static final int MAX_RETRIES = 2;
+    /** 배치용 기본 재시도 횟수 */
+    private static final int DEFAULT_MAX_RETRIES = 2;
     private static final long RETRY_WAIT_MILLIS = 2000;
     private static final DateTimeFormatter BASE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter BASE_TIME = DateTimeFormatter.ofPattern("HHmm");
 
     private final RestClient restClient;
     private final KmaProperties properties;
+    private final int maxRetries;
 
+    @Autowired
     public KmaRequestExecutor(
             @Qualifier("kmaRestClient") RestClient restClient, KmaProperties properties) {
+        this(restClient, properties, DEFAULT_MAX_RETRIES);
+    }
+
+    /**
+     * 재시도 횟수를 정해 만듭니다. (배너 조회 시 호출은 0)
+     *
+     * @param restClient RestClient (타임아웃 포함)
+     * @param properties 기상청 설정
+     * @param maxRetries 네트워크 · 5xx 실패 시 재시도 횟수
+     */
+    public KmaRequestExecutor(RestClient restClient, KmaProperties properties, int maxRetries) {
         this.restClient = restClient;
         this.properties = properties;
+        this.maxRetries = maxRetries;
     }
 
     /**
@@ -79,12 +96,12 @@ public class KmaRequestExecutor {
                 throw new KmaApiException("기상청 요청 거절 " + e.getStatusCode().value() + ": "
                         + mask(e.getResponseBodyAsString()));
             } catch (RestClientException e) {
-                if (attempt >= MAX_RETRIES) {
+                if (attempt >= maxRetries) {
                     throw new KmaApiException("기상청 호출 실패 (" + (attempt + 1) + "회): "
                             + mask(e.getMessage()));
                 }
                 log.warn("[기상청] 호출 실패, 재시도 {}/{}: {}",
-                        attempt + 1, MAX_RETRIES, mask(e.getMessage()));
+                        attempt + 1, maxRetries, mask(e.getMessage()));
                 sleep();
             }
         }

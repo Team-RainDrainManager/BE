@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -44,9 +45,13 @@ public class RainNoticeService {
     /**
      * 격자의 지금 배너를 만듭니다.
      *
+     * <p>현재 날씨를 기상청에서 바로 받아 올 수 있어(최대 2초) 트랜잭션 밖에서 실행합니다. DB 조회는 각각 짧게 끝나고,
+     * 기상청을 기다리는 동안 DB 커넥션을 잡지 않습니다.
+     *
      * @param grid 기상청 격자
      * @return 배너
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public RainNoticeResponse current(Grid grid) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
