@@ -51,13 +51,13 @@ public class UserService {
     private final Clock clock;
 
     /**
-     * 닉네임 중복 여부를 확인합니다.
+     * 닉네임 중복 여부를 확인합니다. 대소문자는 구분하지 않습니다.
      *
      * @param nickname 닉네임
      * @return 사용 가능 여부 (true: 사용 가능, false: 이미 사용 중)
      */
     public boolean isNicknameAvailable(String nickname) {
-        return !userRepository.existsByNickname(nickname);
+        return !userRepository.existsByNicknameIgnoreCase(nickname);
     }
 
     /**
@@ -132,17 +132,25 @@ public class UserService {
     }
 
     /**
-     * 로그인 사용자의 닉네임을 바꿉니다. 중복을 허용하고, 같은 닉네임으로 바꿔도 성공합니다.
+     * 로그인 사용자의 닉네임을 바꿉니다.
+     *
+     * <p>다른 회원이 쓰는 닉네임은 쓸 수 없고(대소문자 무관), 지금 쓰는 닉네임 그대로면 성공합니다.
+     * 가입 · 닉네임 중복 확인과 같은 기준입니다.
      *
      * @param userId 로그인 사용자 id
      * @param request 새 닉네임 (검증 · 앞뒤 공백 제거 완료)
      * @return 바뀐 닉네임과 수정 시각
-     * @throws BusinessException 사용자가 없을 때 (USER_NOT_FOUND)
+     * @throws BusinessException 사용자가 없거나(USER_NOT_FOUND), 다른 회원이 쓰는 닉네임일 때
+     *     (NICKNAME_ALREADY_EXISTS)
      */
     @Transactional
     public NicknameUpdateResponse updateNickname(Long userId, NicknameUpdateRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        // 내 닉네임은 중복에서 빠지므로 같은 닉네임을 다시 저장해도 된다
+        if (userRepository.existsByNicknameIgnoreCaseAndIdNot(request.nickname(), userId)) {
+            throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
         user.changeNickname(request.nickname());
         // 수정 시각(Auditing)이 응답에 담기도록 먼저 반영한다
         userRepository.flush();

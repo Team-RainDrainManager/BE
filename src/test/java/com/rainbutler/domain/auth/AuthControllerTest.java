@@ -66,6 +66,16 @@ class AuthControllerTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 닉네임은_대소문자를_구분하지_않고_중복_가입하면_409() throws Exception {
+        String nickname = "겹치는집사" + UUID.randomUUID().toString().substring(0, 8);
+        signup(uniqueEmail(), PASSWORD, nickname).andExpect(status().isCreated());
+
+        signup(uniqueEmail(), PASSWORD, nickname.toUpperCase())
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("NICKNAME_ALREADY_EXISTS"));
+    }
+
+    @Test
     void 비밀번호가_틀리거나_없는_이메일이면_같은_401() throws Exception {
         String email = uniqueEmail();
         String nickname = "집사" + UUID.randomUUID().toString().substring(0, 8);

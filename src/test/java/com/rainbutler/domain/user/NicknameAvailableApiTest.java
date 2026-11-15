@@ -1,6 +1,7 @@
 package com.rainbutler.domain.user;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rainbutler.domain.user.entity.User;
@@ -40,16 +41,26 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 사용가_닉네임은_중복으로_나온다() throws Exception {
+    void 이미_쓰는_닉네임은_사용_불가로_나온다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
                         .param("nickname", uniqueNickname))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(false));
+    }
+
+    @Test
+    void 대소문자만_다른_닉네임도_사용_불가로_나온다() throws Exception {
+        mockMvc.perform(get("/api/v1/users/nickname/available")
+                        .param("nickname", uniqueNickname.toUpperCase()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(false));
     }
 
     @Test
     void 사용_안_하는_닉네임은_사용_가능하다() throws Exception {
         mockMvc.perform(get("/api/v1/users/nickname/available")
                         .param("nickname", "사용안하는닉네임"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(true));
     }
 }
