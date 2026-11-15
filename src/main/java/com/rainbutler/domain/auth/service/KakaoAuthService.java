@@ -48,7 +48,7 @@ public class KakaoAuthService {
      * 카카오 사용자를 가입시킵니다. 동시 요청으로 이미 가입됐으면 그 사용자를 씁니다.
      */
     private User register(KakaoUserInfo kakaoUser) {
-        if (userRepository.existsByNickname(kakaoUser.nickname())) {
+        if (userRepository.existsByNicknameIgnoreCase(kakaoUser.nickname())) {
             throw new BusinessException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
         try {

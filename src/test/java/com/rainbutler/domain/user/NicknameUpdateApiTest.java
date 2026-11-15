@@ -46,11 +46,14 @@ class NicknameUpdateApiTest extends IntegrationTestSupport {
 
     private User user;
     private String token;
+    private String suffix;
 
     @BeforeEach
     void setUp() {
+        // 테스트 DB는 users를 비우지 않으므로 클래스 안 테스트끼리 닉네임이 겹치지 않게 접미사를 붙인다
+        suffix = UUID.randomUUID().toString().substring(0, 8);
         user = userRepository.save(User.local(
-                UUID.randomUUID() + "@test.com", "{noop}irrelevant", "처음집사"));
+                UUID.randomUUID() + "@test.com", "{noop}irrelevant", "처음집사" + suffix));
         token = jwtTokenProvider.createAccessToken(user.getId(), user.getRole());
     }
 
@@ -86,7 +89,7 @@ class NicknameUpdateApiTest extends IntegrationTestSupport {
         update("{\"nickname\":\"    \"}")
                 .andExpect(status().isBadRequest());
 
-        assertThat(savedNickname()).isEqualTo("처음집사");
+        assertThat(savedNickname()).isEqualTo(user.getNickname());
     }
 
     @Test
@@ -98,9 +101,44 @@ class NicknameUpdateApiTest extends IntegrationTestSupport {
 
     @Test
     void 같은_닉네임으로_다시_바꿔도_200() throws Exception {
-        update("{\"nickname\":\"처음집사\"}")
+        String nickname = user.getNickname();
+        update("{\"nickname\":\"" + nickname + "\"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.nickname").value("처음집사"));
+                .andExpect(jsonPath("$.data.nickname").value(nickname));
+    }
+
+    @Test
+    void 다른_회원이_쓰는_닉네임이면_409() throws Exception {
+        String taken = "이웃집사" + suffix;
+        userRepository.save(User.local(
+                UUID.randomUUID() + "@test.com", "{noop}irrelevant", taken));
+
+        update("{\"nickname\":\"" + taken + "\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("NICKNAME_ALREADY_EXISTS"));
+
+        assertThat(savedNickname()).isEqualTo(user.getNickname());
+    }
+
+    @Test
+    void 대소문자만_다른_닉네임도_중복으로_본다() throws Exception {
+        String taken = "Rain" + suffix;
+        userRepository.save(User.local(
+                UUID.randomUUID() + "@test.com", "{noop}irrelevant", taken));
+
+        update("{\"nickname\":\"" + taken.toLowerCase() + "\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("NICKNAME_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void 내_닉네임은_대소문자만_바꿔도_된다() throws Exception {
+        String upper = user.getNickname().toUpperCase();
+        update("{\"nickname\":\"" + upper + "\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value(upper));
+
+        assertThat(savedNickname()).isEqualTo(upper);
     }
 
     @Test

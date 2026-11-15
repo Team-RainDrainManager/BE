@@ -79,9 +79,11 @@ public class UserController {
      * 로그인 사용자의 닉네임을 바꿉니다.
      */
     @Operation(summary = "닉네임 수정",
-            description = "가입과 같은 규칙(앞뒤 공백 제거 후 2~20자). 중복 허용, 같은 닉네임으로 바꿔도 성공합니다.")
+            description = "가입과 같은 규칙(앞뒤 공백 제거 후 2~20자). 다른 회원이 쓰는 닉네임은 쓸 수 없고"
+                    + "(대소문자 무관), 같은 닉네임으로 바꿔도 성공합니다.")
     @ApiErrorCodes({ErrorCode.INVALID_INPUT, ErrorCode.UNAUTHORIZED, ErrorCode.EXPIRED_TOKEN,
-            ErrorCode.INVALID_TOKEN, ErrorCode.USER_NOT_FOUND})
+            ErrorCode.INVALID_TOKEN, ErrorCode.USER_NOT_FOUND,
+            ErrorCode.NICKNAME_ALREADY_EXISTS})
     @PatchMapping("/me")
     public ResponseEntity<ApiResponse<NicknameUpdateResponse>> updateNickname(
             @LoginUserId Long userId, @Valid @RequestBody NicknameUpdateRequest request) {

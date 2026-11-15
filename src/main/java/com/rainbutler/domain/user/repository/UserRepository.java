@@ -38,10 +38,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByProviderAndProviderId(Provider provider, String providerId);
 
     /**
-     * 닉네임으로 가입 여부를 확인합니다.
+     * 닉네임으로 가입 여부를 확인합니다. 대소문자는 구분하지 않습니다. (탈퇴한 회원은 세지 않는다)
      *
      * @param nickname 닉네임
      * @return 가입 여부
      */
-    boolean existsByNickname(String nickname);
+    boolean existsByNicknameIgnoreCase(String nickname);
+
+    /**
+     * 다른 회원이 그 닉네임을 쓰고 있는지 확인합니다. 대소문자는 구분하지 않습니다.
+     *
+     * <p>내 닉네임을 그대로 다시 저장하는 것은 막지 않도록 {@code id}로 나를 뺍니다.
+     *
+     * @param nickname 닉네임
+     * @param id 중복에서 뺄 회원 id (나)
+     * @return 다른 회원이 쓰고 있으면 true
+     */
+    boolean existsByNicknameIgnoreCaseAndIdNot(String nickname, Long id);
 }
