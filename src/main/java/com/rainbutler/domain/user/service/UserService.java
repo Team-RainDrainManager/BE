@@ -18,6 +18,7 @@ import com.rainbutler.domain.user.dto.ProfileImageUpdateResponse;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.ActivityStatsRepository;
 import com.rainbutler.domain.user.repository.UserRepository;
+import com.rainbutler.domain.user.validation.NicknamePolicy;
 import com.rainbutler.global.config.PolicyProperties;
 import com.rainbutler.global.exception.BusinessException;
 import com.rainbutler.global.exception.ErrorCode;
@@ -53,11 +54,21 @@ public class UserService {
     /**
      * 닉네임 중복 여부를 확인합니다. 대소문자는 구분하지 않습니다.
      *
+     * <p>가입 · 닉네임 수정과 같은 규칙을 씁니다. 앞뒤 공백을 지운 값으로 2~20자인지 확인하고,
+     * 같은 값으로 중복을 확인합니다. (공백이 붙은 닉네임을 "사용 가능"으로 잘못 안내하지 않게 한다)
+     *
      * @param nickname 닉네임
      * @return 사용 가능 여부 (true: 사용 가능, false: 이미 사용 중)
+     * @throws BusinessException 닉네임이 비었거나 2~20자가 아닐 때 (INVALID_INPUT)
      */
     public boolean isNicknameAvailable(String nickname) {
-        return !userRepository.existsByNicknameIgnoreCase(nickname);
+        String normalized = NicknamePolicy.normalize(nickname);
+        if (normalized == null || normalized.length() < NicknamePolicy.MIN_LENGTH
+                || normalized.length() > NicknamePolicy.MAX_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT,
+                    "닉네임은 2~20자로 입력해 주세요.");
+        }
+        return !userRepository.existsByNicknameIgnoreCase(normalized);
     }
 
     /**

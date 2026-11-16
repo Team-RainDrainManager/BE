@@ -9,11 +9,13 @@ import com.rainbutler.domain.user.dto.ProfileImageUpdateRequest;
 import com.rainbutler.domain.user.dto.ProfileImageUpdateResponse;
 import com.rainbutler.domain.user.service.UserService;
 import com.rainbutler.domain.user.service.WithdrawalService;
+import com.rainbutler.domain.user.validation.ValidNickname;
 import com.rainbutler.global.exception.ErrorCode;
 import com.rainbutler.global.response.ApiResponse;
 import com.rainbutler.global.security.LoginUserId;
 import com.rainbutler.global.swagger.ApiErrorCodes;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -53,11 +56,14 @@ public class UserController {
      * 닉네임 중복 여부를 확인합니다.
      */
     @Operation(summary = "닉네임 중복 확인",
-            description = "닉네임이 이미 사용 중인지 확인합니다. 사용 중이면 false를 반환합니다.")
+            description = "닉네임이 이미 사용 중인지 확인합니다. 사용 중이면 false를 반환합니다. "
+                    + "가입 · 닉네임 수정과 같은 규칙(앞뒤 공백 제거 후 2~20자)이며, "
+                    + "규칙에 맞지 않으면 400 INVALID_INPUT입니다.")
     @ApiErrorCodes({ErrorCode.INVALID_INPUT})
     @GetMapping("/nickname/available")
     public ResponseEntity<ApiResponse<Boolean>> checkNicknameAvailable(
-            @org.springframework.web.bind.annotation.RequestParam String nickname) {
+            @Parameter(description = "확인할 닉네임 (앞뒤 공백 제외 2~20자)", example = "또랑이집사")
+            @ValidNickname @RequestParam String nickname) {
         return ResponseEntity.ok(ApiResponse.ok(userService.isNicknameAvailable(nickname)));
     }
 

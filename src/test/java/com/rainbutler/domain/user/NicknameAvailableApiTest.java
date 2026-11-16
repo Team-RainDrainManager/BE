@@ -63,4 +63,39 @@ class NicknameAvailableApiTest extends IntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").value(true));
     }
+
+    @Test
+    void 앞뒤_공백이_붙어도_같은_닉네임은_사용_불가로_나온다() throws Exception {
+        mockMvc.perform(get("/api/v1/users/nickname/available")
+                        .param("nickname", " " + uniqueNickname + " "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(false));
+    }
+
+    @Test
+    void 두_글자보다_짧으면_사용_가능으로_답하지_않는다() throws Exception {
+        mockMvc.perform(get("/api/v1/users/nickname/available")
+                        .param("nickname", "가"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].field").value("nickname"));
+    }
+
+    @Test
+    void 빈_닉네임은_사용_가능으로_답하지_않는다() throws Exception {
+        mockMvc.perform(get("/api/v1/users/nickname/available")
+                        .param("nickname", ""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].field").value("nickname"));
+    }
+
+    @Test
+    void 스무_글자를_넘으면_사용_가능으로_답하지_않는다() throws Exception {
+        mockMvc.perform(get("/api/v1/users/nickname/available")
+                        .param("nickname", "가".repeat(21)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].field").value("nickname"));
+    }
 }
