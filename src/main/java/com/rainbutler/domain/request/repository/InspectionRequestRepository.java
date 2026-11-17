@@ -4,6 +4,7 @@ import com.rainbutler.domain.drain.entity.Drain;
 import com.rainbutler.domain.request.entity.InspectionRequest;
 import com.rainbutler.domain.request.entity.RequestStatus;
 import com.rainbutler.domain.user.entity.User;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -50,6 +51,31 @@ public interface InspectionRequestRepository extends JpaRepository<InspectionReq
             + "WHERE r.forecast.id = :forecastId OR r.status IN :inProgress")
     Set<Long> findBlockedDrainIds(@Param("forecastId") Long forecastId,
             @Param("inProgress") Collection<RequestStatus> inProgress);
+
+    /**
+     * 같은 비에 이미 점검을 마친 빗물받이 id를 찾습니다. 예보가 취소됐다가 다시 확정되면 새 예보 행이 생기므로, 예보 id가
+     * 아니라 같은 격자 · 같은 비 날짜 · 같은 실제/가상 구분의 예보로 {@code COMPLETED}된 요청을 봅니다.
+     *
+     * <ul>
+     *   <li>예보 상태와 무관하다 (취소된 예보의 요청이라도 완료했으면 막는다)</li>
+     *   <li>취소 · 놓침 · 종료된 요청은 막지 않는다 (점검을 안 했으므로 다시 확정되면 다시 요청한다)</li>
+     *   <li>실제 예보와 가상 예보는 서로 영향을 주지 않는다 (시연 · 테스트가 실제 흐름을 막지 않게)</li>
+     * </ul>
+     *
+     * @param rainDate 비 오는 날
+     * @param gridNx 격자 X
+     * @param gridNy 격자 Y
+     * @param simulated 가상 예보 여부
+     * @return 빗물받이 id
+     */
+    @Query("SELECT DISTINCT r.drain.id FROM InspectionRequest r "
+            + "WHERE r.status = com.rainbutler.domain.request.entity.RequestStatus.COMPLETED "
+            + "AND r.forecast.rainDate = :rainDate "
+            + "AND r.forecast.gridNx = :gridNx AND r.forecast.gridNy = :gridNy "
+            + "AND r.forecast.isSimulated = :simulated")
+    Set<Long> findCompletedDrainIdsForSameRain(@Param("rainDate") LocalDate rainDate,
+            @Param("gridNx") int gridNx, @Param("gridNy") int gridNy,
+            @Param("simulated") boolean simulated);
 
     /**
      * 한 격자의 입양되지 않은 운영 중 빗물받이를 모두 찾습니다. (비 예보 때 바로 대신 점검으로 공개할 대상)
