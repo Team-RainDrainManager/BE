@@ -68,24 +68,40 @@ class RainRequestDedupTest extends RequestIntegrationTest {
     }
 
     @Test
-    void 다른_날짜_다른_격자_가상_예보의_완료_기록은_영향이_없다() {
+    void 다른_날짜_다른_격자의_완료_기록은_영향이_없다() {
         now(NOTICE);
         Long otherDay = fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false);
         Long otherGrid = fixtures.drain(RequestFixtures.north(50), RequestFixtures.BASE_LNG, false);
-        Long simulatedDone =
-                fixtures.drain(RequestFixtures.north(100), RequestFixtures.BASE_LNG, false);
         completed(fixtures.forecast(TOMORROW.minusDays(1), TOMORROW.minusDays(1).atTime(15, 0),
                 false), otherDay);
         completed(fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false, new Grid(60, 127)),
                 otherGrid);
-        completed(fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), true), simulatedDone);
         Long real = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false);
 
         inspectionRequestService.createForForecast(real, schedulePolicy.noticeSchedule(NOTICE));
 
         assertThat(requestCount(real, otherDay)).isEqualTo(1);
         assertThat(requestCount(real, otherGrid)).isEqualTo(1);
-        assertThat(requestCount(real, simulatedDone)).isEqualTo(1);
+    }
+
+    @Test
+    void 가상_예보로_완료했어도_같은_날_실제_예보로_다시_요청하지_않는다() {
+        now(NOTICE);
+        Long simulatedDone =
+                fixtures.drain(RequestFixtures.BASE_LAT, RequestFixtures.BASE_LNG, false);
+        Long simulatedMissed =
+                fixtures.drain(RequestFixtures.north(50), RequestFixtures.BASE_LNG, false);
+        Long simulated = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), true);
+        completed(simulated, simulatedDone);
+        fixtures.request(simulated, simulatedMissed, null, "EXPIRED", NOTICE.withHour(12),
+                NOTICE.withHour(20));
+        Long real = fixtures.forecast(TOMORROW, TOMORROW.atTime(15, 0), false);
+
+        inspectionRequestService.createForForecast(real, schedulePolicy.noticeSchedule(NOTICE));
+
+        assertThat(requestCount(real, simulatedDone)).isZero();
+        // 점검하지 않고 끝난 요청은 막지 않는다
+        assertThat(requestCount(real, simulatedMissed)).isEqualTo(1);
     }
 
     @Test

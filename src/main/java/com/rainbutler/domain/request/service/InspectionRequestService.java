@@ -33,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>입양되지 않은 빗물받이 전부 → 바로 {@code OPEN} (미입양 대신 점검). 위험 여부로 거르지 않는다
  *       (공공데이터로 일괄 등록해 사진 · AI 판정이 없음)</li>
  * </ol>
- * 같은 예보로 이미 요청이 있거나, 다른 예보의 요청이 아직 진행 중이거나, <b>같은 비(같은 격자 · 날짜 · 실제/가상)에
+ * 같은 예보로 이미 요청이 있거나, 다른 예보의 요청이 아직 진행 중이거나, <b>같은 비(같은 격자 · 날짜, 실제 · 가상 무관)에
  * 이미 점검을 마친</b> 빗물받이는 건너뜁니다. 예보가 취소됐다가 다시 확정돼도 같은 비에 두 번 요청하지 않기 위함입니다
  * ({@link InspectionRequestRepository#findCompletedDrainIdsForSameRain}).
  * 입양자 알림은 {@link RainNoticeBatch}에 쌓아 같은 실행 안에서 사용자별로 묶어 보냅니다.
@@ -72,7 +72,7 @@ public class InspectionRequestService {
         int gridNx = forecast.getGridNx();
         int gridNy = forecast.getGridNy();
         Set<Long> doneForSameRain = inspectionRequestRepository.findCompletedDrainIdsForSameRain(
-                forecast.getRainDate(), gridNx, gridNy, forecast.isSimulated());
+                forecast.getRainDate(), gridNx, gridNy);
         int skippedDone = 0;
         int created = 0;
         for (Adoption adoption : adoptionRepository.findAllActiveOnActiveDrains()) {
