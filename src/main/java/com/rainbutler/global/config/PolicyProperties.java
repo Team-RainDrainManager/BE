@@ -29,8 +29,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param pauseDays 점검 쉬기 기간 (일)
  * @param volunteerPointsPerHour 봉사 시간 1시간으로 인정하는 활동 점수 (점)
  * @param rainCompleteDeadlineTime 비 예보 요청 완료 마감 시각 (20:00)
- * @param rainPopThreshold 비 예보 기준: 강수확률 최댓값 (%, 이상)
- * @param rainMmThreshold 비 예보 기준: 강수량 합계 (mm, 이상)
+ * @param rainPopThreshold 비 예보 새로 확정 기준: 강수확률 최댓값 (%, 이상)
+ * @param rainMmThreshold 비 예보 새로 확정 기준: 강수량 합계 (mm, 이상)
  * @param sameDayMinLeadHours 당일 예보 즉시 발송 조건: 비 시작까지 최소 남은 시간
  * @param sameDayReplyHours 당일 예보 응답 마감: 발송 + 이 시간
  * @param sameDayCompleteBeforeRainHours 당일 예보 완료 마감: 비 시작 이 시간 전
@@ -53,6 +53,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param nearbyHelpRadiusMeters 입양자에게 "내 빗물받이 근처 도움 필요" 개수를 셀 반경 (m). 대신 점검 수락 위치
  *     확인 반경({@code substituteRadiusMeters})과 다른 값이다
  * @param bugReportDailyLimit 사용자 한 명이 하루에 할 수 있는 앱 버그 신고 수
+ * @param rainPopCancelThreshold 진행 중 비 예보 취소 기준: 강수확률이 이 값(%) 미만이면 취소. 확정 기준보다 낮게 둬
+ *     기준 근처 오르내림으로 취소 ↔ 재확정이 반복되지 않게 한다 (히스테리시스)
+ * @param rainMmCancelThreshold 진행 중 비 예보 취소 기준: 강수량이 이 값(mm) 미만이면 취소
  */
 @ConfigurationProperties(prefix = "rain-butler.policy")
 public record PolicyProperties(
@@ -97,5 +100,21 @@ public record PolicyProperties(
         int nearbyRequestListLimit,
         int captureMaxAgeMinutes,
         int nearbyHelpRadiusMeters,
-        int bugReportDailyLimit) {
+        int bugReportDailyLimit,
+        int rainPopCancelThreshold,
+        BigDecimal rainMmCancelThreshold) {
+
+    /**
+     * 취소 기준이 확정 기준보다 크면 확정하자마자 취소될 수 있으므로 시작을 막습니다.
+     *
+     * @throws IllegalStateException 취소 기준 &gt; 확정 기준
+     */
+    public PolicyProperties {
+        if (rainPopCancelThreshold > rainPopThreshold
+                || rainMmCancelThreshold.compareTo(rainMmThreshold) > 0) {
+            throw new IllegalStateException("비 예보 취소 기준(" + rainPopCancelThreshold + "% · "
+                    + rainMmCancelThreshold + "mm)이 확정 기준(" + rainPopThreshold + "% · "
+                    + rainMmThreshold + "mm)보다 큽니다. rain-butler.policy 설정을 확인하세요.");
+        }
+    }
 }

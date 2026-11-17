@@ -104,8 +104,10 @@ rain-butler:
     rain-notice-time: "06:00"            # 내일 비 예보 요청 일괄 발송 시각
     rain-reply-deadline-time: "12:00"    # 응답 마감 (기존 20:00 → 12:00)
     rain-complete-deadline-time: "20:00" # 완료 마감
-    rain-pop-threshold: 60               # 비 예보 기준: 강수확률 최댓값 (%) 이상
-    rain-mm-threshold: 5                 # 비 예보 기준: 강수량 합계 (mm) 이상 - 둘 다 만족해야 확정
+    rain-pop-threshold: 60               # 비 예보 새로 확정 기준: 강수확률 최댓값 (%) 이상
+    rain-mm-threshold: 5                 # 비 예보 새로 확정 기준: 강수량 합계 (mm) 이상 - 둘 다 만족해야 확정
+    rain-pop-cancel-threshold: 40        # 진행 중 예보 취소 기준: 강수확률이 이 값 미만이면 취소 (확정 기준보다 낮게)
+    rain-mm-cancel-threshold: 2          # 진행 중 예보 취소 기준: 강수량이 이 값 미만이면 취소 - 둘 중 하나라도 미달이면 취소
     same-day-min-lead-hours: 3           # 당일 예보: 비 시작까지 최소 남은 시간
     same-day-reply-hours: 1              # 당일 예보: 응답 마감 = 발송 + 1시간
     same-day-complete-before-rain-hours: 1  # 당일 예보: 완료 마감 = 비 시작 1시간 전
