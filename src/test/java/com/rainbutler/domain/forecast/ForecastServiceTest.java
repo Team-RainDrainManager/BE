@@ -147,6 +147,40 @@ class ForecastServiceTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 진행_중_예보는_강수확률이_40퍼센트_미만일_때만_취소한다() {
+        Long id = apply(60, "10", at(15)).forecastId();
+
+        assertThat(apply(50, "10", at(15))).isEqualTo(new ForecastApplyResult(Applied.UPDATED, id));
+        assertThat(rainForecastRepository.findById(id).orElseThrow().getPop()).isEqualTo(50);
+        assertThat(apply(39, "10", at(15)))
+                .isEqualTo(new ForecastApplyResult(Applied.CANCELLED, id));
+    }
+
+    @Test
+    void 진행_중_예보는_강수량이_2mm_미만일_때만_취소한다() {
+        Long id = apply(70, "6", at(15)).forecastId();
+
+        assertThat(apply(70, "3", at(15))).isEqualTo(new ForecastApplyResult(Applied.UPDATED, id));
+        assertThat(apply(70, "1.9", at(15)))
+                .isEqualTo(new ForecastApplyResult(Applied.CANCELLED, id));
+    }
+
+    @Test
+    void 진행_중_예보가_없으면_확정_기준으로만_판단한다() {
+        assertThat(apply(55, "10", at(15)).applied()).isEqualTo(Applied.IGNORED);
+        assertThat(apply(60, "4", at(15)).applied()).isEqualTo(Applied.IGNORED);
+        assertThat(apply(60, "5", at(15)).applied()).isEqualTo(Applied.CONFIRMED);
+    }
+
+    @Test
+    void 유지_기준_경계는_40퍼센트_2mm_이상이다() {
+        Long id = apply(80, "10", at(15)).forecastId();
+
+        assertThat(apply(40, "2", at(15))).isEqualTo(new ForecastApplyResult(Applied.UPDATED, id));
+        assertThat(events.stream(ForecastCancelledEvent.class)).isEmpty();
+    }
+
+    @Test
     void 비_시작_시각을_모르면_그날_9시로_둔다() {
         Long id = apply(80, "10", null).forecastId();
 

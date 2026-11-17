@@ -27,7 +27,14 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 격자별 비 예보를 확정 · 갱신 · 취소합니다. (기상청 수집 배치와 가상 예보 API가 함께 씁니다)
  *
- * <p>기준: 강수확률 최댓값 ≥ {@code rain-pop-threshold} <b>그리고</b> 강수량 합계 ≥ {@code rain-mm-threshold}.
+ * <p>기준은 확정과 취소를 나눕니다 (히스테리시스). 기준값 근처에서 오르내려 취소 ↔ 재확정이 반복되지 않게 하려는 것입니다.
+ * <ul>
+ *   <li>새로 확정: 강수확률 최댓값 ≥ {@code rain-pop-threshold}(60%) <b>그리고</b> 강수량 합계 ≥
+ *       {@code rain-mm-threshold}(5mm)</li>
+ *   <li>진행 중 예보 유지: 강수확률 ≥ {@code rain-pop-cancel-threshold}(40%) <b>그리고</b> 강수량 ≥
+ *       {@code rain-mm-cancel-threshold}(2mm) → 값만 갱신</li>
+ *   <li>진행 중 예보 취소: 그 밖 (강수확률 &lt; 40% <b>또는</b> 강수량 &lt; 2mm)</li>
+ * </ul>
  * 확정 · 비 시작 앞당김 · 취소 때 이벤트를 발행하고, 점검 요청은 이벤트를 받는 쪽이 처리합니다.
  */
 @Slf4j
@@ -49,11 +56,11 @@ public class ForecastService {
      * 한 격자의 하루치 예보 값을 반영합니다.
      *
      * <ul>
-     *   <li>기준 충족 + 진행 중 예보 없음 → 새 예보 확정 ({@link ForecastConfirmedEvent})</li>
-     *   <li>기준 충족 + 진행 중 예보 있음 → 값 갱신. 비 시작이 앞당겨졌을 때만
+     *   <li>진행 중 예보 없음 + 확정 기준 충족 → 새 예보 확정 ({@link ForecastConfirmedEvent})</li>
+     *   <li>진행 중 예보 없음 + 확정 기준 미달 → 무시</li>
+     *   <li>진행 중 예보 있음 + 유지 기준 충족 → 값 갱신. 비 시작이 앞당겨졌을 때만
      *       {@link ForecastRainStartAdvancedEvent}</li>
-     *   <li>기준 미달 + 진행 중 예보 있음 → 취소 ({@link ForecastCancelledEvent})</li>
-     *   <li>기준 미달 + 진행 중 예보 없음 → 무시</li>
+     *   <li>진행 중 예보 있음 + 유지 기준 미달 → 취소 ({@link ForecastCancelledEvent})</li>
      * </ul>
      *
      * @param grid 기상청 격자
@@ -69,9 +76,11 @@ public class ForecastService {
             LocalDateTime firstRainAt, boolean simulated) {
         Optional<RainForecast> active =
                 rainForecastRepository.findActive(date, grid.nx(), grid.ny(), simulated);
-        if (!meetsThreshold(maxPop, totalMm)) {
-            return active.map(this::cancel)
-                    .orElseGet(() -> new ForecastApplyResult(Applied.IGNORED, null));
+        if (active.isEmpty() && !meetsConfirm(maxPop, totalMm)) {
+            return new ForecastApplyResult(Applied.IGNORED, null);
+        }
+        if (active.isPresent() && !meetsKeep(maxPop, totalMm)) {
+            return cancel(active.get());
         }
 
         LocalDateTime rainStartAt = firstRainAt;
@@ -168,13 +177,25 @@ public class ForecastService {
 
     private ForecastApplyResult cancel(RainForecast forecast) {
         forecast.cancel();
-        log.info("[비 예보] 기준 미달로 취소 id={} {}", forecast.getId(), forecast.getRainDate());
+        log.info("[비 예보] 취소 기준({}% · {}mm) 미달로 취소 id={} {}", policy.rainPopCancelThreshold(),
+                policy.rainMmCancelThreshold(), forecast.getId(), forecast.getRainDate());
         eventPublisher.publishEvent(new ForecastCancelledEvent(forecast.getId()));
         return new ForecastApplyResult(Applied.CANCELLED, forecast.getId());
     }
 
-    private boolean meetsThreshold(int maxPop, BigDecimal totalMm) {
+    /**
+     * 새로 확정하는 기준입니다. (60% 이상 그리고 5mm 이상)
+     */
+    private boolean meetsConfirm(int maxPop, BigDecimal totalMm) {
         return maxPop >= policy.rainPopThreshold()
                 && totalMm.compareTo(policy.rainMmThreshold()) >= 0;
+    }
+
+    /**
+     * 진행 중 예보를 유지하는 기준입니다. (40% 이상 그리고 2mm 이상, 미달이면 취소)
+     */
+    private boolean meetsKeep(int maxPop, BigDecimal totalMm) {
+        return maxPop >= policy.rainPopCancelThreshold()
+                && totalMm.compareTo(policy.rainMmCancelThreshold()) >= 0;
     }
 }
