@@ -94,12 +94,30 @@ class RequestSchedulePolicyTest {
                 .isEqualTo(Type.SEND_AT_NOTICE);
         assertThat(policy.plan(rain("2026-11-01T15:00"), at("2026-11-01T02:15")).type())
                 .isEqualTo(Type.SEND_AT_NOTICE);
-        // 06:00 배치는 오늘 비에 당일 규칙을 쓴다
+        // 06:00 배치는 오늘 비에 당일 규칙을 쓴다 (응답 마감은 미동의자 09:00 푸시 + 1시간)
         RequestSchedule atNotice =
                 policy.plan(rain("2026-11-01T15:00"), at("2026-11-01T06:00"));
         assertThat(atNotice.type()).isEqualTo(Type.SEND_NOW);
-        assertThat(atNotice.replyDeadlineAt()).isEqualTo(at("2026-11-01T07:00"));
+        assertThat(atNotice.replyDeadlineAt()).isEqualTo(at("2026-11-01T10:00"));
         assertThat(atNotice.completeDeadlineAt()).isEqualTo(at("2026-11-01T14:00"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // 지금, 비 시작, 응답 마감, 완료 마감
+            "2026-11-01T06:00, 2026-11-01T15:00, 2026-11-01T10:00, 2026-11-01T14:00",
+            "2026-11-01T06:00, 2026-11-01T10:30, 2026-11-01T09:30, 2026-11-01T09:30",
+            "2026-11-01T06:00, 2026-11-01T09:00, 2026-11-01T08:00, 2026-11-01T08:00",
+            "2026-11-01T07:30, 2026-11-01T15:00, 2026-11-01T10:00, 2026-11-01T14:00",
+            "2026-11-01T08:15, 2026-11-01T15:00, 2026-11-01T09:15, 2026-11-01T14:00"
+    })
+    void 야간_푸시_시간대에_보내는_당일_요청은_응답_마감을_10시로_늦춘다(String now, String rainStart,
+            String reply, String complete) {
+        RequestSchedule schedule = policy.plan(rain(rainStart), at(now));
+
+        assertThat(schedule.type()).isEqualTo(Type.SEND_NOW);
+        assertThat(schedule.replyDeadlineAt()).isEqualTo(at(reply));
+        assertThat(schedule.completeDeadlineAt()).isEqualTo(at(complete));
     }
 
     @Test
