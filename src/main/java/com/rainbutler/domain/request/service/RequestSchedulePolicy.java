@@ -25,14 +25,17 @@ import org.springframework.stereotype.Component;
  *   <li>완료 마감 = 비 시작 1시간 전. 그 시각이 21:00 이후이거나 06:00 이전(밤)이면 직전 21:00로 당깁니다
  *       ({@link #completeDeadlineBefore}).
  *       예: 비 23:30 → 21:00 / 비 다음 날 03:00 → 전날 21:00 / 비 다음 날 15:00 → 다음 날 14:00</li>
- *   <li>응답 마감 = 지금 + 1시간. 완료 마감보다 늦으면 완료 마감과 같게 합니다.</li>
+ *   <li>응답 마감 = 지금 + 1시간. 단, 야간 푸시 시간대(08:00 전)에 보내면 야간 푸시 미동의자는 09:00에 푸시를
+ *       받으므로 그때부터 1시간을 줘 <b>10:00</b>으로 합니다 (둘 중 늦은 값). 완료 마감보다 늦으면 완료 마감과 같게
+ *       합니다. 예: 06:00에 15:00 비 → 응답 10:00 / 06:00에 10:30 비 → 응답 09:30(완료 마감) /
+ *       08:15에 15:00 비 → 응답 09:15</li>
  *   <li>완료 마감이 지금이거나 이미 지났으면 보내지 않습니다. 예: 21:10에 오늘 23:30 비 → SKIP</li>
  * </ul>
  *
  * <h3>3. 밤(21:00 ~ 06:00)에 알게 된 비</h3>
  * 응답 마감(지금 + 1시간)이 한밤중이 되므로 바로 보내지 않고 다음 06:00 일괄 발송 배치에 맡깁니다.
  * 배치는 내일 비에는 1번 규칙, 오늘 비에는 06:00 기준 2번 규칙을 씁니다.
- * <br>예: 23:15에 내일 15시 비 → 다음 날 06:00에 2번 규칙(응답 07:00, 완료 14:00)으로 발송.
+ * <br>예: 23:15에 내일 15시 비 → 다음 날 06:00에 2번 규칙(응답 10:00, 완료 14:00)으로 발송.
  * 단, 21:00 이후에 알게 된 오늘 밤 비는 완료 마감(21:00)이 이미 지나 보내지 않습니다.
  */
 @Component
@@ -116,6 +119,15 @@ public class RequestSchedulePolicy {
             return RequestSchedule.skip("완료 마감이 이미 지남");
         }
         LocalDateTime replyDeadline = now.plusHours(policy.sameDayReplyHours());
+        // 야간 푸시 시간대에 보내면 미동의자는 night-deferred-push-time에 받으므로, 그때부터 응답 시간을 준다
+        if (now.toLocalTime().isBefore(policy.nightPushEndTime())) {
+            LocalDateTime deferredReply = now.toLocalDate()
+                    .atTime(policy.nightDeferredPushTime())
+                    .plusHours(policy.sameDayReplyHours());
+            if (deferredReply.isAfter(replyDeadline)) {
+                replyDeadline = deferredReply;
+            }
+        }
         if (replyDeadline.isAfter(completeDeadline)) {
             replyDeadline = completeDeadline;
         }
