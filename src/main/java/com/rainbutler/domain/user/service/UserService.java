@@ -4,6 +4,7 @@ import com.rainbutler.domain.adoption.entity.AdoptionStatus;
 import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.repository.AdoptionRepository;
 import com.rainbutler.domain.cleaning.entity.CleaningType;
+import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.point.entity.PointSourceType;
 import com.rainbutler.domain.point.repository.PointHistoryRepository;
 import com.rainbutler.domain.sanction.service.SanctionService;
@@ -99,9 +100,11 @@ public class UserService {
         MeResponse.PauseSummary pause = new MeResponse.PauseSummary(
                 pauseStatus.activeUntil(), pauseStatus.nextAvailableAt());
 
-        // 점검 수: 대신 점검(청소) + 입양 후 점검(살펴보기 · 청소 모두)
-        long inspectionCount = activityStatsRepository.countCompletedCleanings(
-                userId, List.of(CleaningType.SUBSTITUTE))
+        // 점검 수: 점검(inspection) + 예전 기록(대신 점검 청소 · 입양 후 관리 기록)
+        long inspectionCount = activityStatsRepository.countCompletedInspections(
+                userId, List.of(InspectionKind.values()))
+                + activityStatsRepository.countCompletedCleanings(
+                        userId, List.of(CleaningType.SUBSTITUTE))
                 + activityStatsRepository.countVerifiedManagements(
                         userId, List.of(ManagementActionType.values()));
         // 봉사 시간: 활동 점수(개인 적립 + 입양 빗물받이 성장) 100점당 1시간

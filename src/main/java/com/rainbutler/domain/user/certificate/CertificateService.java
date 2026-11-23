@@ -3,6 +3,7 @@ package com.rainbutler.domain.user.certificate;
 import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.entity.ManagementType;
 import com.rainbutler.domain.cleaning.entity.CleaningType;
+import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.ActivityStatsRepository;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 활동 확인서를 발급합니다. 서버에 저장하지 않고 요청할 때마다 PDF를 만들어 바로 내려줍니다.
+ *
+ * <p>점검 수 · 활동 시작일은 점검({@code inspection})과 예전 기록(대신 점검 청소 · 입양 후 관리 기록)을 합산합니다.
  */
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,8 @@ public class CertificateService {
 
     /**
      * 로그인 사용자의 활동 확인서를 만듭니다.
+     *
+     * <p>정기 · 비 예보 · 대신 점검 수와 활동 시작일은 점검({@code inspection})과 예전 기록을 합산합니다.
      *
      * @param userId 로그인 사용자 id
      * @return PDF 바이트와 파일 이름
@@ -53,12 +58,19 @@ public class CertificateService {
             throw new BusinessException(ErrorCode.CERTIFICATE_NO_ACTIVITY);
         }
 
-        long regular = activityStatsRepository.countVerifiedManagementsByType(
-                userId, ManagementType.REGULAR);
-        long forecast = activityStatsRepository.countVerifiedManagementsByType(
-                userId, ManagementType.RAIN);
-        long substitute = activityStatsRepository.countCompletedCleanings(
-                userId, List.of(CleaningType.SUBSTITUTE));
+        // 종류별 점검 수: 점검(inspection) + 예전 기록. 셋의 합이 inspectionCount와 같다
+        long regular = activityStatsRepository.countCompletedInspections(
+                userId, List.of(InspectionKind.ROUTINE))
+                + activityStatsRepository.countVerifiedManagementsByType(
+                        userId, ManagementType.REGULAR);
+        long forecast = activityStatsRepository.countCompletedInspections(
+                userId, List.of(InspectionKind.FORECAST))
+                + activityStatsRepository.countVerifiedManagementsByType(
+                        userId, ManagementType.RAIN);
+        long substitute = activityStatsRepository.countCompletedInspections(
+                userId, List.of(InspectionKind.SUBSTITUTE))
+                + activityStatsRepository.countCompletedCleanings(
+                        userId, List.of(CleaningType.SUBSTITUTE));
 
         LocalDate issuedAt = LocalDate.now(clock);
         CertificateData data = new CertificateData(
@@ -76,14 +88,15 @@ public class CertificateService {
     }
 
     /**
-     * 첫 인정 활동일을 구합니다. 청소와 입양 후 점검 중 더 이른 날짜를 씁니다.
+     * 첫 인정 활동일을 구합니다. 점검 · 청소 · 입양 후 관리 기록 중 가장 이른 날짜를 씁니다.
      */
     private LocalDate periodStart(Long userId, LocalDate fallback) {
         LocalDateTime firstCleaning = activityStatsRepository.findFirstCleaningAt(
                 userId, List.of(CleaningType.values()));
         LocalDateTime firstManagement = activityStatsRepository.findFirstManagementAt(
                 userId, List.of(ManagementActionType.values()));
-        LocalDateTime first = earliest(firstCleaning, firstManagement);
+        LocalDateTime firstInspection = activityStatsRepository.findFirstInspectionAt(userId);
+        LocalDateTime first = earliest(earliest(firstCleaning, firstManagement), firstInspection);
         return first == null ? fallback : first.toLocalDate();
     }
 
