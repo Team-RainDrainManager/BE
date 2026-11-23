@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import com.rainbutler.domain.adoption.entity.ManagementActionType;
 import com.rainbutler.domain.adoption.entity.ManagementType;
 import com.rainbutler.domain.cleaning.entity.CleaningType;
+import com.rainbutler.domain.inspection.entity.InspectionKind;
 import com.rainbutler.domain.user.dto.MeResponse;
 import com.rainbutler.domain.user.entity.User;
 import com.rainbutler.domain.user.repository.ActivityStatsRepository;
@@ -74,6 +75,15 @@ class CertificateServiceTest {
         given(activityStatsRepository.findFirstManagementAt(
                 USER_ID, java.util.List.of(ManagementActionType.values())))
                 .willReturn(LocalDateTime.of(2026, 4, 1, 10, 0));
+        // 점검(inspection) 기록: 예전 기록과 합산된다
+        given(activityStatsRepository.countCompletedInspections(
+                USER_ID, java.util.List.of(InspectionKind.ROUTINE))).willReturn(2L);
+        given(activityStatsRepository.countCompletedInspections(
+                USER_ID, java.util.List.of(InspectionKind.FORECAST))).willReturn(1L);
+        given(activityStatsRepository.countCompletedInspections(
+                USER_ID, java.util.List.of(InspectionKind.SUBSTITUTE))).willReturn(3L);
+        given(activityStatsRepository.findFirstInspectionAt(USER_ID))
+                .willReturn(LocalDateTime.of(2026, 5, 1, 10, 0));
 
         IssuedCertificate issued = service.issue(USER_ID);
 
@@ -87,10 +97,28 @@ class CertificateServiceTest {
         assertThat(data.periodStart()).isEqualTo(java.time.LocalDate.of(2026, 3, 2));
         assertThat(data.issuedAt()).isEqualTo(java.time.LocalDate.of(2026, 11, 5));
         assertThat(data.inspectionCount()).isEqualTo(24);
-        assertThat(data.regularCount()).isEqualTo(18);
-        assertThat(data.forecastCount()).isEqualTo(4);
-        assertThat(data.substituteCount()).isEqualTo(2);
+        assertThat(data.regularCount()).isEqualTo(20);
+        assertThat(data.forecastCount()).isEqualTo(5);
+        assertThat(data.substituteCount()).isEqualTo(5);
         assertThat(data.volunteerMinutes()).isEqualTo(360);
+    }
+
+    @Test
+    void 점검이_가장_이르면_활동_시작일은_첫_점검일이다() {
+        MeResponse me = mock(MeResponse.class);
+        given(me.inspectionCount()).willReturn(1L);
+        given(userService.getMe(USER_ID)).willReturn(me);
+        given(activityStatsRepository.findFirstCleaningAt(
+                USER_ID, java.util.List.of(CleaningType.values())))
+                .willReturn(LocalDateTime.of(2026, 3, 2, 10, 0));
+        given(activityStatsRepository.findFirstInspectionAt(USER_ID))
+                .willReturn(LocalDateTime.of(2026, 2, 10, 9, 0));
+
+        service.issue(USER_ID);
+
+        ArgumentCaptor<CertificateData> captor = ArgumentCaptor.forClass(CertificateData.class);
+        verify(renderer).render(captor.capture());
+        assertThat(captor.getValue().periodStart()).isEqualTo(java.time.LocalDate.of(2026, 2, 10));
     }
 
     @Test
