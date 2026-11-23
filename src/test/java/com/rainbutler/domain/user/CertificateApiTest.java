@@ -117,6 +117,29 @@ class CertificateApiTest extends IntegrationTestSupport {
         assertThat(new String(body, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
     }
 
+    @Test
+    void 점검만_한_사용자도_확인서를_받는다() throws Exception {
+        identity("홍길동");
+        Long drainId = jdbcTemplate.queryForObject("INSERT INTO drain (registered_by, latitude, "
+                + "longitude, photo_url, dirt_level, adoption_status, status, is_risk, "
+                + "created_at, updated_at) VALUES (?, 37.5, 127.0, 'http://x', 1, 'AVAILABLE', "
+                + "'ACTIVE', false, now(), now()) RETURNING id", Long.class, user.getId());
+        jdbcTemplate.update("INSERT INTO inspection (user_id, drain_id, kind, status, "
+                + "before_photo_key, distance_m, captured_at, created_at, updated_at) "
+                + "VALUES (?, ?, 'ROUTINE', 'COMPLETED', 'test/before.jpg', 5, now(), now(), "
+                + "now())",
+                user.getId(), drainId);
+
+        MvcResult result = mockMvc.perform(get("/api/v1/users/me/certificate")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", MediaType.APPLICATION_PDF_VALUE))
+                .andReturn();
+
+        byte[] body = result.getResponse().getContentAsByteArray();
+        assertThat(new String(body, 0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+    }
+
     private void identity(String realName) throws Exception {
         mockMvc.perform(post("/api/v1/users/me/identity")
                         .header("Authorization", "Bearer " + token)

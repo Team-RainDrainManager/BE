@@ -218,6 +218,50 @@ class MeStatsApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.data.volunteerMinutes").value(0));
     }
 
+    @Test
+    void 완료한_점검은_종류와_상관없이_점검_수에_들어간다() throws Exception {
+        inspection(user.getId(), "ROUTINE", "COMPLETED");
+        inspection(user.getId(), "FORECAST", "COMPLETED");
+        inspection(user.getId(), "SUBSTITUTE", "COMPLETED");
+
+        me().andExpect(jsonPath("$.data.inspectionCount").value(3));
+    }
+
+    @Test
+    void 완료하지_않은_점검은_세지_않는다() throws Exception {
+        inspection(user.getId(), "ROUTINE", "NEEDS_CLEANING");
+        inspection(user.getId(), "ROUTINE", "PENDING");
+        inspection(user.getId(), "ROUTINE", "REJECTED");
+
+        me().andExpect(jsonPath("$.data.inspectionCount").value(0));
+    }
+
+    @Test
+    void 삭제된_점검은_세지_않는다() throws Exception {
+        Long id = inspection(user.getId(), "ROUTINE", "COMPLETED");
+        jdbcTemplate.update("UPDATE inspection SET deleted_at = now() WHERE id = ?", id);
+
+        me().andExpect(jsonPath("$.data.inspectionCount").value(0));
+    }
+
+    @Test
+    void 다른_사용자의_점검은_세지_않는다() throws Exception {
+        User other = userRepository.save(User.local(
+                UUID.randomUUID() + "@test.com", "{noop}x", "다른집사"));
+        inspection(other.getId(), "ROUTINE", "COMPLETED");
+
+        me().andExpect(jsonPath("$.data.inspectionCount").value(0));
+    }
+
+    @Test
+    void 예전_기록과_점검을_합산한다() throws Exception {
+        cleaning(user.getId(), "SUBSTITUTE", "COMPLETED", "APPROVED");
+        management(adoption("ACTIVE"), "INSPECTION", "VERIFIED", "NOT_REQUIRED");
+        inspection(user.getId(), "ROUTINE", "COMPLETED");
+
+        me().andExpect(jsonPath("$.data.inspectionCount").value(3));
+    }
+
     private ResultActions me() throws Exception {
         return mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token));
     }
@@ -258,6 +302,16 @@ class MeStatsApiTest extends IntegrationTestSupport {
                 + "location_mismatch, started_at, created_at, updated_at) VALUES (?, ?, ?, "
                 + "'http://x', ?, ?, 37.5, 127.0, false, now(), now(), now()) RETURNING id",
                 Long.class, userId, drain, type, status, reviewStatus);
+    }
+
+    /**
+     * 점검({@code inspection}) 기록을 만듭니다.
+     */
+    private Long inspection(Long userId, String kind, String status) {
+        return jdbcTemplate.queryForObject("INSERT INTO inspection (user_id, drain_id, kind, "
+                + "status, before_photo_key, distance_m, captured_at, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, 'test/before.jpg', 5, now(), now(), now()) RETURNING id",
+                Long.class, userId, drain(), kind, status);
     }
 
     private void management(
